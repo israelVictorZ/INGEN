@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       # instala só as 4 dependências do script (~10s), não o site inteiro:
       # mantém cada execução em ~1 min e o total dentro da cota gratuita do GitHub Actions
       - run: |

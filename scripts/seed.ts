@@ -23,6 +23,13 @@ const ROSTER: { team: string; role: Role; slug: string; displayName: string; gam
   { team: "silver", role: "SUPPORT", slug: "bonnie", displayName: "Bonnie", gameName: "SooH Bonnie", tagLine: "1010" },
 ];
 
+/** Redes sociais por jogador (slug). Twitch alimenta o selo "Ao vivo". */
+const SOCIALS: { slug: string; platform: string; url: string }[] = [
+  { slug: "clyde", platform: "twitch", url: "https://www.twitch.tv/vonor01" },
+  { slug: "czar", platform: "twitch", url: "https://www.twitch.tv/diogo_czar" },
+  { slug: "coelho", platform: "twitch", url: "https://www.twitch.tv/capitaocoelho" },
+];
+
 const OPEN: { team: string; role: Role }[] = [
   { team: "black", role: "TOP" },
   { team: "silver", role: "MID" },
@@ -113,6 +120,13 @@ async function main() {
     }
   }
 
+  for (const so of SOCIALS) {
+    const [pl] = await db.select().from(schema.players).where(eq(schema.players.slug, so.slug));
+    if (!pl) continue;
+    await db.delete(schema.socialLinks).where(and(eq(schema.socialLinks.playerId, pl.id), eq(schema.socialLinks.platform, so.platform)));
+    await db.insert(schema.socialLinks).values({ playerId: pl.id, platform: so.platform, url: so.url });
+  }
+
   await db.delete(schema.openSlots);
   await db.insert(schema.openSlots).values(OPEN.map((o) => ({ teamId: teamId(o.team), role: o.role })));
 
@@ -122,7 +136,7 @@ async function main() {
     await db.insert(schema.news).values(values).onConflictDoNothing({ target: schema.news.slug });
   }
 
-  console.log("Seed concluído:", ROSTER.length, "jogadores,", OPEN.length, "vagas,", NEWS.length, "notícias");
+  console.log("Seed concluído:", ROSTER.length, "jogadores,", SOCIALS.length, "redes,", OPEN.length, "vagas,", NEWS.length, "notícias");
 }
 
 main().catch((e) => {

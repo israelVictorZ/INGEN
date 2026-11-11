@@ -47,7 +47,7 @@ Os canais ficam na tabela `social_links` (`platform = "twitch"`). Toda alteraç�
    ```bash
    curl -s https://ingen-three.vercel.app/api/live
    ```
-   - O slug do jogador deve aparecer com o `channel` certo (ou sumir, na remoção).
+   - A resposta é `{ team, players }`: o slug do jogador deve aparecer em `players` com o `channel` certo (ou sumir, na remoção). `team` é o canal oficial (twitch.tv/ingen_team, fixo em `src/lib/features.ts`).
    - `isLive: true` só se ele estiver transmitindo naquele momento.
 
 ## Como o selo funciona (para explicar se perguntarem)
@@ -56,6 +56,7 @@ Os canais ficam na tabela `social_links` (`platform = "twitch"`). Toda alteraç�
 - **Com as variáveis da Twitch na Vercel**, a rota pergunta direto à Twitch.
 - **Sem elas**, usa o status gravado pelo sync do GitHub Actions. A sonda de 5 min só passa a vigiar um canal novo depois da próxima sincronização completa (até 6 h).
 - O selo aparece nos cards do elenco, no perfil e na faixa "Ao vivo agora" da home.
+- Quando o canal oficial (ou, se ele estiver offline, algum jogador) está ao vivo, um pin fixo aparece no canto da tela em todas as páginas. O canal oficial só é verificado com as variáveis da Twitch (o sync não grava o status dele).
 
 ## Relatório ao usuário
 

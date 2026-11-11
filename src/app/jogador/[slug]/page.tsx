@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getPlayer, getSiteData, type Rank } from "@/lib/data";
+import { getPlayer, getSiteData, type Player, type Rank, type Stats } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { LaneIcon } from "@/components/brand/LaneIcon";
@@ -12,7 +12,7 @@ import { championIcon, championSplash, profileIcon } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, fixed, opggUrl, pct, rankLabel, riotId } from "@/lib/format";
 import { ROLES } from "@/db/schema";
 import { mainChamps } from "@/lib/view";
-import { ChampionTable, EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos } from "@/components/player/sections";
+import { ChampionTable, EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos, PlayerInsights } from "@/components/player/sections";
 import { LiveBadge, TwitchButton } from "@/components/live/Live";
 
 export async function generateStaticParams() {
@@ -70,16 +70,24 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
   const mates = data.players.filter((x) => x.team.slug === p.team.slug && x.slug !== p.slug);
   const totalRole = Object.values(p.roleDist).reduce((a, b) => a + (b ?? 0), 0);
 
+  // posição do jogador entre todos da INGEN em cada métrica
+  const peers = data.players.filter((x): x is Player & { stats: Stats } => x.stats != null);
+  const place = (get: (st: Stats) => number) => {
+    if (!s) return null;
+    const me = get(s);
+    return { pos: 1 + peers.filter((x) => get(x.stats) > me).length, of: peers.length };
+  };
+
   const metrics = s
     ? [
-        { k: "KDA", v: fixed(s.kda, 2), to: s.kda, dec: 2, sub: `${fixed(s.kills)} / ${fixed(s.deaths)} / ${fixed(s.assists)}` },
-        { k: "Winrate", v: pct(s.winrate), to: s.winrate * 100, dec: 0, suffix: "%", sub: `${s.wins}V ${s.games - s.wins}D` },
-        { k: "CS / min", v: fixed(s.csPerMin), to: s.csPerMin, dec: 1 },
-        { k: "Visão / min", v: fixed(s.visionPerMin, 2), to: s.visionPerMin, dec: 2 },
-        { k: "Ouro / min", v: fixed(s.goldPerMin, 0), to: s.goldPerMin, dec: 0 },
-        { k: "Part. em abates", v: pct(s.kp), to: s.kp * 100, dec: 0, suffix: "%" },
-        { k: "Dano no time", v: pct(s.damageShare), to: s.damageShare * 100, dec: 0, suffix: "%" },
-        { k: "Partidas", v: String(s.games), to: s.games, dec: 0, sub: "Solo/Duo recentes" },
+        { k: "KDA", v: fixed(s.kda, 2), to: s.kda, dec: 2, sub: `${fixed(s.kills)} / ${fixed(s.deaths)} / ${fixed(s.assists)}`, place: place((x) => x.kda) },
+        { k: "Winrate", v: pct(s.winrate), to: s.winrate * 100, dec: 0, suffix: "%", sub: `${s.wins}V ${s.games - s.wins}D`, place: place((x) => x.winrate) },
+        { k: "CS / min", v: fixed(s.csPerMin), to: s.csPerMin, dec: 1, place: place((x) => x.csPerMin) },
+        { k: "Visão / min", v: fixed(s.visionPerMin, 2), to: s.visionPerMin, dec: 2, place: place((x) => x.visionPerMin) },
+        { k: "Ouro / min", v: fixed(s.goldPerMin, 0), to: s.goldPerMin, dec: 0, place: place((x) => x.goldPerMin) },
+        { k: "Part. em abates", v: pct(s.kp), to: s.kp * 100, dec: 0, suffix: "%", place: place((x) => x.kp) },
+        { k: "Dano no time", v: pct(s.damageShare), to: s.damageShare * 100, dec: 0, suffix: "%", place: place((x) => x.damageShare) },
+        { k: "Partidas", v: String(s.games), to: s.games, dec: 0, sub: "Solo/Duo recentes", place: null },
       ]
     : [];
 
@@ -194,6 +202,12 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
                   {m.v}
                 </p>
                 {m.sub && <p className="mt-2 font-mono text-[0.65rem] text-gray-dim">{m.sub}</p>}
+                {m.place && (
+                  <p className={`mt-2 font-mono text-[0.6rem] uppercase tracking-[0.14em] ${m.place.pos === 1 ? "text-green" : m.place.pos <= 3 ? "text-white-dim" : "text-gray-dim"}`}>
+                    {m.place.pos === 1 ? "▲ " : ""}
+                    {m.place.pos}º de {m.place.of} na INGEN
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -204,6 +218,21 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         <section className="wrap mt-6 space-y-6">
           <ExtraMetrics p={p} />
           <FormAndRecords p={p} version={v} />
+        </section>
+      )}
+
+      {/* LEITURA DO JOGADOR */}
+      {p.insights && (
+        <section className="wrap mt-24">
+          <div className="flex items-end justify-between gap-6">
+            <h2 data-reveal="up" className="font-display text-4xl font-extrabold uppercase text-white md:text-5xl">
+              Leitura <span className="text-gray-dim">do jogador</span>
+            </h2>
+            <p className="label-mono hidden md:block">Recortes das últimas {s?.games ?? 0} Solo/Duo</p>
+          </div>
+          <div data-reveal="up" className="mt-8">
+            <PlayerInsights p={p} data={data} />
+          </div>
         </section>
       )}
 

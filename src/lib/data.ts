@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { desc, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Role, NewsCategory } from "@/db/schema";
-import { getChampionMap, getRuneMap, getSpellMap, type ChampionInfo } from "./ddragon";
+import { getChampionMap, getRuneMap, getRuneNames, getSpellMap, type ChampionInfo } from "./ddragon";
 import { POSITION_TO_ROLE, ROLE_META, rankScore } from "./format";
 
 export type Rank = {
@@ -83,6 +83,45 @@ export type Stats = {
   firstBloodRate: number | null;
 };
 
+export type WinSplit = { games: number; wins: number };
+/** Fotografia de desempenho de um conjunto de partidas (para comparar recortes). */
+export type PerfSnap = {
+  games: number;
+  winrate: number;
+  kda: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  csPerMin: number;
+  damagePerMin: number;
+  goldPerMin: number;
+  visionPerMin: number;
+  kp: number;
+};
+export type Insights = {
+  avgDurationSec: number;
+  /** lado do mapa: azul (100) e vermelho (200) */
+  sides: { blue: WinSplit; red: WinSplit };
+  /** winrate por duração: até 25 min, 25 a 35, mais de 35 */
+  duration: { short: WinSplit; mid: WinSplit; long: WinSplit };
+  /** médias nas vitórias × nas derrotas */
+  winLoss: { win: PerfSnap | null; loss: PerfSnap | null };
+  /** últimas 10 × as anteriores (dentro da janela) */
+  trend: { recent: PerfSnap; previous: PerfSnap } | null;
+  /** partidas por dia da semana (0 = domingo) e período (madrugada, manhã, tarde, noite), horário de Brasília */
+  schedule: number[][];
+  gamesLast7d: number;
+  keystones: { id: number; games: number; wins: number }[];
+  /** campeões diferentes jogados e quantos têm 3+ partidas */
+  uniqueChamps: number;
+  comfortChamps: number;
+  /** % das partidas com o campeão mais jogado */
+  oneTrickShare: number;
+  /** % das partidas na lane principal */
+  mainRoleShare: number;
+  firstBloodWinrate: number | null;
+};
+
 export type RankPoint = { t: number; score: number; tier: string; division: string; lp: number };
 
 export type TeamRef = { slug: string; name: string; shortName: string; accent: string; sortOrder: number };
@@ -119,7 +158,14 @@ export type Player = {
   streak: number;
   duos: { slug: string; name: string; games: number; wins: number }[];
   matchups: { key: string; name: string; games: number; wins: number }[];
-  records: { mostKills: RecentMatch | null; bestKda: RecentMatch | null; multiKills: Record<number, number> };
+  records: {
+    mostKills: RecentMatch | null;
+    bestKda: RecentMatch | null;
+    mostDamage: RecentMatch | null;
+    mostCs: RecentMatch | null;
+    multiKills: Record<number, number>;
+  };
+  insights: Insights | null;
   live: { channel: string; isLive: boolean; title: string | null; viewers: number | null } | null;
 };
 
@@ -148,6 +194,7 @@ export type SiteData = {
   version: string;
   spells: Record<number, string>;
   runes: Record<number, string>;
+  runeNames: Record<number, string>;
   lastSync: string | null;
   teams: Team[];
   players: Player[];
@@ -184,6 +231,33 @@ function detailStats(rows: DetailRow[]) {
   };
 }
 
+type SnapRow = {
+  win: boolean; kills: number; deaths: number; assists: number; cs: number; damage: number; gold: number;
+  visionScore: number; killParticipation: number | null; match: { durationSec: number };
+};
+function snap(rows: SnapRow[]): PerfSnap | null {
+  if (!rows.length) return null;
+  const mins = (x: SnapRow) => x.match.durationSec / 60;
+  const k = avg(rows.map((x) => x.kills));
+  const d = avg(rows.map((x) => x.deaths));
+  const a = avg(rows.map((x) => x.assists));
+  return {
+    games: rows.length,
+    winrate: rows.filter((x) => x.win).length / rows.length,
+    kda: d === 0 ? k + a : (k + a) / d,
+    kills: k,
+    deaths: d,
+    assists: a,
+    csPerMin: avg(rows.map((x) => x.cs / mins(x))),
+    damagePerMin: avg(rows.map((x) => x.damage / mins(x))),
+    goldPerMin: avg(rows.map((x) => x.gold / mins(x))),
+    visionPerMin: avg(rows.map((x) => x.visionScore / mins(x))),
+    kp: avg(rows.map((x) => x.killParticipation ?? 0)),
+  };
+}
+const split = <T extends { win: boolean }>(rows: T[]): WinSplit => ({ games: rows.length, wins: rows.filter((x) => x.win).length });
+const BRT_OFFSET = 3 * 3_600_000;
+
 function toRank(r: { tier: string; division: string; lp: number; wins: number; losses: number } | undefined): Rank | null {
   if (!r) return null;
   const games = r.wins + r.losses;
@@ -219,7 +293,7 @@ export async function getSiteData(): Promise<SiteData> {
 
   const version = meta.find((m) => m.key === "ddragon_version")?.value ?? "16.22.1";
   const lastSync = meta.find((m) => m.key === "last_sync")?.value ?? null;
-  const [champs, spells, runes] = await Promise.all([getChampionMap(version), getSpellMap(version), getRuneMap(version)]);
+  const [champs, spells, runes, runeNames] = await Promise.all([getChampionMap(version), getSpellMap(version), getRuneMap(version), getRuneNames(version)]);
   const champ = (id: number): ChampionInfo => champs[id] ?? { id: "Aatrox", name: `#${id}` };
   const matchById = new Map(matches.map((m) => [m.matchId, m]));
 
@@ -401,6 +475,47 @@ export async function getSiteData(): Promise<SiteData> {
       if (mk >= 2) multiKills[mk] = (multiKills[mk] ?? 0) + 1;
     }
 
+    // Insights: recortes que ajudam a ler o jogador (lado, duração, horário, tendência)
+    let insights: Insights | null = null;
+    if (myParts.length) {
+      const refNow = lastSync ? new Date(lastSync).getTime() : myParts[0].match.gameStart;
+      const schedule = Array.from({ length: 7 }, () => [0, 0, 0, 0]);
+      for (const x of myParts) {
+        const d = new Date(x.match.gameStart - BRT_OFFSET);
+        schedule[d.getUTCDay()][Math.floor(d.getUTCHours() / 6)]++;
+      }
+      const ks = new Map<number, WinSplit>();
+      for (const x of myParts.filter((y) => y.keystone)) {
+        const v = ks.get(x.keystone!) ?? { games: 0, wins: 0 };
+        v.games++;
+        if (x.win) v.wins++;
+        ks.set(x.keystone!, v);
+      }
+      const mins = (x: (typeof myParts)[number]) => x.match.durationSec / 60;
+      const fb = myParts.filter((x) => x.detailed && x.firstBlood);
+      const recent10 = snap(myParts.slice(0, 10));
+      const previous = snap(myParts.slice(10));
+      insights = {
+        avgDurationSec: avg(myParts.map((x) => x.match.durationSec)),
+        sides: { blue: split(myParts.filter((x) => x.teamId === 100)), red: split(myParts.filter((x) => x.teamId === 200)) },
+        duration: {
+          short: split(myParts.filter((x) => mins(x) < 25)),
+          mid: split(myParts.filter((x) => mins(x) >= 25 && mins(x) <= 35)),
+          long: split(myParts.filter((x) => mins(x) > 35)),
+        },
+        winLoss: { win: snap(myParts.filter((x) => x.win)), loss: snap(myParts.filter((x) => !x.win)) },
+        trend: recent10 && previous && previous.games >= 5 ? { recent: recent10, previous } : null,
+        schedule,
+        gamesLast7d: myParts.filter((x) => x.match.gameStart >= refNow - 7 * 86_400_000).length,
+        keystones: [...ks.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => b.games - a.games).slice(0, 4),
+        uniqueChamps: champions.filter((c) => c.games > 0).length,
+        comfortChamps: champions.filter((c) => c.games >= 3).length,
+        oneTrickShare: (champions[0]?.games ?? 0) / myParts.length,
+        mainRoleShare: (roleDist[m.role] ?? 0) / myParts.length,
+        firstBloodWinrate: fb.length ? fb.filter((x) => x.win).length / fb.length : null,
+      };
+    }
+
     const lv = lives.find((l) => l.playerId === p.id);
     const twitchLink = socials.find((so) => so.playerId === p.id && so.platform === "twitch");
     const live = lv ?? (twitchLink ? { channel: twitchLink.url.replace(/\/+$/, "").split("/").pop()!, isLive: false, title: null, viewers: null } : null);
@@ -434,8 +549,11 @@ export async function getSiteData(): Promise<SiteData> {
       records: {
         mostKills: [...recent].sort((a, b) => b.kills - a.kills)[0] ?? null,
         bestKda: [...recent].sort((a, b) => kdaOf(b) - kdaOf(a))[0] ?? null,
+        mostDamage: [...recent].sort((a, b) => b.damage - a.damage)[0] ?? null,
+        mostCs: [...recent].sort((a, b) => b.cs / b.durationSec - a.cs / a.durationSec)[0] ?? null,
         multiKills,
       },
+      insights,
       live: live ? { channel: live.channel, isLive: live.isLive, title: live.title, viewers: live.viewers } : null,
     });
   }
@@ -469,6 +587,7 @@ export async function getSiteData(): Promise<SiteData> {
     version,
     spells,
     runes,
+    runeNames,
     lastSync,
     teams: builtTeams,
     players: builtPlayers,

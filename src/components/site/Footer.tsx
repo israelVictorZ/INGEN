@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FEATURES } from "@/lib/features";
+import { FEATURES, LINKS } from "@/lib/features";
+import { DiscordIcon, TwitchIcon } from "@/components/brand/SocialIcons";
 
 export function Footer() {
   return (
     <footer className="no-print relative mt-32 overflow-hidden border-t border-line bg-bg-0">
       <div className="pointer-events-none absolute inset-0 bg-lines opacity-60" />
-      <div className="wrap relative grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1fr]">
+      <div className="wrap relative grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1fr_1fr]">
         <div>
           <Image src="/brand/ingen-logo.webp" alt="INGEN" width={120} height={100} />
           <p className="mt-6 max-w-sm text-sm text-gray">
@@ -27,6 +28,21 @@ export function Footer() {
             <li><Link className="text-white-dim hover:text-green" href="/ranking">Ranking interno</Link></li>
             <li><Link className="text-white-dim hover:text-green" href="/comparar">Comparar jogadores</Link></li>
             {FEATURES.news && <li><Link className="text-white-dim hover:text-green" href="/noticias">Notícias</Link></li>}
+          </ul>
+        </div>
+        <div>
+          <p className="label-mono mb-4">Comunidade</p>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <a className="inline-flex items-center gap-2 text-white-dim hover:text-[#bf94ff]" href={LINKS.twitch} target="_blank" rel="noopener noreferrer">
+                <TwitchIcon /> twitch.tv/ingen_team
+              </a>
+            </li>
+            <li>
+              <a className="inline-flex items-center gap-2 text-white-dim hover:text-[#8f9bff]" href={LINKS.discord} target="_blank" rel="noopener noreferrer">
+                <DiscordIcon /> Discord da INGEN
+              </a>
+            </li>
           </ul>
         </div>
       </div>

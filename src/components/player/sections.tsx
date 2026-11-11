@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Player, RecentMatch, SiteData } from "@/lib/data";
+import type { PerfSnap, Player, RecentMatch, SiteData, WinSplit } from "@/lib/data";
 import { championIcon, itemIcon, runeIcon, spellIcon } from "@/lib/ddragon-urls";
 import { TIER_META, fixed, pct, rankLabel, scoreToLabel, scoreToTier } from "@/lib/format";
 import { TimeAgo } from "@/components/ui/TimeAgo";
@@ -119,6 +119,7 @@ function rankLabelFromScore(score: number) {
 export function ExtraMetrics({ p }: { p: Player }) {
   const s = p.stats;
   if (!s) return null;
+  const ins = p.insights;
   const items = [
     { k: "Dano / min", v: fixed(s.damagePerMin, 0) },
     { k: "Dano recebido", v: s.damageTaken != null ? `${(s.damageTaken / 1000).toFixed(1)}k` : "—", sub: "por partida" },
@@ -127,7 +128,15 @@ export function ExtraMetrics({ p }: { p: Player }) {
     { k: "Wards colocadas", v: fixed(s.wardsPlaced, 1), sub: "por partida" },
     { k: "Wards destruídas", v: fixed(s.wardsKilled, 1), sub: "por partida" },
     { k: "Control wards", v: fixed(s.controlWards, 1), sub: "compradas por partida" },
-    { k: "First blood", v: pct(s.firstBloodRate), sub: "participação" },
+    { k: "First blood", v: pct(s.firstBloodRate), sub: ins?.firstBloodWinrate != null ? `${pct(ins.firstBloodWinrate)} de vitórias quando participa` : "participação" },
+    { k: "Placas de torre", v: fixed(s.turretPlates, 1), sub: "por partida" },
+    { k: "Duração média", v: ins ? mmss(ins.avgDurationSec) : "—", sub: "por partida" },
+    { k: "Últimos 7 dias", v: ins ? String(ins.gamesLast7d) : "—", sub: "partidas Solo/Duo" },
+    {
+      k: "Pool",
+      v: ins ? String(ins.uniqueChamps) : "—",
+      sub: ins ? `campeões · ${ins.comfortChamps} com 3+ jogos · ${pct(ins.oneTrickShare)} no principal` : undefined,
+    },
   ];
   return (
     <div data-reveal="stagger" className="grid grid-cols-2 gap-px bg-line md:grid-cols-4">
@@ -142,11 +151,199 @@ export function ExtraMetrics({ p }: { p: Player }) {
   );
 }
 
+const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
+
+/* ------------------------------------------------------------------ */
+/* Leitura do jogador: vitórias × derrotas, tendência, contexto, runas */
+/* ------------------------------------------------------------------ */
+const PERF_ROWS: { k: keyof PerfSnap; label: string; fmt: (v: number) => string; better: "high" | "low" }[] = [
+  { k: "kda", label: "KDA", fmt: (v) => v.toFixed(2), better: "high" },
+  { k: "kills", label: "Abates", fmt: (v) => v.toFixed(1), better: "high" },
+  { k: "deaths", label: "Mortes", fmt: (v) => v.toFixed(1), better: "low" },
+  { k: "kp", label: "Part. abates", fmt: (v) => pct(v), better: "high" },
+  { k: "csPerMin", label: "CS/min", fmt: (v) => v.toFixed(1), better: "high" },
+  { k: "damagePerMin", label: "Dano/min", fmt: (v) => v.toFixed(0), better: "high" },
+  { k: "goldPerMin", label: "Ouro/min", fmt: (v) => v.toFixed(0), better: "high" },
+  { k: "visionPerMin", label: "Visão/min", fmt: (v) => v.toFixed(2), better: "high" },
+];
+
+function SplitBar({ label, s, hint }: { label: string; s: WinSplit; hint?: string }) {
+  const wr = s.games ? s.wins / s.games : 0;
+  return (
+    <li>
+      <div className="flex justify-between font-mono text-[0.66rem] uppercase tracking-wider">
+        <span className="text-gray">
+          {label}
+          {hint && <span className="ml-1.5 normal-case tracking-normal text-gray-dim">{hint}</span>}
+        </span>
+        <span className={!s.games ? "text-gray-dim" : wr >= 0.5 ? "text-green" : "text-loss"}>
+          {s.games ? pct(wr) : "—"} <span className="text-gray-dim">· {s.games}</span>
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 bg-bg-3">
+        <div data-reveal="bar" className={`h-full ${wr >= 0.5 ? "bg-[image:var(--grad-ingen-x)]" : "bg-loss/70"}`} style={{ width: `${s.games ? wr * 100 : 0}%` }} />
+      </div>
+    </li>
+  );
+}
+
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const PERIODS = ["Madrugada", "Manhã", "Tarde", "Noite"];
+
+export function PlayerInsights({ p, data }: { p: Player; data: Pick<SiteData, "runes" | "runeNames"> }) {
+  const ins = p.insights;
+  if (!ins) return null;
+  const { win, loss } = ins.winLoss;
+  const maxCell = Math.max(1, ...ins.schedule.flat());
+  // período favorito
+  const byPeriod = PERIODS.map((_, pi) => ins.schedule.reduce((s, d) => s + d[pi], 0));
+  const favPeriod = byPeriod.indexOf(Math.max(...byPeriod));
+  const byDay = ins.schedule.map((d) => d.reduce((a, b) => a + b, 0));
+  const favDay = byDay.indexOf(Math.max(...byDay));
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {/* Vitórias × derrotas */}
+      <div className="clip-step bg-bg-2 p-6">
+        <p className="label-mono">Nas vitórias × nas derrotas</p>
+        <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">O que muda no jogo dele quando ganha e quando perde</p>
+        <table className="mt-5 w-full font-mono text-xs">
+          <thead>
+            <tr className="text-[0.58rem] uppercase tracking-[0.16em] text-gray-dim">
+              <th className="pb-2 text-left font-normal">Média</th>
+              <th className="pb-2 text-right font-normal text-green">Vitórias ({win?.games ?? 0})</th>
+              <th className="pb-2 text-right font-normal text-loss">Derrotas ({loss?.games ?? 0})</th>
+              <th className="pb-2 text-right font-normal">Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PERF_ROWS.map((r) => {
+              const w = win?.[r.k];
+              const l = loss?.[r.k];
+              const diff = w != null && l != null && l !== 0 ? (w - l) / Math.abs(l) : null;
+              return (
+                <tr key={r.k} className="border-t border-line/60">
+                  <td className="py-2 text-gray">{r.label}</td>
+                  <td className="py-2 text-right text-white">{w != null ? r.fmt(w) : "—"}</td>
+                  <td className="py-2 text-right text-white-dim">{l != null ? r.fmt(l) : "—"}</td>
+                  <td className="py-2 text-right text-gray-dim">{diff != null ? `${diff > 0 ? "+" : ""}${Math.round(diff * 100)}%` : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Tendência */}
+      <div className="clip-step bg-bg-2 p-6">
+        <p className="label-mono">Tendência</p>
+        <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Últimas 10 partidas comparadas com as anteriores</p>
+        {ins.trend ? (
+          <ul className="mt-5 grid grid-cols-2 gap-px bg-line">
+            {[{ k: "winrate" as const, label: "Winrate", fmt: (v: number) => pct(v), better: "high" as const }, ...PERF_ROWS.filter((r) => r.k !== "kills")].map((r) => {
+              const now = ins.trend!.recent[r.k];
+              const before = ins.trend!.previous[r.k];
+              const up = now > before;
+              const good = now === before ? null : r.better === "low" ? !up : up;
+              return (
+                <li key={r.k} className="bg-bg-2 p-3">
+                  <p className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-gray-dim">{r.label}</p>
+                  <p className="mt-1.5 flex items-baseline gap-2">
+                    <span className="font-display text-2xl font-black leading-none text-white">{r.fmt(now)}</span>
+                    <span className={`font-mono text-[0.65rem] ${good == null ? "text-gray-dim" : good ? "text-green" : "text-loss"}`}>
+                      {now === before ? "=" : up ? "▲" : "▼"} {r.fmt(before)}
+                    </span>
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-5 text-sm text-gray">Ainda não há partidas suficientes para comparar períodos.</p>
+        )}
+      </div>
+
+      {/* Contexto: lado e duração */}
+      <div className="clip-step bg-bg-2 p-6">
+        <p className="label-mono">Contexto de jogo</p>
+        <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Winrate por lado do mapa e por duração da partida</p>
+        <ul className="mt-5 space-y-3.5">
+          <SplitBar label="Lado azul" s={ins.sides.blue} />
+          <SplitBar label="Lado vermelho" s={ins.sides.red} />
+          <SplitBar label="Jogos curtos" hint="até 25 min" s={ins.duration.short} />
+          <SplitBar label="Jogos médios" hint="25 a 35 min" s={ins.duration.mid} />
+          <SplitBar label="Jogos longos" hint="35+ min" s={ins.duration.long} />
+        </ul>
+        {ins.keystones.length > 0 && (
+          <div className="mt-6 border-t border-line pt-5">
+            <p className="label-mono text-[0.6rem]">Runas principais</p>
+            <ul className="mt-3 grid grid-cols-2 gap-2">
+              {ins.keystones.map((k) => {
+                const wr = k.wins / k.games;
+                return (
+                  <li key={k.id} className="flex items-center gap-2.5 bg-bg-0 p-2">
+                    {data.runes[k.id] ? (
+                      <Image src={runeIcon(data.runes[k.id])} alt="" width={30} height={30} className="rounded-full bg-bg-3" />
+                    ) : (
+                      <span className="size-[30px] rounded-full bg-bg-3" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-[0.65rem] text-white">{data.runeNames[k.id] ?? `Runa ${k.id}`}</span>
+                      <span className="font-mono text-[0.58rem] text-gray-dim">
+                        {k.games} jogos · <span className={wr >= 0.5 ? "text-green" : "text-loss"}>{pct(wr)}</span>
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Quando joga */}
+      <div className="clip-step bg-bg-2 p-6">
+        <p className="label-mono">Quando joga</p>
+        <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">
+          Horário de Brasília · mais ativo {PERIODS[favPeriod].toLowerCase()}, {WEEKDAYS[favDay].toLowerCase()}
+        </p>
+        <div className="mt-5 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1">
+          <span />
+          {WEEKDAYS.map((d) => (
+            <span key={d} className="pb-1 text-center font-mono text-[0.56rem] uppercase tracking-wider text-gray-dim">
+              {d}
+            </span>
+          ))}
+          {PERIODS.map((label, pi) => (
+            <div key={label} className="contents">
+              <span className="pr-2 font-mono text-[0.56rem] uppercase leading-8 tracking-wider text-gray-dim">{label}</span>
+              {ins.schedule.map((day, di) => {
+                const n = day[pi];
+                return (
+                  <span
+                    key={di}
+                    title={`${WEEKDAYS[di]} · ${label}: ${n} ${n === 1 ? "partida" : "partidas"}`}
+                    className="flex h-8 items-center justify-center font-mono text-[0.6rem] text-bg-0"
+                    style={{ background: n ? `rgb(61 253 78 / ${0.15 + (n / maxCell) * 0.85})` : "#1b1f25" }}
+                  >
+                    {n || ""}
+                  </span>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 font-mono text-[0.6rem] text-gray-dim">Madrugada 0h–6h · manhã 6h–12h · tarde 12h–18h · noite 18h–24h</p>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Forma recente + recordes                                            */
 /* ------------------------------------------------------------------ */
 export function FormAndRecords({ p, version }: { p: Player; version: string }) {
-  const { mostKills, bestKda, multiKills } = p.records;
+  const { mostKills, bestKda, mostDamage, mostCs, multiKills } = p.records;
   const multiLabel: Record<number, string> = { 2: "Double", 3: "Triple", 4: "Quadra", 5: "Penta" };
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
@@ -170,19 +367,23 @@ export function FormAndRecords({ p, version }: { p: Player; version: string }) {
           {p.form.filter(Boolean).length} de {p.form.length} vencidas
         </p>
       </div>
-      <div className="clip-step grid gap-4 bg-bg-2 p-6 sm:grid-cols-3">
+      <div className="clip-step grid grid-cols-2 gap-x-4 gap-y-6 bg-bg-2 p-6 sm:grid-cols-3">
         {[
           { label: "Mais abates", m: mostKills, value: mostKills ? `${mostKills.kills} abates` : "—" },
           { label: "Melhor KDA", m: bestKda, value: bestKda ? `${bestKda.kills}/${bestKda.deaths}/${bestKda.assists}` : "—" },
+          { label: "Mais dano", m: mostDamage, value: mostDamage ? `${(mostDamage.damage / 1000).toFixed(1)}k` : "—" },
+          { label: "Melhor farm", m: mostCs, value: mostCs ? `${(mostCs.cs / (mostCs.durationSec / 60)).toFixed(1)} CS/min` : "—" },
         ].map((r) => (
           <div key={r.label}>
             <p className="label-mono text-[0.6rem]">{r.label}</p>
             {r.m ? (
               <div className="mt-3 flex items-center gap-3">
                 <Image src={championIcon(version, r.m.key)} alt={r.m.name} width={40} height={40} className="clip-step-sm" />
-                <div>
+                <div className="min-w-0">
                   <p className="font-display text-xl font-black uppercase leading-none text-white">{r.value}</p>
-                  <p className="font-mono text-[0.62rem] text-gray-dim">{r.m.name}</p>
+                  <p className="truncate font-mono text-[0.62rem] text-gray-dim">
+                    {r.m.name} · {r.m.win ? <span className="text-green">V</span> : <span className="text-loss">D</span>}
+                  </p>
                 </div>
               </div>
             ) : (

@@ -3,9 +3,10 @@ import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Hero } from "@/components/home/Hero";
 import { Marquee } from "@/components/home/Marquee";
-import { LiveNowStrip } from "@/components/live/Live";
+import { LiveNowStrip, TeamTwitchPanel } from "@/components/live/Live";
+import { DiscordIcon } from "@/components/brand/SocialIcons";
 import { NewsCard } from "@/components/news/NewsCard";
-import { FEATURES } from "@/lib/features";
+import { FEATURES, LINKS, RECRUIT_HREF } from "@/lib/features";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { SectionHead, ButtonLink, RankLine, TeamTag } from "@/components/ui";
 import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
@@ -64,15 +65,23 @@ export default async function Home() {
                         <RankLine rank={s.player.solo} compact />
                       </Link>
                     ) : (
-                      <div className="flex items-center gap-4 py-3.5">
+                      <a
+                        href={RECRUIT_HREF}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-bg-3"
+                      >
                         <LaneIcon role={s.role} className="size-6 shrink-0 opacity-40" />
                         <span className="w-10 font-mono text-[0.65rem] uppercase tracking-widest text-gray-dim">{ROLE_META[s.role].short}</span>
-                        <span className="flex-1 font-display text-2xl font-extrabold uppercase leading-none text-gray-dim">Vaga aberta</span>
+                        <span className="flex-1 font-display text-2xl font-extrabold uppercase leading-none text-gray-dim transition-colors group-hover:text-white">
+                          Vaga aberta
+                        </span>
                         <span className="flex items-center gap-2 font-mono text-[0.65rem] uppercase tracking-widest text-green">
                           <span className="size-1.5 animate-[blink_1.2s_steps(1)_infinite] bg-green" />
-                          Recrutando
+                          <span className="group-hover:hidden">Recrutando</span>
+                          <span className="hidden group-hover:inline">Chamar no Discord ↗</span>
                         </span>
-                      </div>
+                      </a>
                     )}
                   </li>
                 ))}
@@ -163,33 +172,85 @@ export default async function Home() {
       </section>
       )}
 
-      {/* 03: Recrutamento */}
+      {/* 03: Comunidade (Twitch + Discord) */}
+      <section className="wrap pb-28 md:pb-40">
+        <SectionHead n="03" label="Comunidade" title="Assista e" muted="chegue junto.">
+          <p data-reveal="up" className="mt-6 max-w-xl text-gray">
+            A INGEN transmite na Twitch. Quando o canal estiver ao vivo, a partida aparece aqui e um aviso fica fixo no canto da tela em
+            qualquer página.
+          </p>
+        </SectionHead>
+        <div className="mt-14 grid gap-4 md:ml-[220px] lg:grid-cols-[1.6fr_1fr]">
+          <div data-reveal="up">
+            <TeamTwitchPanel />
+          </div>
+          <a
+            data-reveal="up"
+            data-delay="0.1"
+            href={LINKS.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="border-run clip-step group relative flex flex-col justify-between overflow-hidden bg-[#5865f2] p-6 text-white md:p-8"
+          >
+            <span className="pointer-events-none absolute inset-0 bg-dots opacity-40" />
+            <DiscordIcon className="pointer-events-none absolute -bottom-10 -right-10 size-56 text-white/10 transition-transform duration-700 group-hover:-rotate-12 group-hover:scale-110" />
+            <span className="relative">
+              <span className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/75">Discord oficial</span>
+              <span className="mt-4 block font-display text-5xl font-black uppercase leading-[0.9]">
+                Entre no <br /> servidor.
+              </span>
+              <span className="mt-4 block max-w-xs text-sm text-white/85">
+                Treinos, avisos de live, resultados e recrutamento. É por lá que a staff conversa com quem quer jogar.
+              </span>
+            </span>
+            <span className="clip-step-sm relative mt-8 inline-flex w-fit items-center gap-3 bg-white px-5 py-3 font-mono text-[0.75rem] font-semibold uppercase tracking-[0.16em] text-[#3a43c4] transition-transform duration-300 group-hover:-translate-y-0.5">
+              <DiscordIcon /> Entrar no Discord <span aria-hidden>↗</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      {/* 04: Recrutamento */}
       {openSlots.length > 0 && (
         <section className="wrap pb-10">
           <div data-reveal="scale" className="clip-step relative overflow-hidden bg-[image:var(--grad-ingen)] p-8 text-bg-0 md:p-16">
             <div className="pointer-events-none absolute inset-0 bg-dots opacity-30 mix-blend-multiply" />
             <div className="relative grid gap-10 md:grid-cols-[1.3fr_1fr] md:items-end">
               <div>
-                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">03 · Recrutamento</p>
+                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">04 · Recrutamento</p>
                 <h2 className="mt-4 font-display text-[clamp(3rem,8vw,6.5rem)] font-black uppercase leading-[0.95]">
                   Sua lane está <br /> esperando.
                 </h2>
                 <p className="mt-6 max-w-md text-base font-medium">
-                  Quer defender o escudo? Fale com a staff da INGEN com seu Riot ID, lane, elo e disponibilidade.
+                  Quer defender o escudo? Entre no Discord e chame a staff com seu Riot ID, lane, elo e disponibilidade.
                 </p>
+                <a
+                  href={LINKS.discord}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="clip-step-sm group mt-8 inline-flex items-center gap-3 bg-bg-0 px-6 py-4 font-mono text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-white transition-all duration-300 hover:bg-[#5865f2] hover:shadow-[0_12px_40px_-8px_rgb(88_101_242/0.8)]"
+                >
+                  <DiscordIcon className="size-5" /> Candidatar-se no Discord
+                  <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">↗</span>
+                </a>
               </div>
               <div className="space-y-3">
                 {openSlots.map((o) => (
-                  <div
+                  <a
                     key={`${o.team.slug}-${o.role}`}
+                    href={RECRUIT_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="group flex items-center justify-between bg-bg-0 px-5 py-4 text-white transition-transform duration-300 hover:-translate-y-0.5"
                   >
                     <span className="flex items-center gap-3">
                       <LaneIcon role={o.role} className="size-7" />
                       <span className="font-display text-2xl font-extrabold uppercase">{ROLE_META[o.role].label}</span>
                     </span>
-                    <span className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-gray group-hover:text-green">{o.team.name}</span>
-                  </div>
+                    <span className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-gray group-hover:text-green">
+                      {o.team.name} <span aria-hidden>↗</span>
+                    </span>
+                  </a>
                 ))}
               </div>
             </div>

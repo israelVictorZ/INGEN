@@ -10,6 +10,7 @@ import { useGSAP } from "@gsap/react";
 import type { Role } from "@/db/schema";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ROLE_META, TIER_META, rankLabel } from "@/lib/format";
+import { RECRUIT_HREF } from "@/lib/features";
 
 gsap.registerPlugin(ScrollTrigger, DrawSVGPlugin);
 
@@ -141,9 +142,16 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
                 {inner}
               </Link>
             ) : (
-              <div tabIndex={0} className="relative block" aria-label={`Vaga aberta: ${ROLE_META[s.role].label}`} {...handlers}>
+              <a
+                href={RECRUIT_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative block"
+                aria-label={`Vaga aberta: ${ROLE_META[s.role].label}. Chamar no Discord`}
+                {...handlers}
+              >
                 {inner}
-              </div>
+              </a>
             )}
           </div>
         );

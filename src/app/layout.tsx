@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Big_Shoulders, Geist, Geist_Mono, Geist_Pixel } from "next/font/google";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { MotionRoot } from "@/components/motion/MotionRoot";
+import { LivePin } from "@/components/live/Live";
+import { getSiteData } from "@/lib/data";
 import "./globals.css";
 
 const display = Big_Shoulders({ variable: "--font-big-shoulders", subsets: ["latin"], weight: ["700", "800", "900"] });
@@ -19,6 +22,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#04060a" };
 
+/** Pin "ao vivo" global: precisa dos nomes dos jogadores para quando um deles estiver transmitindo. */
+async function LivePinMount() {
+  const { players } = await getSiteData();
+  return <LivePin names={Object.fromEntries(players.map((p) => [p.slug, p.displayName]))} />;
+}
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className={`${display.variable} ${sans.variable} ${mono.variable} ${pixel.variable}`}>
@@ -28,6 +37,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1">{children}</main>
         <Footer />
         <MotionRoot />
+        <Suspense>
+          <LivePinMount />
+        </Suspense>
       </body>
     </html>
   );

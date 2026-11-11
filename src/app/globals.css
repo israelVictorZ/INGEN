@@ -216,3 +216,21 @@ html.lenis body {
   body { background: #fff; color: #000; }
   .no-print { display: none !important; }
 }
+
+/* Pin "ao vivo": brilho roxo pulsante da Twitch */
+@keyframes live-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgb(145 70 255 / 0.7), 0 0 24px 0 rgb(145 70 255 / 0.35), 0 20px 60px -20px rgb(0 0 0 / 0.9); }
+  50% { box-shadow: 0 0 0 1px rgb(169 112 255 / 1), 0 0 48px 4px rgb(145 70 255 / 0.55), 0 20px 60px -20px rgb(0 0 0 / 0.9); }
+}
+
+@keyframes pin-in {
+  from { transform: translateY(24px) scale(0.96); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[live-glow_2\.4s_ease-in-out_infinite\],
+  .animate-\[pin-in_0\.6s_var\(--ease-out-expo\)_both\] {
+    animation: none !important;
+  }
+}

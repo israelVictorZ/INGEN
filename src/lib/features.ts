@@ -6,5 +6,12 @@ export const FEATURES = {
   news: false,
 } as const;
 
-/** Para onde as vagas abertas apontam. Sem notícias, as vagas não têm link. */
-export const RECRUIT_HREF: string | null = FEATURES.news ? "/noticias/recrutamento-top-e-mid" : null;
+/** Canais oficiais da INGEN. */
+export const TEAM_TWITCH_CHANNEL = "ingen_team";
+export const LINKS = {
+  discord: "https://discord.gg/aArbDqdrMY",
+  twitch: `https://www.twitch.tv/${TEAM_TWITCH_CHANNEL}`,
+} as const;
+
+/** Para onde as vagas abertas apontam: o Discord do time. */
+export const RECRUIT_HREF: string = LINKS.discord;

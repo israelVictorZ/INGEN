@@ -22,7 +22,7 @@
 - **Painel admin** (pausado, ver abaixo).
 - **Imagem de compartilhamento (OG)** do scouting para Discord e WhatsApp.
 - **Logo em SVG**, para animar as partes do escudo separadamente.
-- **Links de recrutamento** para o Discord do time (`RECRUIT_HREF` em `src/lib/features.ts`), aguardando homologação do capitão.
+- ~~**Links de recrutamento** para o Discord do time~~ feito: vagas abertas e CTAs apontam para `LINKS.discord` (`src/lib/features.ts`).
 
 ---
 

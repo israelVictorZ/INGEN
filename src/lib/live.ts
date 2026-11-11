@@ -1,11 +1,35 @@
 import { cacheLife } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { TEAM_TWITCH_CHANNEL } from "./features";
 
-export type LiveInfo = { channel: string; isLive: boolean; title: string | null; viewers: number | null; game: string | null };
+export type LiveInfo = {
+  channel: string;
+  isLive: boolean;
+  title: string | null;
+  viewers: number | null;
+  game: string | null;
+  /** miniatura da transmissão (só quando ao vivo e com a API da Twitch) */
+  thumbnail: string | null;
+  startedAt: string | null;
+};
 export type LiveMap = Record<string, LiveInfo>; // chave: slug do jogador
+/** Resposta de /api/live: canal oficial do time + canais dos jogadores. */
+export type LivePayload = { team: LiveInfo; players: LiveMap };
 
 const channelOf = (url: string) => url.replace(/\/+$/, "").split("/").pop()!.toLowerCase();
+const offline = (channel: string): LiveInfo => ({ channel, isLive: false, title: null, viewers: null, game: null, thumbnail: null, startedAt: null });
+
+type HelixStream = { user_login: string; title: string; viewer_count: number; game_name: string; thumbnail_url: string; started_at: string };
+const fromHelix = (channel: string, s: HelixStream): LiveInfo => ({
+  channel,
+  isLive: true,
+  title: s.title,
+  viewers: s.viewer_count,
+  game: s.game_name,
+  thumbnail: s.thumbnail_url.replace("{width}", "640").replace("{height}", "360"),
+  startedAt: s.started_at,
+});
 
 async function getTwitchToken(id: string, secret: string) {
   "use cache";
@@ -17,11 +41,11 @@ async function getTwitchToken(id: string, secret: string) {
 }
 
 /**
- * Status ao vivo de todos os jogadores com Twitch cadastrada.
+ * Status ao vivo do canal oficial (twitch.tv/ingen_team) e de todos os jogadores com Twitch cadastrada.
  * Com TWITCH_CLIENT_ID/SECRET na Vercel consulta a Twitch (cache de 60s);
- * sem eles, usa o que o sync gravou no banco (atualizado a cada 30 min).
+ * sem eles, usa o que o sync gravou no banco (só jogadores, atualizado a cada 30 min).
  */
-export async function getLive(): Promise<LiveMap> {
+export async function getLive(): Promise<LivePayload> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 60, expire: 600 });
 
@@ -30,32 +54,44 @@ export async function getLive(): Promise<LiveMap> {
     .from(schema.socialLinks)
     .innerJoin(schema.players, eq(schema.players.id, schema.socialLinks.playerId))
     .where(eq(schema.socialLinks.platform, "twitch"));
-  if (!links.length) return {};
 
-  const out: LiveMap = {};
-  for (const l of links) out[l.slug] = { channel: channelOf(l.url), isLive: false, title: null, viewers: null, game: null };
+  const out: LivePayload = { team: offline(TEAM_TWITCH_CHANNEL), players: {} };
+  for (const l of links) out.players[l.slug] = offline(channelOf(l.url));
 
   const id = process.env.TWITCH_CLIENT_ID;
   const secret = process.env.TWITCH_CLIENT_SECRET;
   try {
     if (id && secret) {
       const token = await getTwitchToken(id, secret);
-      const qs = links.map((l) => `user_login=${channelOf(l.url)}`).join("&");
+      const logins = [TEAM_TWITCH_CHANNEL, ...links.map((l) => channelOf(l.url))];
+      const qs = [...new Set(logins)].map((c) => `user_login=${c}`).join("&");
       const res = await fetch(`https://api.twitch.tv/helix/streams?${qs}`, { headers: { "Client-Id": id, Authorization: `Bearer ${token}` } });
-      const data = ((await res.json()) as { data?: { user_login: string; title: string; viewer_count: number; game_name: string }[] }).data ?? [];
+      const data = ((await res.json()) as { data?: HelixStream[] }).data ?? [];
+      const find = (c: string) => data.find((d) => d.user_login.toLowerCase() === c);
+      const team = find(TEAM_TWITCH_CHANNEL);
+      if (team) out.team = fromHelix(TEAM_TWITCH_CHANNEL, team);
       for (const l of links) {
-        const s = data.find((d) => d.user_login.toLowerCase() === channelOf(l.url));
-        if (s) out[l.slug] = { channel: channelOf(l.url), isLive: true, title: s.title, viewers: s.viewer_count, game: s.game_name };
+        const s = find(channelOf(l.url));
+        if (s) out.players[l.slug] = fromHelix(channelOf(l.url), s);
       }
       return out;
     }
   } catch {
     /* cai para o banco */
   }
+  if (!links.length) return out;
   const rows = await db.select().from(schema.liveStatus);
   for (const l of links) {
     const r = rows.find((x) => x.playerId === l.playerId);
-    if (r) out[l.slug] = { channel: r.channel, isLive: r.isLive, title: r.title, viewers: r.viewers, game: r.game };
+    if (r)
+      out.players[l.slug] = {
+        ...offline(r.channel),
+        isLive: r.isLive,
+        title: r.title,
+        viewers: r.viewers,
+        game: r.game,
+        startedAt: r.startedAt?.toISOString() ?? null,
+      };
   }
   return out;
 }

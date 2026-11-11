@@ -4,7 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FEATURES } from "@/lib/features";
+import { FEATURES, LINKS } from "@/lib/features";
+import { TeamTwitchNavLink } from "@/components/live/Live";
+import { DiscordIcon } from "@/components/brand/SocialIcons";
 
 const ALL_NAV = [
   { href: "/elenco", label: "Elenco" },
@@ -62,9 +64,22 @@ export function Header() {
               </Link>
             );
           })}
+          <span className="mx-2 h-4 w-px bg-line" />
+          <TeamTwitchNavLink className="px-2 py-2" />
+          <a
+            href={LINKS.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Discord da INGEN"
+            className="px-2 py-2 text-gray transition-colors hover:text-[#8f9bff]"
+          >
+            <DiscordIcon className="size-[18px]" />
+          </a>
         </nav>
 
-        <button
+        <div className="flex items-center gap-3 md:hidden">
+          <TeamTwitchNavLink />
+          <button
           type="button"
           className="relative flex size-10 items-center justify-center md:hidden"
           aria-label={open ? "Fechar menu" : "Abrir menu"}
@@ -74,6 +89,7 @@ export function Header() {
           <span className={`absolute h-0.5 w-6 bg-white transition-transform duration-300 ${open ? "rotate-45" : "-translate-y-1.5"}`} />
           <span className={`absolute h-0.5 w-6 bg-green transition-transform duration-300 ${open ? "-rotate-45" : "translate-y-1.5"}`} />
         </button>
+        </div>
       </div>
 
       {open && (
@@ -88,6 +104,24 @@ export function Header() {
               {n.label}
             </Link>
           ))}
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <a
+              href={LINKS.twitch}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clip-step-sm flex items-center justify-center gap-2 bg-[#9146ff] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
+            >
+              Twitch ↗
+            </a>
+            <a
+              href={LINKS.discord}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clip-step-sm flex items-center justify-center gap-2 bg-[#5865f2] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
+            >
+              <DiscordIcon /> Discord ↗
+            </a>
+          </div>
         </nav>
       )}
     </header>

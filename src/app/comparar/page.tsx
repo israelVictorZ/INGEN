@@ -12,40 +12,43 @@ export const metadata: Metadata = {
   description: "Compare jogadores da INGEN Black e da INGEN Silver, métrica por métrica.",
 };
 
-async function getComparePlayers(): Promise<{ version: string; players: ComparePlayer[] }> {
-  const { players, version } = await getSiteData();
-  return { version, players: players.map((p) => ({
-    slug: p.slug,
-    name: p.displayName,
-    riotId: riotId(p),
-    role: p.role,
-    team: { slug: p.team.slug, name: p.team.name, accent: p.team.accent },
-    tier: p.solo?.tier ?? null,
-    division: p.solo?.division ?? null,
-    lp: p.solo?.lp ?? null,
-    score: p.solo?.score ?? 0,
-    champs: mainChamps(p).slice(0, 4).map((c) => ({ key: c.key, name: c.name, games: c.games })),
-    stats: p.stats
-      ? {
-          games: p.stats.games,
-          winrate: p.stats.winrate,
-          kda: p.stats.kda,
-          csPerMin: p.stats.csPerMin,
-          visionPerMin: p.stats.visionPerMin,
-          goldPerMin: p.stats.goldPerMin,
-          kp: p.stats.kp,
-          damageShare: p.stats.damageShare,
-          deaths: p.stats.deaths,
-        }
-      : null,
-  })) };
+async function getComparePlayers(): Promise<{ version: string; until: number | null; players: ComparePlayer[] }> {
+  const { players, version, lastSync } = await getSiteData();
+  return {
+    version,
+    until: lastSync ? new Date(lastSync).getTime() : null,
+    players: players.map((p) => ({
+      slug: p.slug,
+      name: p.displayName,
+      riotId: riotId(p),
+      role: p.role,
+      team: { slug: p.team.slug, name: p.team.name, accent: p.team.accent },
+      tier: p.solo?.tier ?? null,
+      division: p.solo?.division ?? null,
+      lp: p.solo?.lp ?? null,
+      score: p.solo?.score ?? 0,
+      ranked: p.solo ? { wins: p.solo.wins, losses: p.solo.losses, winrate: p.solo.winrate } : null,
+      champs: mainChamps(p)
+        .filter((c) => c.games > 0)
+        .slice(0, 5)
+        .map((c) => ({ key: c.key, name: c.name, games: c.games, wins: c.wins, kda: c.kda })),
+      pool: p.champions.filter((c) => c.games > 0).map((c) => ({ key: c.key, name: c.name, games: c.games, wins: c.wins })),
+      stats: p.stats,
+      insights: p.insights,
+      form: p.form,
+      streak: p.streak,
+      lpToday: p.lpToday,
+      history: p.rankHistory.map((h) => ({ t: h.t, score: h.score })),
+      duos: p.duos.map((d) => ({ slug: d.slug, games: d.games, wins: d.wins })),
+    })),
+  };
 }
 
 async function CompareWithParams({ searchParams }: { searchParams: PageProps<"/comparar">["searchParams"] }) {
-  const [sp, { players, version }] = await Promise.all([searchParams, getComparePlayers()]);
+  const [sp, { players, version, until }] = await Promise.all([searchParams, getComparePlayers()]);
   const a = typeof sp.a === "string" ? sp.a : undefined;
   const b = typeof sp.b === "string" ? sp.b : undefined;
-  return <CompareView players={players} version={version} initialA={a} initialB={b} />;
+  return <CompareView players={players} version={version} until={until} initialA={a} initialB={b} />;
 }
 
 export default function CompararPage({ searchParams }: PageProps<"/comparar">) {
@@ -59,7 +62,8 @@ export default function CompararPage({ searchParams }: PageProps<"/comparar">) {
             Lado a <span className="text-gray-dim">lado.</span>
           </Split>
           <p data-reveal="up" className="mt-6 max-w-lg text-gray">
-            Escolha dois jogadores, do mesmo time ou de times diferentes, e veja onde cada um se destaca. Só ranqueada Solo/Duo.
+            Escolha dois jogadores, do mesmo time ou de times diferentes, e veja onde cada um se destaca: combate, farm, visão,
+            forma, elo, pool de campeões e contexto de jogo. Só ranqueada Solo/Duo.
           </p>
         </div>
       </section>

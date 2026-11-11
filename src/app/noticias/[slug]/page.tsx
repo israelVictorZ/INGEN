@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FEATURES } from "@/lib/features";
+import Link from "next/link";
 import { marked } from "marked";
 import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/noticias/[slug]">
 }
 
 export default async function NoticiaPage({ params }: PageProps<"/noticias/[slug]">) {
+  if (!FEATURES.news) notFound();
   const { slug } = await params;
   const { news } = await getSiteData();
   const n = news.find((x) => x.slug === slug);

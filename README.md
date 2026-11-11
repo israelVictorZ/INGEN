@@ -31,4 +31,4 @@ O site publicado só lê do banco e revalida a cada 15 minutos, então a chave d
 | `/comparar` | Dois jogadores do mesmo time lado a lado |
 | `/scouting/[time]` | Relatório para outros times: op.gg multi, Discord e PDF |
 | `/ranking` | Ranking interno por elo (único lugar sem a ordem Black → Silver) |
-| `/noticias` | Notícias com filtro por categoria |
+| `/noticias` | Notícias (oculto por enquanto: `FEATURES.news` em `src/lib/features.ts`) |

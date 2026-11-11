@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { FEATURES } from "@/lib/features";
 
 export function Footer() {
   return (
@@ -25,7 +26,7 @@ export function Footer() {
           <ul className="space-y-2 text-sm">
             <li><Link className="text-white-dim hover:text-green" href="/ranking">Ranking interno</Link></li>
             <li><Link className="text-white-dim hover:text-green" href="/comparar">Comparar jogadores</Link></li>
-            <li><Link className="text-white-dim hover:text-green" href="/noticias">Notícias</Link></li>
+            {FEATURES.news && <li><Link className="text-white-dim hover:text-green" href="/noticias">Notícias</Link></li>}
           </ul>
         </div>
       </div>

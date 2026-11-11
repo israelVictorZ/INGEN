@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { FEATURES } from "@/lib/features";
 import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NoticiasPage() {
+  if (!FEATURES.news) notFound();
   const { news } = await getSiteData();
   return (
     <RevealScope>

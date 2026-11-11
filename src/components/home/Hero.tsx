@@ -129,8 +129,8 @@ export function Hero({ blackAvg, silverAvg }: { blackAvg: string; silverAvg: str
           </p>
           <div data-hero data-hero-fade className="mt-10 flex flex-wrap gap-3">
             <ButtonLink href="/elenco">Conheça o elenco</ButtonLink>
-            <ButtonLink href="/noticias" variant="ghost">
-              Notícias
+            <ButtonLink href="/ranking" variant="ghost">
+              Ranking interno
             </ButtonLink>
           </div>
         </div>

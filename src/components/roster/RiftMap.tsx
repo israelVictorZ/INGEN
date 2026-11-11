@@ -141,9 +141,9 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
                 {inner}
               </Link>
             ) : (
-              <Link href="/noticias/recrutamento-top-e-mid" className="relative block" aria-label={`Vaga aberta: ${ROLE_META[s.role].label}`} {...handlers}>
+              <div tabIndex={0} className="relative block" aria-label={`Vaga aberta: ${ROLE_META[s.role].label}`} {...handlers}>
                 {inner}
-              </Link>
+              </div>
             )}
           </div>
         );

@@ -4,14 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FEATURES } from "@/lib/features";
 
-const NAV = [
+const ALL_NAV = [
   { href: "/elenco", label: "Elenco" },
   { href: "/ranking", label: "Ranking" },
   { href: "/comparar", label: "Comparar" },
   { href: "/scouting/black", label: "Scouting", match: "/scouting" },
-  { href: "/noticias", label: "Notícias" },
+  { href: "/noticias", label: "Notícias", feature: "news" as const },
 ];
+const NAV = ALL_NAV.filter((n) => !("feature" in n && n.feature) || FEATURES[n.feature]);
 
 export function Header() {
   const pathname = usePathname();

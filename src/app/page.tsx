@@ -4,6 +4,7 @@ import { RevealScope } from "@/components/motion/RevealScope";
 import { Hero } from "@/components/home/Hero";
 import { Marquee } from "@/components/home/Marquee";
 import { NewsCard } from "@/components/news/NewsCard";
+import { FEATURES } from "@/lib/features";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { SectionHead, ButtonLink, RankLine, TeamTag } from "@/components/ui";
 import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
@@ -60,12 +61,15 @@ export default async function Home() {
                         <RankLine rank={s.player.solo} compact />
                       </Link>
                     ) : (
-                      <Link href="/noticias/recrutamento-top-e-mid" className="group flex items-center gap-4 py-3.5">
+                      <div className="flex items-center gap-4 py-3.5">
                         <LaneIcon role={s.role} className="size-6 shrink-0 opacity-40" />
                         <span className="w-10 font-mono text-[0.65rem] uppercase tracking-widest text-gray-dim">{ROLE_META[s.role].short}</span>
                         <span className="flex-1 font-display text-2xl font-extrabold uppercase leading-none text-gray-dim">Vaga aberta</span>
-                        <span className="font-mono text-[0.65rem] uppercase tracking-widest text-green group-hover:underline">Candidatar →</span>
-                      </Link>
+                        <span className="flex items-center gap-2 font-mono text-[0.65rem] uppercase tracking-widest text-green">
+                          <span className="size-1.5 animate-[blink_1.2s_steps(1)_infinite] bg-green" />
+                          Recrutando
+                        </span>
+                      </div>
                     )}
                   </li>
                 ))}
@@ -139,7 +143,8 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 03: Notícias */}
+      {/* Notícias (oculto por enquanto: FEATURES.news) */}
+      {FEATURES.news && (
       <section className="wrap py-28 md:py-40">
         <SectionHead n="03" label="Notícias" title="O que está" muted="acontecendo." />
         <div data-reveal="stagger" className="mt-16 grid gap-4 md:ml-[220px] md:grid-cols-2 lg:grid-cols-3">
@@ -153,32 +158,35 @@ export default async function Home() {
           </ButtonLink>
         </div>
       </section>
+      )}
 
-      {/* 04: Recrutamento */}
+      {/* 03: Recrutamento */}
       {openSlots.length > 0 && (
         <section className="wrap pb-10">
           <div data-reveal="scale" className="clip-step relative overflow-hidden bg-[image:var(--grad-ingen)] p-8 text-bg-0 md:p-16">
             <div className="pointer-events-none absolute inset-0 bg-dots opacity-30 mix-blend-multiply" />
             <div className="relative grid gap-10 md:grid-cols-[1.3fr_1fr] md:items-end">
               <div>
-                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">04 · Recrutamento</p>
-                <h2 className="mt-4 font-display text-[clamp(3rem,8vw,6.5rem)] font-black uppercase leading-[0.85]">
+                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">03 · Recrutamento</p>
+                <h2 className="mt-4 font-display text-[clamp(3rem,8vw,6.5rem)] font-black uppercase leading-[0.95]">
                   Sua lane está <br /> esperando.
                 </h2>
+                <p className="mt-6 max-w-md text-base font-medium">
+                  Quer defender o escudo? Fale com a staff da INGEN com seu Riot ID, lane, elo e disponibilidade.
+                </p>
               </div>
               <div className="space-y-3">
                 {openSlots.map((o) => (
-                  <Link
+                  <div
                     key={`${o.team.slug}-${o.role}`}
-                    href="/noticias/recrutamento-top-e-mid"
                     className="group flex items-center justify-between bg-bg-0 px-5 py-4 text-white transition-transform duration-300 hover:-translate-y-0.5"
                   >
                     <span className="flex items-center gap-3">
                       <LaneIcon role={o.role} className="size-7" />
                       <span className="font-display text-2xl font-extrabold uppercase">{ROLE_META[o.role].label}</span>
                     </span>
-                    <span className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-gray group-hover:text-green">{o.team.name} →</span>
-                  </Link>
+                    <span className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-gray group-hover:text-green">{o.team.name}</span>
+                  </div>
                 ))}
               </div>
             </div>

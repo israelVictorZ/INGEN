@@ -9,7 +9,7 @@
 - Comparar jogadores
 - Scouting (op.gg multi, Discord, PDF)
 - Ranking interno
-- Notícias
+- Notícias (**oculta** por decisão do time; reativar com `FEATURES.news = true` em `src/lib/features.ts`)
 
 **Próximo:**
 - **Painel admin** (Better Auth) para notícias, jogadores, redes sociais e vagas. Hoje a edição é via seed/banco.

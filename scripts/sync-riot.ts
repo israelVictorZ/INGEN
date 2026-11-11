@@ -3,11 +3,13 @@
  *
  *   npm run sync                  -> incremental: elo, maestria, partidas novas, status da Twitch
  *   SYNC_BACKFILL=1 npm run sync  -> também completa detalhes de partidas antigas
+ *   SYNC_STATE_FILE=.sync-state.json -> modo sonda: só acessa o banco se algo mudou
  *
  * Roda localmente ou no GitHub Actions (.github/workflows/sync.yml).
  * A chave da Riot NUNCA vai para a Vercel: o site só lê do banco.
  */
 import "dotenv/config";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "../src/db";
 
@@ -244,8 +246,67 @@ async function syncTwitch() {
   console.log(`\nTwitch: ${live.length}/${links.length} ao vivo`);
 }
 
+/* ------------------------------------------------------------------ */
+/* Modo "sonda": checa Riot e Twitch SEM tocar no banco.              */
+/* Se nada mudou desde a última sincronização, encerra sem acordar o  */
+/* Neon (que desliga sozinho após 5 min parado e tem cota de horas).  */
+/* ------------------------------------------------------------------ */
+const STATE_FILE = process.env.SYNC_STATE_FILE; // ex.: .sync-state.json (cacheado no GitHub Actions)
+const FULL_EVERY_MS = 6 * 3600_000; // sincronização completa forçada a cada 6h (maestria, nível etc.)
+
+type SyncState = { players: { id: number; puuid: string }[]; channels: string[]; fingerprint: string; lastFull: number };
+
+async function twitchLive(channels: string[]): Promise<string[]> {
+  const id = process.env.TWITCH_CLIENT_ID;
+  const secret = process.env.TWITCH_CLIENT_SECRET;
+  if (!id || !secret || !channels.length) return [];
+  const token = (await (
+    await fetch(`https://id.twitch.tv/oauth2/token?client_id=${id}&client_secret=${secret}&grant_type=client_credentials`, { method: "POST" })
+  ).json()) as { access_token: string };
+  const res = await fetch(`https://api.twitch.tv/helix/streams?${channels.map((c) => `user_login=${c}`).join("&")}`, {
+    headers: { "Client-Id": id, Authorization: `Bearer ${token.access_token}` },
+  });
+  const data = ((await res.json()) as { data?: { user_login: string }[] }).data ?? [];
+  return data.map((d) => d.user_login.toLowerCase()).sort();
+}
+
+/** Impressão digital do estado: elo + última partida de cada jogador + quem está ao vivo. */
+async function fingerprint(state: Pick<SyncState, "players" | "channels">) {
+  const parts: string[] = [];
+  for (const p of state.players) {
+    const entries = (await riot<LeagueEntry[]>(PLATFORM, `/lol/league/v4/entries/by-puuid/${p.puuid}`)) ?? [];
+    const elo = entries
+      .filter((e) => e.queueType === "RANKED_SOLO_5x5" || e.queueType === "RANKED_FLEX_SR")
+      .map((e) => `${e.queueType}:${e.tier}${e.rank}${e.leaguePoints}/${e.wins}-${e.losses}`)
+      .sort()
+      .join(",");
+    const [last] = (await riot<string[]>(REGION, `/lol/match/v5/matches/by-puuid/${p.puuid}/ids?queue=${SOLO_QUEUE}&count=1`)) ?? [];
+    parts.push(`${p.id}|${elo}|${last ?? ""}`);
+  }
+  const live = await twitchLive(state.channels).catch(() => []);
+  return `${parts.join(";")}#live:${live.join(",")}`;
+}
+
+function setOutput(key: string, value: string) {
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
+}
+
 async function main() {
   const t0 = Date.now();
+
+  if (STATE_FILE && existsSync(STATE_FILE)) {
+    const state = JSON.parse(readFileSync(STATE_FILE, "utf-8")) as SyncState;
+    if (state.players.length && Date.now() - state.lastFull < FULL_EVERY_MS) {
+      const fp = await fingerprint(state);
+      if (fp === state.fingerprint) {
+        console.log(`Sem mudanças (sonda: ${calls} chamadas em ${Math.round((Date.now() - t0) / 1000)}s). Banco não foi acessado.`);
+        setOutput("full", "false");
+        return;
+      }
+      console.log("Mudança detectada: sincronizando.");
+    }
+  }
+
   await syncRiot();
   await syncTwitch().catch((e) => console.warn("Twitch falhou:", e.message));
 
@@ -253,6 +314,19 @@ async function main() {
   for (const [key, value] of [["ddragon_version", versions[0]], ["last_sync", new Date().toISOString()]]) {
     await db.insert(schema.appMeta).values({ key, value }).onConflictDoUpdate({ target: schema.appMeta.key, set: { value } });
   }
+
+  if (STATE_FILE) {
+    const players = (await db.select({ id: schema.players.id, puuid: schema.players.puuid }).from(schema.players)).filter(
+      (p): p is { id: number; puuid: string } => !!p.puuid,
+    );
+    const links = await db.select({ url: schema.socialLinks.url }).from(schema.socialLinks).where(eq(schema.socialLinks.platform, "twitch"));
+    const channels = links.map((l) => l.url.replace(/\/+$/, "").split("/").pop()!.toLowerCase());
+    const state: SyncState = { players, channels, fingerprint: "", lastFull: Date.now() };
+    state.fingerprint = await fingerprint(state);
+    writeFileSync(STATE_FILE, JSON.stringify(state));
+    setOutput("full", "true");
+  }
+
   console.log(`\n✔ Sync concluído: ${calls} chamadas à Riot em ${Math.round((Date.now() - t0) / 1000)}s`);
 }
 

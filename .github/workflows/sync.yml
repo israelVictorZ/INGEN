@@ -1,12 +1,15 @@
 name: Sync Riot + Twitch
 
-# Atualiza elo, partidas e status da Twitch no banco a cada 30 minutos.
-# Segredos necessários (Settings → Secrets and variables → Actions):
+# A cada 5 minutos: "sonda" Riot e Twitch sem acessar o banco.
+# Só grava no Neon quando algo mudou (partida nova, PDL, live) ou a cada 6h,
+# para não estourar a cota de horas de computação do plano gratuito.
+#
+# Segredos (Settings → Secrets and variables → Actions):
 #   DATABASE_URL, RIOT_API_KEY  (obrigatórios)
 #   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET  (opcionais)
 on:
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -18,16 +21,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      # instala só as 4 dependências do script (~10s), não o site inteiro:
-      # mantém cada execução em ~1 min e o total dentro da cota gratuita do GitHub Actions
+      # instala só as 4 dependências do script (~10s), não o site inteiro
       - run: |
           mv package.json package.json.site && rm -f package-lock.json
           npm install --no-save --no-audit --no-fund tsx@4 dotenv@18 drizzle-orm@0.45 @neondatabase/serverless@1
+      # estado da última sincronização (impressão digital de elo/partidas/lives)
+      - uses: actions/cache/restore@v6
+        with:
+          path: .sync-state.json
+          key: sync-state-${{ github.run_id }}
+          restore-keys: sync-state-
       - name: Sync
+        id: sync
         run: |
           if [ -z "$DATABASE_URL" ] || [ -z "$RIOT_API_KEY" ]; then
             echo "::notice::Segredos DATABASE_URL/RIOT_API_KEY ainda não configurados, pulando."
@@ -40,3 +49,10 @@ jobs:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           SYNC_MATCH_COUNT: "20"
+          SYNC_STATE_FILE: .sync-state.json
+      # só salva um novo estado quando houve sincronização completa
+      - if: steps.sync.outputs.full == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .sync-state.json
+          key: sync-state-${{ github.run_id }}

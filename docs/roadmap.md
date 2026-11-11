@@ -11,7 +11,11 @@
 - Ranking interno
 - Notícias **ocultas** por decisão do time. Para reativar, use `FEATURES.news = true` em `src/lib/features.ts`.
 
-**Sync automático:** o GitHub Actions roda `scripts/sync-riot.ts` a cada 30 min (`.github/workflows/sync.yml`). Precisa dos segredos `DATABASE_URL` e `RIOT_API_KEY` no repositório. Com a Development Key, o segredo `RIOT_API_KEY` precisa ser atualizado todo dia.
+**Sync automático:** o GitHub Actions roda `scripts/sync-riot.ts` a cada 5 min (`.github/workflows/sync.yml`). O repositório é público, então os minutos do Actions são ilimitados.
+- **Modo sonda:** cada execução consulta só a Riot e a Twitch (~16 chamadas, ~4 s), comparando com o estado salvo no cache do Actions.
+- **Quando grava no banco:** só se algo mudou (partida nova, PDL, live) ou a cada 6h. Assim o Neon fica desligado na maior parte do tempo e respeita a cota de 100 horas de computação por mês do plano gratuito.
+- **Segredos:** `DATABASE_URL`, `RIOT_API_KEY` e, opcionalmente, `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`.
+- **Atenção:** com a Development Key, o `RIOT_API_KEY` precisa ser atualizado todo dia.
 
 **Próximo:**
 - **Twitch** (em andamento, ver abaixo).

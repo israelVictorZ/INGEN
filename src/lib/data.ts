@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { desc, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Role, NewsCategory } from "@/db/schema";
-import { getChampionMap, type ChampionInfo } from "./ddragon";
+import { getChampionMap, getRuneMap, getSpellMap, type ChampionInfo } from "./ddragon";
 import { POSITION_TO_ROLE, ROLE_META, rankScore } from "./format";
 
 export type Rank = {
@@ -43,6 +43,19 @@ export type RecentMatch = {
   gameStart: number;
   queueId: number;
   role: Role | null;
+  // detalhes (podem faltar em partidas antigas)
+  items: number[];
+  spell1: number | null;
+  spell2: number | null;
+  keystone: number | null;
+  subStyle: number | null;
+  champLevel: number | null;
+  kp: number | null;
+  damage: number;
+  gold: number;
+  visionScore: number;
+  largestMultiKill: number | null;
+  opponent: { key: string; name: string } | null;
 };
 
 export type Stats = {
@@ -58,7 +71,19 @@ export type Stats = {
   goldPerMin: number;
   kp: number;
   damageShare: number;
+  // métricas extras (média por partida, só partidas com detalhes)
+  damagePerMin: number;
+  damageTaken: number | null;
+  csAt10: number | null;
+  soloKills: number | null;
+  wardsPlaced: number | null;
+  wardsKilled: number | null;
+  controlWards: number | null;
+  turretPlates: number | null;
+  firstBloodRate: number | null;
 };
+
+export type RankPoint = { t: number; score: number; tier: string; division: string; lp: number };
 
 export type TeamRef = { slug: string; name: string; shortName: string; accent: string; sortOrder: number };
 
@@ -84,6 +109,18 @@ export type Player = {
   socials: { platform: string; url: string }[];
   splashKeys: string[];
   syncedAt: Date | null;
+  /** histórico de elo Solo/Duo (cada mudança registrada pelo sync) */
+  rankHistory: RankPoint[];
+  /** variação de PDL (em pontos de score) nas últimas 24h; null sem histórico suficiente */
+  lpToday: number | null;
+  /** últimas 10 partidas, mais recente primeiro */
+  form: boolean[];
+  /** sequência atual: +3 = 3 vitórias seguidas, -2 = 2 derrotas */
+  streak: number;
+  duos: { slug: string; name: string; games: number; wins: number }[];
+  matchups: { key: string; name: string; games: number; wins: number }[];
+  records: { mostKills: RecentMatch | null; bestKda: RecentMatch | null; multiKills: Record<number, number> };
+  live: { channel: string; isLive: boolean; title: string | null; viewers: number | null } | null;
 };
 
 export type Team = TeamRef & {
@@ -109,6 +146,8 @@ export type NewsItem = {
 
 export type SiteData = {
   version: string;
+  spells: Record<number, string>;
+  runes: Record<number, string>;
   lastSync: string | null;
   teams: Team[];
   players: Player[];
@@ -116,7 +155,34 @@ export type SiteData = {
 };
 
 const SOLO_QUEUE = 420;
+/** Estatísticas usam as últimas N partidas Solo/Duo de cada jogador. */
+export const STATS_WINDOW = 50;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+const kdaOf = (r: { kills: number; deaths: number; assists: number }) => (r.deaths === 0 ? r.kills + r.assists : (r.kills + r.assists) / r.deaths);
+
+type DetailRow = {
+  match: { durationSec: number };
+  damageTaken: number | null; csAt10: number | null; soloKills: number | null; wardsPlaced: number | null;
+  wardsKilled: number | null; controlWards: number | null; turretPlates: number | null; firstBlood: boolean | null;
+};
+/** Médias das métricas que só existem em partidas com detalhes. */
+function detailStats(rows: DetailRow[]) {
+  const a = (f: (r: DetailRow) => number | null) => {
+    const xs = rows.map(f).filter((v): v is number => v != null);
+    return xs.length ? avg(xs) : null;
+  };
+  return {
+    damageTaken: a((r) => r.damageTaken),
+    csAt10: a((r) => r.csAt10),
+    soloKills: a((r) => r.soloKills),
+    wardsPlaced: a((r) => r.wardsPlaced),
+    wardsKilled: a((r) => r.wardsKilled),
+    controlWards: a((r) => r.controlWards),
+    turretPlates: a((r) => r.turretPlates),
+    firstBloodRate: rows.length ? rows.filter((r) => r.firstBlood).length / rows.length : null,
+  };
+}
 
 function toRank(r: { tier: string; division: string; lp: number; wins: number; losses: number } | undefined): Rank | null {
   if (!r) return null;
@@ -131,10 +197,11 @@ function toRank(r: { tier: string; division: string; lp: number; wins: number; l
  */
 export async function getSiteData(): Promise<SiteData> {
   "use cache";
-  cacheLife("default"); // revalida a cada 15 min
+  // revalida a cada 5 min (o sync roda a cada 30 min no GitHub Actions)
+  cacheLife({ stale: 60, revalidate: 300, expire: 86_400 });
   cacheTag("site");
 
-  const [teams, players, memberships, slots, socials, ranks, mastery, matches, parts, news, meta] = await Promise.all([
+  const [teams, players, memberships, slots, socials, ranks, mastery, matches, parts, news, meta, history, lives] = await Promise.all([
     db.select().from(schema.teams),
     db.select().from(schema.players),
     db.select().from(schema.teamMemberships).where(isNull(schema.teamMemberships.leftAt)),
@@ -146,11 +213,13 @@ export async function getSiteData(): Promise<SiteData> {
     db.select().from(schema.matchParticipants),
     db.select().from(schema.news).orderBy(desc(schema.news.pinned), desc(schema.news.publishedAt)),
     db.select().from(schema.appMeta),
+    db.select().from(schema.rankHistory).orderBy(schema.rankHistory.capturedAt),
+    db.select().from(schema.liveStatus),
   ]);
 
   const version = meta.find((m) => m.key === "ddragon_version")?.value ?? "16.22.1";
   const lastSync = meta.find((m) => m.key === "last_sync")?.value ?? null;
-  const champs = await getChampionMap(version);
+  const [champs, spells, runes] = await Promise.all([getChampionMap(version), getSpellMap(version), getRuneMap(version)]);
   const champ = (id: number): ChampionInfo => champs[id] ?? { id: "Aatrox", name: `#${id}` };
   const matchById = new Map(matches.map((m) => [m.matchId, m]));
 
@@ -169,7 +238,8 @@ export async function getSiteData(): Promise<SiteData> {
       // Estatísticas só de Solo/Duo (fila 420); Flex é ignorada
       .filter((x) => x.playerId === p.id && matchById.get(x.matchId)?.queueId === SOLO_QUEUE)
       .map((x) => ({ ...x, match: matchById.get(x.matchId)! }))
-      .sort((a, b) => b.match.gameStart - a.match.gameStart);
+      .sort((a, b) => b.match.gameStart - a.match.gameStart)
+      .slice(0, STATS_WINDOW);
 
     let stats: Stats | null = null;
     if (myParts.length) {
@@ -191,6 +261,8 @@ export async function getSiteData(): Promise<SiteData> {
         goldPerMin: avg(myParts.map((x) => x.gold / mins(x))),
         kp: avg(myParts.map((x) => x.killParticipation ?? 0)),
         damageShare: avg(myParts.map((x) => x.damageShare ?? 0)),
+        damagePerMin: avg(myParts.map((x) => x.damage / mins(x))),
+        ...detailStats(myParts.filter((x) => x.detailed)),
       };
     }
 
@@ -243,6 +315,93 @@ export async function getSiteData(): Promise<SiteData> {
       ...inLane.filter((c) => c.games < 2).sort((a, b) => wr(b) - wr(a) || b.kda - a.kda),
     ];
 
+    const toRecent = (x: (typeof myParts)[number]): RecentMatch => ({
+      matchId: x.matchId,
+      championId: x.championId,
+      key: champ(x.championId).id,
+      name: champ(x.championId).name,
+      win: x.win,
+      kills: x.kills,
+      deaths: x.deaths,
+      assists: x.assists,
+      cs: x.cs,
+      durationSec: x.match.durationSec,
+      gameStart: x.match.gameStart,
+      queueId: x.match.queueId,
+      role: x.position ? POSITION_TO_ROLE[x.position] ?? null : null,
+      items: x.items ? (JSON.parse(x.items) as number[]) : [],
+      spell1: x.spell1,
+      spell2: x.spell2,
+      keystone: x.keystone,
+      subStyle: x.subStyle,
+      champLevel: x.champLevel,
+      kp: x.killParticipation,
+      damage: x.damage,
+      gold: x.gold,
+      visionScore: x.visionScore,
+      largestMultiKill: x.largestMultiKill,
+      opponent: x.opponentChampionId ? { key: champ(x.opponentChampionId).id, name: champ(x.opponentChampionId).name } : null,
+    });
+    const recent = myParts.map(toRecent);
+
+    // Sequência atual
+    let streak = 0;
+    for (const r of recent) {
+      if (streak === 0) streak = r.win ? 1 : -1;
+      else if (r.win === streak > 0) streak += streak > 0 ? 1 : -1;
+      else break;
+    }
+
+    // Histórico de elo Solo/Duo + variação nas últimas 24h
+    const rankHistory: RankPoint[] = history
+      .filter((h) => h.playerId === p.id && h.queue === "RANKED_SOLO_5x5")
+      .map((h) => ({ t: h.capturedAt.getTime(), score: rankScore(h.tier, h.division, h.lp), tier: h.tier, division: h.division, lp: h.lp }));
+    const lastPoint = rankHistory.at(-1);
+    const dayAgo = (lastPoint?.t ?? 0) - 86_400_000;
+    const before = [...rankHistory].reverse().find((h) => h.t <= dayAgo) ?? (rankHistory.length > 1 ? rankHistory[0] : undefined);
+    const lpToday = before && lastPoint && before !== lastPoint ? lastPoint.score - before.score : null;
+
+    // Duo: partidas no mesmo time com outro jogador da INGEN
+    const duoMap = new Map<number, { games: number; wins: number }>();
+    for (const x of myParts) {
+      for (const o of parts) {
+        if (o.matchId !== x.matchId || o.playerId === p.id || o.teamId == null || o.teamId !== x.teamId) continue;
+        const d = duoMap.get(o.playerId) ?? { games: 0, wins: 0 };
+        d.games++;
+        if (x.win) d.wins++;
+        duoMap.set(o.playerId, d);
+      }
+    }
+    const duos = [...duoMap.entries()]
+      .map(([pid, d]) => {
+        const op = players.find((pp) => pp.id === pid)!;
+        return { slug: op.slug, name: op.displayName, ...d };
+      })
+      .sort((a, b) => b.games - a.games);
+
+    // Confrontos de lane (adversário direto)
+    const mu = new Map<number, { games: number; wins: number }>();
+    for (const x of myParts) {
+      if (!x.opponentChampionId || !x.position || POSITION_TO_ROLE[x.position] !== m.role) continue;
+      const v = mu.get(x.opponentChampionId) ?? { games: 0, wins: 0 };
+      v.games++;
+      if (x.win) v.wins++;
+      mu.set(x.opponentChampionId, v);
+    }
+    const matchups = [...mu.entries()]
+      .map(([cid, v]) => ({ key: champ(cid).id, name: champ(cid).name, ...v }))
+      .sort((a, b) => b.games - a.games || b.wins - a.wins);
+
+    const multiKills: Record<number, number> = {};
+    for (const x of myParts) {
+      const mk = x.largestMultiKill ?? 0;
+      if (mk >= 2) multiKills[mk] = (multiKills[mk] ?? 0) + 1;
+    }
+
+    const lv = lives.find((l) => l.playerId === p.id);
+    const twitchLink = socials.find((so) => so.playerId === p.id && so.platform === "twitch");
+    const live = lv ?? (twitchLink ? { channel: twitchLink.url.replace(/\/+$/, "").split("/").pop()!, isLive: false, title: null, viewers: null } : null);
+
     builtPlayers.push({
       id: p.id,
       slug: p.slug,
@@ -259,24 +418,22 @@ export async function getSiteData(): Promise<SiteData> {
       roleDist,
       champions,
       laneChampions,
-      recent: myParts.slice(0, 20).map((x) => ({
-        matchId: x.matchId,
-        championId: x.championId,
-        key: champ(x.championId).id,
-        name: champ(x.championId).name,
-        win: x.win,
-        kills: x.kills,
-        deaths: x.deaths,
-        assists: x.assists,
-        cs: x.cs,
-        durationSec: x.match.durationSec,
-        gameStart: x.match.gameStart,
-        queueId: x.match.queueId,
-        role: x.position ? POSITION_TO_ROLE[x.position] ?? null : null,
-      })),
+      recent: recent.slice(0, 20),
       socials: socials.filter((s) => s.playerId === p.id).map(({ platform, url }) => ({ platform, url })),
       splashKeys: (laneChampions.length ? laneChampions : champions).slice(0, 3).map((c) => c.key),
       syncedAt: p.syncedAt,
+      rankHistory,
+      lpToday,
+      form: recent.slice(0, 10).map((r) => r.win),
+      streak,
+      duos,
+      matchups,
+      records: {
+        mostKills: [...recent].sort((a, b) => b.kills - a.kills)[0] ?? null,
+        bestKda: [...recent].sort((a, b) => kdaOf(b) - kdaOf(a))[0] ?? null,
+        multiKills,
+      },
+      live: live ? { channel: live.channel, isLive: live.isLive, title: live.title, viewers: live.viewers } : null,
     });
   }
 
@@ -307,6 +464,8 @@ export async function getSiteData(): Promise<SiteData> {
 
   return {
     version,
+    spells,
+    runes,
     lastSync,
     teams: builtTeams,
     players: builtPlayers,

@@ -8,6 +8,7 @@ import type { Role } from "@/db/schema";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ROLE_META, TIER_META, rankLabel, pct } from "@/lib/format";
 import { championLoading } from "@/lib/ddragon-urls";
+import { LiveBadge } from "@/components/live/Live";
 
 export type PlayerCardData = {
   slug: string;
@@ -82,6 +83,7 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
           <span className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white-dim">{ROLE_META[p.role].short}</span>
         </div>
         <span className="absolute right-4 top-4 font-pixel text-xs text-white/30">0{index + 1}</span>
+        <LiveBadge slug={p.slug} className="absolute right-3 top-10 z-10" />
 
         <div className="absolute inset-x-0 bottom-0 p-5">
           {p.splash[skin] && (

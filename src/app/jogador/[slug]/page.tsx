@@ -10,9 +10,10 @@ import { ButtonLink, RankEmblem, TeamTag, WinrateBar } from "@/components/ui";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { championIcon, championSplash, profileIcon } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, fixed, opggUrl, pct, rankLabel, riotId } from "@/lib/format";
-import { TimeAgo } from "@/components/ui/TimeAgo";
 import { ROLES } from "@/db/schema";
 import { mainChamps } from "@/lib/view";
+import { ChampionTable, EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos } from "@/components/player/sections";
+import { LiveBadge, TwitchButton } from "@/components/live/Live";
 
 export async function generateStaticParams() {
   const { players } = await getSiteData();
@@ -109,6 +110,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
               <p className="label-mono">{ROLE_META[p.role].label}</p>
               {p.level && <p className="font-mono text-[0.68rem] text-gray-dim">Nível {p.level}</p>}
             </div>
+            <LiveBadge slug={p.slug} />
           </div>
           <Split as="h1" className="mt-4 font-display text-[clamp(4rem,14vw,12rem)] font-black uppercase leading-[0.8] text-white">
             {p.displayName}
@@ -130,16 +132,33 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
                 Comparar
               </ButtonLink>
             )}
-            {p.socials.map((so) => (
-              <ButtonLink key={so.url} href={so.url} variant="ghost" external>
-                {so.platform}
-              </ButtonLink>
-            ))}
+            {p.live && <TwitchButton slug={p.slug} channel={p.live.channel} />}
+            {p.socials
+              .filter((so) => so.platform !== "twitch")
+              .map((so) => (
+                <ButtonLink key={so.url} href={so.url} variant="ghost" external>
+                  {so.platform}
+                </ButtonLink>
+              ))}
           </div>
         </div>
       </section>
 
       {/* ELO */}
+      {(p.lpToday != null || Math.abs(p.streak) > 1) && (
+        <div data-reveal="up" className="wrap mb-4 flex flex-wrap gap-2">
+          {p.lpToday != null && (
+            <span className={`clip-step-sm bg-bg-2 px-4 py-2 font-mono text-xs uppercase tracking-wider ${p.lpToday >= 0 ? "text-green" : "text-loss"}`}>
+              {p.lpToday >= 0 ? "▲" : "▼"} {Math.abs(p.lpToday)} PDL nas últimas 24h
+            </span>
+          )}
+          {Math.abs(p.streak) > 1 && (
+            <span className={`clip-step-sm bg-bg-2 px-4 py-2 font-mono text-xs uppercase tracking-wider ${p.streak > 0 ? "text-green" : "text-loss"}`}>
+              {Math.abs(p.streak)} {p.streak > 0 ? "vitórias" : "derrotas"} seguidas
+            </span>
+          )}
+        </div>
+      )}
       <section className="wrap grid gap-4 md:grid-cols-2">
         <div data-reveal="up">
           <RankCard title="Ranqueada Solo/Duo" rank={p.solo} />
@@ -147,6 +166,9 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         <div data-reveal="up" data-delay="0.1">
           <RankCard title="Ranqueada Flex" rank={p.flex} />
         </div>
+      </section>
+      <section data-reveal="up" className="wrap mt-4">
+        <EloChart p={p} />
       </section>
 
       {/* MÉTRICAS */}
@@ -175,6 +197,13 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {s && (
+        <section className="wrap mt-6 space-y-6">
+          <ExtraMetrics p={p} />
+          <FormAndRecords p={p} version={v} />
         </section>
       )}
 
@@ -247,36 +276,29 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         </div>
       </section>
 
+      {/* CAMPEÕES (tabela) + CONFRONTOS + DUO */}
+      <section className="wrap mt-24 space-y-12">
+        <div>
+          <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white md:text-4xl">Todos os campeões</h2>
+          <p className="mb-6 mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Últimas {s?.games ?? 0} Solo/Duo</p>
+          <ChampionTable p={p} version={v} />
+        </div>
+        <MatchupsAndDuos p={p} version={v} />
+      </section>
+
       {/* PARTIDAS */}
       {p.recent.length > 0 && (
         <section className="wrap mt-24">
-          <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white">Partidas recentes</h2>
-          <div className="mt-6 flex gap-1" data-reveal="stagger" aria-label="Sequência de vitórias e derrotas">
-            {p.recent.map((m) => (
+          <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white md:text-4xl">Partidas recentes</h2>
+          <p className="mb-6 mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Solo/Duo · itens, feitiços, runas e adversário de lane</p>
+          <div className="mb-4 flex gap-1" aria-label="Sequência de vitórias e derrotas">
+            {[...p.recent].reverse().map((m) => (
               <span key={m.matchId} title={m.win ? "Vitória" : "Derrota"} className={`h-2 flex-1 ${m.win ? "bg-green" : "bg-loss/70"}`} />
             ))}
           </div>
-          <ul data-reveal="stagger" className="mt-6 divide-y divide-line border-y border-line">
+          <ul data-reveal="stagger" className="space-y-1.5">
             {p.recent.map((m) => (
-              <li key={m.matchId} className="grid grid-cols-[4px_48px_1fr_auto] items-center gap-4 py-3 md:grid-cols-[4px_48px_1fr_120px_130px_150px]">
-                <span className={`h-10 ${m.win ? "bg-green" : "bg-loss"}`} />
-                <Image src={championIcon(v, m.key)} alt={m.name} width={48} height={48} className="clip-step-sm" />
-                <div className="min-w-0">
-                  <p className="truncate font-display text-xl font-extrabold uppercase leading-none text-white">{m.name}</p>
-                  <p className={`font-mono text-[0.65rem] uppercase tracking-wider ${m.win ? "text-green" : "text-loss"}`}>
-                    {m.win ? "Vitória" : "Derrota"} · {m.queueId === 440 ? "Flex" : "Solo/Duo"}
-                  </p>
-                </div>
-                <p className="font-mono text-sm text-white">
-                  {m.kills}/<span className="text-loss">{m.deaths}</span>/{m.assists}
-                </p>
-                <p className="hidden font-mono text-xs text-gray md:block">
-                  {m.cs} CS · {(m.cs / (m.durationSec / 60)).toFixed(1)}/min
-                </p>
-                <p className="hidden text-right font-mono text-xs text-gray-dim md:block">
-                  {Math.floor(m.durationSec / 60)}min · <TimeAgo ts={m.gameStart} />
-                </p>
-              </li>
+              <MatchRow key={m.matchId} m={m} data={data} />
             ))}
           </ul>
         </section>

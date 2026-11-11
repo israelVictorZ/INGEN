@@ -97,6 +97,39 @@ export const rankSnapshots = pgTable(
   (t) => [uniqueIndex("rank_snapshot_uq").on(t.playerId, t.queue, t.capturedOn)],
 );
 
+/** Histórico de elo: uma linha a cada mudança detectada pelo sync (alimenta o gráfico e o "PDL hoje"). */
+export const rankHistory = pgTable(
+  "rank_history",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    queue: text("queue").notNull(),
+    tier: text("tier").notNull(),
+    division: text("division").notNull(),
+    lp: integer("lp").notNull(),
+    wins: integer("wins").notNull(),
+    losses: integer("losses").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("rank_history_player_idx").on(t.playerId, t.queue, t.capturedAt)],
+);
+
+/** Status da Twitch por jogador (atualizado pelo sync e pela rota /api/live). */
+export const liveStatus = pgTable("live_status", {
+  playerId: integer("player_id")
+    .primaryKey()
+    .references(() => players.id, { onDelete: "cascade" }),
+  channel: text("channel").notNull(),
+  isLive: boolean("is_live").notNull().default(false),
+  title: text("title"),
+  game: text("game"),
+  viewers: integer("viewers"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const championMastery = pgTable(
   "champion_mastery",
   {
@@ -141,6 +174,25 @@ export const matchParticipants = pgTable(
     gold: integer("gold").notNull(),
     killParticipation: real("kill_participation"),
     damageShare: real("damage_share"),
+    // detalhes extras (v2)
+    teamId: integer("team_id"),
+    champLevel: integer("champ_level"),
+    items: text("items"), // JSON: [item0..item6]
+    spell1: integer("spell1"),
+    spell2: integer("spell2"),
+    keystone: integer("keystone"),
+    subStyle: integer("sub_style"),
+    wardsPlaced: integer("wards_placed"),
+    wardsKilled: integer("wards_killed"),
+    controlWards: integer("control_wards"),
+    soloKills: integer("solo_kills"),
+    csAt10: real("cs_at_10"),
+    damageTaken: integer("damage_taken"),
+    turretPlates: integer("turret_plates"),
+    firstBlood: boolean("first_blood"),
+    largestMultiKill: integer("largest_multi_kill"),
+    opponentChampionId: integer("opponent_champion_id"),
+    detailed: boolean("detailed").notNull().default(false),
   },
   (t) => [
     uniqueIndex("participant_uq").on(t.matchId, t.playerId),

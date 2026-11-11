@@ -10,3 +10,9 @@ export const championLoading = (id: string) =>
 
 export const profileIcon = (version: string, iconId: number) =>
   `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${iconId}.png`;
+
+export const itemIcon = (version: string, id: number) => `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${id}.png`;
+
+export const spellIcon = (version: string, key: string) => `https://ddragon.leagueoflegends.com/cdn/${version}/img/spell/${key}.png`;
+
+export const runeIcon = (path: string) => `https://ddragon.leagueoflegends.com/cdn/img/${path}`;

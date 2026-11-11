@@ -3,6 +3,7 @@ import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Hero } from "@/components/home/Hero";
 import { Marquee } from "@/components/home/Marquee";
+import { LiveNowStrip } from "@/components/live/Live";
 import { NewsCard } from "@/components/news/NewsCard";
 import { FEATURES } from "@/lib/features";
 import { LaneIcon } from "@/components/brand/LaneIcon";
@@ -28,6 +29,8 @@ export default async function Home() {
         blackAvg={black?.avgScore != null ? scoreToLabel(black.avgScore) : "—"}
         silverAvg={silver?.avgScore != null ? scoreToLabel(silver.avgScore) : "—"}
       />
+
+      <LiveNowStrip names={Object.fromEntries(players.map((p) => [p.slug, p.displayName]))} />
 
       <Marquee items={["INGEN Black", "INGEN Silver", ...openSlots.map((o) => `Vaga aberta ${ROLE_META[o.role].short}`)]} />
 

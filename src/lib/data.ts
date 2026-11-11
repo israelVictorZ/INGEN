@@ -236,7 +236,8 @@ export async function getSiteData(): Promise<SiteData> {
 
     const myParts = parts
       // Estatísticas só de Solo/Duo (fila 420); Flex é ignorada
-      .filter((x) => x.playerId === p.id && matchById.get(x.matchId)?.queueId === SOLO_QUEUE)
+      // ignora remakes (partidas encerradas antes de 5 min não contam para nada)
+      .filter((x) => x.playerId === p.id && matchById.get(x.matchId)?.queueId === SOLO_QUEUE && matchById.get(x.matchId)!.durationSec >= 300)
       .map((x) => ({ ...x, match: matchById.get(x.matchId)! }))
       .sort((a, b) => b.match.gameStart - a.match.gameStart)
       .slice(0, STATS_WINDOW);
@@ -355,7 +356,9 @@ export async function getSiteData(): Promise<SiteData> {
     // Histórico de elo Solo/Duo + variação nas últimas 24h
     const rankHistory: RankPoint[] = history
       .filter((h) => h.playerId === p.id && h.queue === "RANKED_SOLO_5x5")
-      .map((h) => ({ t: h.capturedAt.getTime(), score: rankScore(h.tier, h.division, h.lp), tier: h.tier, division: h.division, lp: h.lp }));
+      .map((h) => ({ t: h.capturedAt.getTime(), score: rankScore(h.tier, h.division, h.lp), tier: h.tier, division: h.division, lp: h.lp }))
+      // um ponto só quando o ELO muda (partida sem variação de PDL não cria ponto)
+      .filter((h, i, arr) => i === 0 || h.score !== arr[i - 1].score);
     const lastPoint = rankHistory.at(-1);
     const dayAgo = (lastPoint?.t ?? 0) - 86_400_000;
     const before = [...rankHistory].reverse().find((h) => h.t <= dayAgo) ?? (rankHistory.length > 1 ? rankHistory[0] : undefined);

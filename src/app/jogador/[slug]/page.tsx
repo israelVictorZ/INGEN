@@ -168,7 +168,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         </div>
       </section>
       <section data-reveal="up" className="wrap mt-4">
-        <EloChart p={p} />
+        <EloChart p={p} until={data.lastSync ? new Date(data.lastSync).getTime() : null} />
       </section>
 
       {/* MÉTRICAS */}

@@ -61,16 +61,22 @@ export function revealElement(el: HTMLElement, reduce: boolean) {
       const dec = Number(el.dataset.decimals ?? 0);
       const suffix = el.dataset.suffix ?? "";
       const obj = { v: 0 };
+      // o valor real fica visível até a animação começar (nunca exibe "0" falso)
       gsap.set(el, { autoAlpha: 1 });
-      el.textContent = (0).toFixed(dec) + suffix;
+      if (!Number.isFinite(to)) break;
+      let started = false;
       gsap.to(obj, {
         v: to,
         duration: 1.6,
         delay,
         ease: "expo.out",
         scrollTrigger: st(el),
+        // só escreve quando a animação realmente começou (o refresh do ScrollTrigger renderiza o frame 0)
+        onStart: () => {
+          started = true;
+        },
         onUpdate: () => {
-          el.textContent = obj.v.toFixed(dec) + suffix;
+          if (started) el.textContent = obj.v.toFixed(dec) + suffix;
         },
       });
       break;

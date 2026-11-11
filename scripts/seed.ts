@@ -1,6 +1,9 @@
 /**
- * Popula o banco com os times, jogadores, vagas e notícias iniciais.
- * Idempotente: pode rodar várias vezes.  ->  npm run db:seed
+ * Popula um banco VAZIO com os times, jogadores, vagas e notícias iniciais  ->  npm run db:seed
+ *
+ * Depois do primeiro uso, o banco é a fonte da verdade: para mudar o elenco ou redes use
+ * `npm run manage -- ...` (ver scripts/manage.ts e as skills em .claude/skills).
+ * Para rodar mesmo assim num banco populado: npm run db:seed -- --force
  */
 import "dotenv/config";
 import { and, eq, isNull } from "drizzle-orm";
@@ -98,6 +101,11 @@ Acompanhe o perfil de cada um na página de elenco.`,
 ];
 
 async function main() {
+  const existing = await db.select({ id: schema.players.id }).from(schema.players).limit(1);
+  if (existing.length && !process.argv.includes("--force")) {
+    console.log("Banco já populado: seed ignorado (use scripts/manage.ts para alterações, ou --force).");
+    return;
+  }
   for (const t of TEAMS) {
     await db.insert(schema.teams).values(t).onConflictDoUpdate({ target: schema.teams.slug, set: t });
   }

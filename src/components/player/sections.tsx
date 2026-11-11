@@ -2,64 +2,107 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Player, RecentMatch, SiteData } from "@/lib/data";
 import { championIcon, itemIcon, runeIcon, spellIcon } from "@/lib/ddragon-urls";
-import { TIER_META, fixed, pct, rankLabel, scoreToTier } from "@/lib/format";
+import { TIER_META, fixed, pct, rankLabel, scoreToLabel, scoreToTier } from "@/lib/format";
 import { TimeAgo } from "@/components/ui/TimeAgo";
 
 /* ------------------------------------------------------------------ */
 /* Gráfico de elo                                                      */
 /* ------------------------------------------------------------------ */
-export function EloChart({ p }: { p: Player }) {
+const fmtDate = (t: number) =>
+  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(t);
+
+/**
+ * Gráfico em degraus: cada ponto é uma MUDANÇA real de elo (com a data em que o sync a detectou).
+ * Entre mudanças a linha fica parada; ela se estende até a última atualização (`until`).
+ */
+export function EloChart({ p, until }: { p: Player; until: number | null }) {
   const pts = p.rankHistory;
-  if (pts.length < 2) {
+  if (pts.length === 0) {
     return (
-      <div className="clip-step flex min-h-[180px] flex-col justify-center bg-bg-2 p-6">
+      <div className="clip-step flex min-h-[160px] flex-col justify-center bg-bg-2 p-6">
         <p className="label-mono">Evolução de elo · Solo/Duo</p>
-        <p className="mt-3 max-w-md text-sm text-gray">
-          O histórico começou a ser registrado agora. A cada atualização (a cada 30 min) um novo ponto entra no gráfico.
-        </p>
+        <p className="mt-3 max-w-md text-sm text-gray">Ainda não há registros de elo para este jogador.</p>
       </div>
     );
   }
   const W = 1000;
-  const H = 220;
+  const H = 200;
   const t0 = pts[0].t;
-  const t1 = pts.at(-1)!.t;
-  const min = Math.min(...pts.map((x) => x.score)) - 40;
-  const max = Math.max(...pts.map((x) => x.score)) + 40;
-  const x = (t: number) => ((t - t0) / Math.max(t1 - t0, 1)) * W;
-  const y = (s: number) => H - ((s - min) / Math.max(max - min, 1)) * H;
-  const line = pts.map((pt, i) => `${i ? "L" : "M"}${x(pt.t).toFixed(1)},${y(pt.score).toFixed(1)}`).join(" ");
-  // divisões que cruzam o intervalo (a cada 100 pontos de score)
-  const ticks = [];
-  for (let s = Math.ceil(min / 100) * 100; s <= max; s += 100) ticks.push(s);
+  const t1 = Math.max(until ?? 0, pts.at(-1)!.t, t0 + 60_000);
+  const scores = pts.map((x) => x.score);
+  const min = Math.floor((Math.min(...scores) - 30) / 100) * 100;
+  const max = Math.ceil((Math.max(...scores) + 30) / 100) * 100;
+  const x = (t: number) => ((t - t0) / (t1 - t0)) * W;
+  const y = (sc: number) => H - ((sc - min) / (max - min)) * H;
+
+  // degraus: horizontal até a próxima mudança, depois vertical
+  let d = `M0,${y(pts[0].score).toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) d += ` H${x(pts[i].t).toFixed(1)} V${y(pts[i].score).toFixed(1)}`;
+  d += ` H${W}`;
+
+  const ticks: number[] = [];
+  for (let sc = min; sc <= max; sc += 100) ticks.push(sc);
   const last = pts.at(-1)!;
   const color = TIER_META[last.tier]?.color ?? "#3dfd4e";
+  const delta = last.score - pts[0].score;
 
   return (
     <div className="clip-step bg-bg-2 p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <p className="label-mono">Evolução de elo · Solo/Duo</p>
-        <p className="font-mono text-xs text-gray">
-          {pts.length} registros desde{" "}
-          {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "America/Sao_Paulo" }).format(t0)}
+        <div>
+          <p className="label-mono">Evolução de elo · Solo/Duo</p>
+          <p className="mt-2 font-mono text-xs text-gray">
+            {pts.length === 1 ? "1 registro" : `${pts.length} mudanças registradas`} desde {fmtDate(t0)}
+            {pts.length > 1 && (
+              <span className={delta >= 0 ? "text-green" : "text-loss"}>
+                {" "}
+                · {delta >= 0 ? "+" : ""}
+                {delta} PDL no período
+              </span>
+            )}
+          </p>
+        </div>
+        <p className="font-mono text-xs uppercase tracking-wider" style={{ color }}>
+          Agora: {rankLabel(last.tier, last.division)} · {last.lp} PDL
         </p>
       </div>
-      <svg viewBox={`0 -10 ${W} ${H + 20}`} className="mt-4 h-[200px] w-full" preserveAspectRatio="none" data-reveal="draw">
-        {ticks.map((s) => (
-          <g key={s}>
-            <line x1="0" x2={W} y1={y(s)} y2={y(s)} stroke="rgb(255 255 255 / .06)" vectorEffect="non-scaling-stroke" />
-          </g>
-        ))}
-        <path d={`${line} L${W},${H + 10} L0,${H + 10} Z`} fill={`${color}14`} />
-        <path data-draw d={line} fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-      </svg>
-      <div className="mt-2 flex flex-wrap justify-between gap-2 font-mono text-[0.65rem] uppercase tracking-wider text-gray-dim">
-        {ticks.slice(0, 1).map((s) => (
-          <span key={s}>{rankLabelFromScore(s)}</span>
-        ))}
-        <span style={{ color }}>
-          Agora: {rankLabel(last.tier, last.division)} · {last.lp} PDL
-        </span>
+
+      <div className="relative mt-6 pl-[92px]">
+        {/* rótulos de elo no eixo Y */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-[86px]">
+          {ticks.map((sc) => (
+            <span
+              key={sc}
+              className="absolute right-0 -translate-y-1/2 font-mono text-[0.58rem] uppercase tracking-wider text-gray-dim"
+              style={{ top: `${(y(sc) / H) * 100}%` }}
+            >
+              {scoreToLabel(sc)}
+            </span>
+          ))}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-[200px] w-full overflow-visible" preserveAspectRatio="none" data-reveal="draw">
+          {ticks.map((sc) => (
+            <line key={sc} x1="0" x2={W} y1={y(sc)} y2={y(sc)} stroke="rgb(255 255 255 / .06)" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d={`${d} V${H} H0 Z`} fill={`${color}12`} />
+          <path data-draw d={d} fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* pontos de mudança (HTML para não distorcer com o preserveAspectRatio) */}
+        {pts.map((pt, i) => {
+          const diff = i ? pt.score - pts[i - 1].score : null;
+          return (
+            <span
+              key={pt.t}
+              title={`${fmtDate(pt.t)} · ${rankLabel(pt.tier, pt.division)} ${pt.lp} PDL${diff != null ? ` (${diff >= 0 ? "+" : ""}${diff})` : ""}`}
+              className="group absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg-2"
+              style={{ left: `calc(92px + (100% - 92px) * ${x(pt.t) / W})`, top: `${(y(pt.score) / H) * 100}%`, background: color }}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-3 flex justify-between pl-[92px] font-mono text-[0.6rem] uppercase tracking-wider text-gray-dim">
+        <span>{fmtDate(t0)}</span>
+        <span>Atualizado {fmtDate(t1)}</span>
       </div>
     </div>
   );

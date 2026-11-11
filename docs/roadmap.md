@@ -1,42 +1,86 @@
-# Roadmap: features futuras
+# Roadmap
 
-## Status da v1 (fase-1-base)
+## Status atual
 
-**Pronto:**
+**No ar** (https://ingen-three.vercel.app):
 - Home animada
 - Elenco com Mapa do Rift
-- Perfil do jogador com dados da Riot
-- Comparar jogadores
+- Perfil completo do jogador: gráfico de elo, métricas, forma, recordes, campeões, confrontos de lane, duo e partidas detalhadas
+- Comparar jogadores (inclusive entre os times)
 - Scouting (op.gg multi, Discord, PDF)
 - Ranking interno
-- Notícias (**oculta** por decisão do time; reativar com `FEATURES.news = true` em `src/lib/features.ts`)
+- Notícias **ocultas** por decisão do time. Para reativar, use `FEATURES.news = true` em `src/lib/features.ts`.
+
+**Sync automático:** o GitHub Actions roda `scripts/sync-riot.ts` a cada 30 min (`.github/workflows/sync.yml`). Precisa dos segredos `DATABASE_URL` e `RIOT_API_KEY` no repositório. Com a Development Key, o segredo `RIOT_API_KEY` precisa ser atualizado todo dia.
 
 **Próximo:**
-- **Painel admin** (Better Auth) para notícias, jogadores, redes sociais e vagas. Hoje a edição é via seed/banco.
-- **Sync automático** (cron) quando houver a Personal Key da Riot. Hoje é `npm run sync` local.
-- **Imagem de compartilhamento (OG)** do scouting para o Discord/WhatsApp.
-- **Gráfico de evolução de elo** (os snapshots diários já estão sendo gravados em `rank_snapshots`).
-- **Logo em SVG** para animar as partes do escudo separadamente.
+- **Twitch** (em andamento, ver abaixo).
+- **Painel admin** (pausado, ver abaixo).
+- **Imagem de compartilhamento (OG)** do scouting para Discord e WhatsApp.
+- **Logo em SVG**, para animar as partes do escudo separadamente.
+- **Links de recrutamento** para o Discord do time (`RECRUIT_HREF` em `src/lib/features.ts`), aguardando homologação do capitão.
 
-## Twitch: selo "Ao vivo" (pausada)
+---
 
-**Status:** pausada até confirmar quais membros têm canal na Twitch.
+## Twitch: selo "Ao vivo" (em andamento)
 
-**O que é:** mostrar quando um jogador está transmitindo, com o selo "🔴 Ao vivo" no card e no perfil, e uma faixa "Ao vivo agora" na home.
+**Já implementado:**
+- Rota `/api/live`, com cache de 60s:
+  - consulta a Twitch quando `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` estão na Vercel;
+  - sem elas, usa a tabela `live_status`, que o sync grava a cada 30 min.
+- Selo "Ao vivo" nos cards do elenco e no perfil.
+- Botão da Twitch no perfil, com número de espectadores.
+- Faixa "Ao vivo agora" na home.
 
-**Já preparar desde o início (para não precisar migrar depois):**
-- A tabela `social_links` aceita `platform = twitch` com o nome do canal. Se o jogador não tem canal, simplesmente não há registro.
-- O selo só aparece para quem tem link da Twitch cadastrado.
-- As variáveis `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` já existem no `.env`, vazias.
-- A integração fica desligada enquanto essas variáveis estiverem vazias.
+**Cadastro de canal:** linha em `social_links` com `platform = "twitch"` e a URL do canal.
 
-**Quando for ativar:**
-1. Registrar o app em dev.twitch.tv/console usando uma conta do time com 2FA ativo.
-2. Usar o token de app (client credentials), sem login dos jogadores.
-3. Rodar um job a cada 2–5 min chamando `GET /helix/streams?user_login=...` (até 100 canais por chamada) e salvar `is_live`, título e jogo.
-4. O front lê do banco, nunca chama a Twitch direto.
+**Falta:**
+1. App registrado em dev.twitch.tv/console.
+2. Client ID/Secret na Vercel e nos segredos do GitHub.
+3. Cadastrar os 3 canais.
+
+---
+
+## Painel admin (pausado, retomar em outra conversa)
+
+**Objetivo:** cadastrar e remover jogadores e editar informações sem mexer no banco.
+
+### Acesso
+- Rota `/admin`, fora do menu público, `noindex`.
+- **Login com Discord** (o time já usa o Discord, então ninguém precisa de outra senha) via Better Auth.
+  - Só entra quem estiver numa **lista de IDs de Discord autorizados**, guardada no banco (tabela `admins`) e editável pelo próprio painel.
+  - Alternativa sem Discord: e-mail e senha criados pelo dono do site.
+- **Pré-requisito:** criar um app no Discord Developer Portal. O `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` vão para a Vercel, colados pelo responsável.
+
+### Funcionalidades
+
+**Jogadores**
+- **Adicionar** só com o Riot ID (`Nome#TAG`), escolhendo time e lane:
+  - na hora, valida a conta na Riot e grava o PUUID;
+  - o sync seguinte puxa elo, maestria e partidas.
+- **Editar:** nome exibido, foto, bio e redes (Twitch, YouTube, Instagram, X, TikTok).
+- **Trocar de time ou de lane:** fecha a participação atual (`left_at`) e abre uma nova, preservando o histórico.
+- **Remover:** marca a saída (`left_at`). O jogador vira "ex-jogador", com histórico, em vez de ser apagado.
+
+**Vagas abertas**
+- Abrir e fechar vaga por time e lane.
+
+**Notícias** (quando reativadas)
+- Criar, editar, fixar e despublicar, com editor de texto.
+
+**Ações rápidas**
+- Botão "Atualizar dados agora", que dispara o workflow de sync via `workflow_dispatch`.
+- Botão "Limpar cache do site" (`revalidateTag("site")`).
+
+### Técnica
+- Server Actions do Next com validação Zod.
+- Toda alteração chama `revalidateTag("site")`, então aparece no site na hora.
+- Log de auditoria simples (quem alterou o quê e quando) numa tabela `admin_log`.
+
+---
 
 ## Riot: Personal API Key (pendente)
 
-- **Hoje:** Development Key (expira a cada 24h), na conta pessoal do Israel.
-- **Próximo passo:** o capitão cria ou fornece uma conta Riot do time, e por ela será registrado o produto "INGEN" e pedida a Personal Key.
+- **Hoje:** Development Key, na conta pessoal do Israel. Expira a cada 24h e a Riot não permite usá-la em produto público.
+- **Próximo passo:** o capitão fornece uma conta Riot do time. Por ela registramos o produto "INGEN" e pedimos a Personal Key.
+- **Ao receber a key:** atualizar o segredo `RIOT_API_KEY` no GitHub uma única vez; ela não expira.

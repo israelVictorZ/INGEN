@@ -34,7 +34,7 @@ export function TeamBlock({ team, version, index }: { team: Team; version: strin
               ].map((s) => (
                 <div key={s.k} className="bg-bg-1 p-4">
                   <dt className="label-mono text-[0.6rem]">{s.k}</dt>
-                  <dd className="mt-2 font-display text-2xl font-extrabold uppercase leading-none text-white">{s.v}</dd>
+                  <dd className="mt-2 whitespace-nowrap font-display text-xl font-extrabold uppercase leading-none text-white md:text-2xl">{s.v}</dd>
                   {s.sub && <dd className="mt-1 font-mono text-[0.62rem] text-gray-dim">{s.sub}</dd>}
                 </div>
               ))}

@@ -12,7 +12,8 @@ import { db, schema } from "../src/db";
 const KEY = process.env.RIOT_API_KEY;
 const PLATFORM = process.env.RIOT_PLATFORM ?? "br1";
 const REGION = process.env.RIOT_REGION ?? "americas";
-const MATCH_COUNT = Number(process.env.SYNC_MATCH_COUNT ?? 15);
+const MATCH_COUNT = Number(process.env.SYNC_MATCH_COUNT ?? 50);
+const SOLO_QUEUE = 420; // só Solo/Duo para estatísticas (Flex é ignorada)
 const GAP_MS = 1250; // ~96 req / 2min
 
 if (!KEY) throw new Error("RIOT_API_KEY não configurada no .env");
@@ -24,7 +25,14 @@ async function riot<T>(url: string): Promise<T | null> {
   for (let attempt = 0; attempt < 5; attempt++) {
     await sleep(GAP_MS);
     calls++;
-    const res = await fetch(url, { headers: { "X-Riot-Token": KEY! } });
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { "X-Riot-Token": KEY! } });
+    } catch (e) {
+      console.warn(`  rede falhou (${(e as Error).message}), tentando de novo`);
+      await sleep(3000 * (attempt + 1));
+      continue;
+    }
     if (res.status === 429) {
       const wait = Number(res.headers.get("retry-after") ?? 10) * 1000;
       console.warn(`  429, aguardando ${wait / 1000}s`);
@@ -109,8 +117,8 @@ async function main() {
       );
     }
 
-    // Partidas ranqueadas recentes
-    const ids = (await riot<string[]>(`https://${REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/${acc.puuid}/ids?type=ranked&count=${MATCH_COUNT}`)) ?? [];
+    // Partidas Solo/Duo recentes
+    const ids = (await riot<string[]>(`https://${REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/${acc.puuid}/ids?queue=${SOLO_QUEUE}&count=${MATCH_COUNT}`)) ?? [];
     const known = new Set(
       (await db.select({ id: schema.matchParticipants.matchId }).from(schema.matchParticipants).where(eq(schema.matchParticipants.playerId, p.id))).map((r) => r.id),
     );

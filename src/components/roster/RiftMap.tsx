@@ -19,17 +19,18 @@ export type RiftSlot =
 
 /** Posição de cada lane no minimapa (em %), lado azul. */
 const POS: Record<Role, { x: number; y: number }> = {
-  TOP: { x: 15, y: 17 },
-  JUNGLE: { x: 33, y: 47 },
-  MID: { x: 52, y: 50 },
-  ADC: { x: 74, y: 88 },
-  SUPPORT: { x: 89, y: 66 },
+  TOP: { x: 14, y: 17 },
+  JUNGLE: { x: 31, y: 44 },
+  MID: { x: 52, y: 49 },
+  ADC: { x: 72, y: 86 },
+  SUPPORT: { x: 87, y: 70 },
 };
 
+/** Lanes no padrão do minimapa: cada uma sai da base aliada (canto inferior esquerdo) e termina na base inimiga. */
 const LANE_PATH: Record<string, string> = {
-  TOP: "M 8 96 L 8 12 Q 8 8 12 8 L 92 8",
-  MID: "M 10 90 L 90 10",
-  BOT: "M 8 92 L 88 92 Q 92 92 92 88 L 92 4",
+  TOP: "M 10 81 L 10 15 Q 10 10 15 10 L 81 10",
+  MID: "M 19 81 L 81 19",
+  BOT: "M 19 90 L 85 90 Q 90 90 90 85 L 90 19",
 };
 const laneOf = (r: Role) => (r === "TOP" ? "TOP" : r === "MID" ? "MID" : r === "JUNGLE" ? null : "BOT");
 
@@ -48,7 +49,7 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
       const tl = gsap.timeline({ scrollTrigger: { trigger: root.current, start: "top 75%", once: true } });
       tl.from(q("[data-map-frame]"), { autoAlpha: 0, scale: 0.96, duration: 0.8, ease: "expo.out" })
         .fromTo(q("[data-lane]"), { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.4, ease: "power2.inOut", stagger: 0.12 }, "-=0.4")
-        .fromTo(q("[data-river]"), { drawSVG: "50% 50%" }, { drawSVG: "0% 100%", duration: 1, ease: "power2.out" }, "<0.3")
+        .fromTo(q("[data-river]"), { drawSVG: "50% 50%" }, { drawSVG: "0% 100%", duration: 1.1, ease: "power2.out" }, "<0.2")
         .from(q("[data-base]"), { scale: 0, transformOrigin: "50% 50%", duration: 0.6, ease: "back.out(2)", stagger: 0.1 }, "<")
         .from(q("[data-node]"), { scale: 0, autoAlpha: 0, duration: 0.7, ease: "back.out(2.2)", stagger: 0.1 }, "-=0.6");
     },
@@ -62,24 +63,32 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
       <div data-map-frame className="clip-step absolute inset-0 bg-bg-0">
         <div className="absolute inset-0 bg-dots opacity-50" />
         <svg viewBox="0 0 100 100" className="absolute inset-0 size-full" fill="none">
-          {/* rio */}
-          <path data-river d="M 0 100 L 100 0" stroke="rgb(255 255 255 / .04)" strokeWidth="18" />
-          <path data-river d="M 18 18 Q 50 34 82 82" stroke="rgb(0 240 127 / .12)" strokeWidth="1.2" strokeDasharray="1.5 1.5" />
-          {/* lanes */}
-          {Object.entries(LANE_PATH).map(([k, d]) => (
-            <path
-              key={k}
-              data-lane
-              d={d}
-              stroke={hotLane === k ? color : "rgb(255 255 255 / .16)"}
-              strokeWidth={hotLane === k ? 2.6 : 1.6}
-              strokeLinecap="square"
-              style={{ transition: "stroke .3s, stroke-width .3s", filter: hotLane === k ? `drop-shadow(0 0 3px ${color})` : undefined }}
-            />
+          {/* rio: atravessa o mapa do canto superior esquerdo ao inferior direito */}
+          <path data-river d="M 2 2 L 98 98" stroke="rgb(0 240 127 / .06)" strokeWidth="13" strokeLinecap="round" />
+          <path data-river d="M 6 6 L 94 94" stroke="rgb(0 240 127 / .22)" strokeWidth=".5" strokeDasharray="1.2 1.6" />
+          {/* acampamentos da selva */}
+          {[[30, 30], [24, 52], [42, 66], [70, 70], [76, 48], [58, 34]].map(([x, y], i) => (
+            <rect key={i} data-base x={x - 1.4} y={y - 1.4} width="2.8" height="2.8" transform={`rotate(45 ${x} ${y})`} fill="rgb(255 255 255 / .1)" />
           ))}
-          {/* bases */}
-          <rect data-base x="2" y="88" width="10" height="10" fill={color} opacity=".9" />
-          <rect data-base x="88" y="2" width="10" height="10" fill="rgb(255 255 255 / .25)" />
+          {/* lanes: faixa larga + linha central */}
+          {Object.entries(LANE_PATH).map(([k, d]) => {
+            const hot = hotLane === k;
+            return (
+              <g key={k} style={{ transition: "opacity .3s" }} opacity={hotLane && !hot ? 0.45 : 1}>
+                <path data-lane d={d} stroke={hot ? `${color}55` : "rgb(255 255 255 / .07)"} strokeWidth="5.5" strokeLinejoin="round" style={{ transition: "stroke .3s" }} />
+                <path data-lane d={d} stroke={hot ? color : "rgb(255 255 255 / .28)"} strokeWidth={hot ? 1 : 0.6} strokeLinejoin="round" style={{ transition: "stroke .3s", filter: hot ? `drop-shadow(0 0 2px ${color})` : undefined }} />
+              </g>
+            );
+          })}
+          {/* bases opacas por cima das lanes */}
+          <g data-base>
+            <rect x="2" y="80" width="18" height="18" rx="2" fill="#0a0d13" stroke={color} strokeWidth=".8" />
+            <rect x="6" y="84" width="10" height="10" rx="1" fill={color} />
+          </g>
+          <g data-base>
+            <rect x="80" y="2" width="18" height="18" rx="2" fill="#0a0d13" stroke="rgb(255 255 255 / .3)" strokeWidth=".8" />
+            <rect x="84" y="6" width="10" height="10" rx="1" fill="#262b33" />
+          </g>
         </svg>
       </div>
 

@@ -6,7 +6,7 @@ import { Marquee } from "@/components/home/Marquee";
 import { NewsCard } from "@/components/news/NewsCard";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { SectionHead, ButtonLink, RankLine, TeamTag } from "@/components/ui";
-import { ROLE_META, rankLabel, scoreToLabel } from "@/lib/format";
+import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
 
 export default async function Home() {
   const data = await getSiteData();
@@ -17,7 +17,8 @@ export default async function Home() {
 
   const totalGames = players.reduce((s, p) => s + (p.stats?.games ?? 0), 0);
   const totalWins = players.reduce((s, p) => s + (p.stats?.wins ?? 0), 0);
-  const best = [...players].filter((p) => p.solo).sort((a, b) => b.solo!.score - a.solo!.score)[0];
+  const podium = [...players].filter((p) => p.solo).sort((a, b) => b.solo!.score - a.solo!.score).slice(0, 3);
+  const PER_PLAYER = Math.max(0, ...players.map((p) => p.stats?.games ?? 0));
   const champsPlayed = new Set(players.flatMap((p) => p.recent.map((m) => m.championId))).size;
 
   return (
@@ -77,38 +78,64 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 02: Números (HUD) */}
+      {/* 02: Ranking da casa */}
       <section className="relative overflow-hidden border-y border-line bg-bg-0 py-28 md:py-36">
         <div className="pointer-events-none absolute inset-0 bg-lines" />
         <div className="wrap relative">
-          <SectionHead n="02" label="Em números" title="Dados direto" muted="da Riot." />
-          <div data-reveal="stagger" className="mt-16 grid grid-cols-2 gap-px bg-line md:ml-[220px] lg:grid-cols-4">
+          <SectionHead n="02" label="Ranking interno" title="Quem lidera" muted="a INGEN.">
+            <p data-reveal="up" className="mt-6 max-w-xl text-gray">
+              Os três jogadores com o maior elo na ranqueada <span className="text-white-dim">Solo/Duo</span>, somando os dois
+              times. Abaixo, um resumo de como a organização está jogando.
+            </p>
+          </SectionHead>
+
+          <ol data-reveal="stagger" className="mt-14 grid gap-3 md:ml-[220px] md:grid-cols-3">
+            {podium.map((p, i) => {
+              const color = TIER_META[p.solo!.tier]?.color;
+              return (
+                <li key={p.slug}>
+                  <Link href={`/jogador/${p.slug}`} className="border-run clip-step group relative flex h-full items-center gap-4 overflow-hidden bg-bg-2 p-5">
+                    <span className="font-pixel text-5xl leading-none text-white/15 group-hover:text-green">{i + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <TeamTag accent={p.team.accent} name={p.team.name} />
+                      <span className="mt-1 block truncate font-display text-3xl font-black uppercase leading-none text-white">{p.displayName}</span>
+                      <span className="mt-1 block font-mono text-xs uppercase tracking-wider" style={{ color }}>
+                        {rankLabel(p.solo!.tier, p.solo!.division)} · {p.solo!.lp} PDL
+                      </span>
+                    </span>
+                    <LaneIcon role={p.role} className="size-8 shrink-0" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+
+          <dl data-reveal="stagger" className="mt-3 grid gap-px bg-line md:ml-[220px] md:grid-cols-3">
             {[
-              { k: "Partidas analisadas", v: String(totalGames), mode: "count" },
-              { k: "Winrate recente", v: totalGames ? ((totalWins / totalGames) * 100).toFixed(1) : "0", suffix: "%", mode: "count", dec: 1 },
-              { k: "Campeões jogados", v: String(champsPlayed), mode: "count" },
-              { k: "Maior elo", v: best ? rankLabel(best.solo!.tier, best.solo!.division) : "—", sub: best ? `${best.displayName} · ${best.solo!.lp} PDL` : "", mode: "scramble" },
+              { k: "Partidas analisadas", v: String(totalGames), caption: `Últimas ${PER_PLAYER} Solo/Duo de cada jogador` },
+              { k: "Winrate da organização", v: totalGames ? ((totalWins / totalGames) * 100).toFixed(0) : "0", suffix: "%", caption: "Vitórias somadas nessas partidas" },
+              { k: "Campeões diferentes", v: String(champsPlayed), caption: "Tamanho do pool somando os dois times" },
             ].map((s) => (
               <div key={s.k} className="bg-bg-0 p-6 md:p-8">
-                <p className="label-mono text-[0.62rem]">{s.k}</p>
-                <p
-                  data-reveal={s.mode}
-                  data-to={s.v}
-                  data-decimals={s.dec ?? 0}
-                  data-suffix={s.suffix ?? ""}
-                  className="mt-4 font-display text-5xl font-black uppercase leading-none text-white md:text-6xl"
-                >
+                <dt className="label-mono text-[0.62rem]">{s.k}</dt>
+                <dd data-reveal="count" data-to={s.v} data-suffix={s.suffix ?? ""} className="mt-4 font-display text-5xl font-black leading-none text-white md:text-6xl">
                   {s.v}
                   {s.suffix}
-                </p>
-                {s.sub && <p className="mt-2 font-mono text-[0.68rem] text-green">{s.sub}</p>}
+                </dd>
+                <dd className="mt-3 text-sm text-gray">{s.caption}</dd>
               </div>
             ))}
+          </dl>
+
+          <div data-reveal="up" className="mt-10 flex flex-wrap items-center gap-6 md:ml-[220px]">
+            <ButtonLink href="/ranking">Ver ranking completo</ButtonLink>
+            {data.lastSync && (
+              <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim">
+                Atualizado em{" "}
+                {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(data.lastSync))}
+              </span>
+            )}
           </div>
-          <p className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim md:ml-[220px]">
-            Últimas {15} ranqueadas de cada jogador
-            {data.lastSync && ` · atualizado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(data.lastSync))}`}
-          </p>
         </div>
       </section>
 

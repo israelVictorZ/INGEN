@@ -5,10 +5,11 @@ import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { CompareView, type ComparePlayer } from "@/components/compare/CompareView";
 import { riotId } from "@/lib/format";
+import { mainChamps } from "@/lib/view";
 
 export const metadata: Metadata = {
   title: "Comparar jogadores",
-  description: "Compare dois jogadores do mesmo time da INGEN, métrica por métrica.",
+  description: "Compare jogadores da INGEN Black e da INGEN Silver, métrica por métrica.",
 };
 
 async function getComparePlayers(): Promise<{ version: string; players: ComparePlayer[] }> {
@@ -23,7 +24,7 @@ async function getComparePlayers(): Promise<{ version: string; players: CompareP
     division: p.solo?.division ?? null,
     lp: p.solo?.lp ?? null,
     score: p.solo?.score ?? 0,
-    champs: p.champions.slice(0, 4).map((c) => ({ key: c.key, name: c.name, games: c.games })),
+    champs: mainChamps(p).slice(0, 4).map((c) => ({ key: c.key, name: c.name, games: c.games })),
     stats: p.stats
       ? {
           games: p.stats.games,
@@ -58,7 +59,7 @@ export default function CompararPage({ searchParams }: PageProps<"/comparar">) {
             Lado a <span className="text-gray-dim">lado.</span>
           </Split>
           <p data-reveal="up" className="mt-6 max-w-lg text-gray">
-            Escolha dois jogadores do mesmo time e veja onde cada um se destaca.
+            Escolha dois jogadores, do mesmo time ou de times diferentes, e veja onde cada um se destaca. Só ranqueada Solo/Duo.
           </p>
         </div>
       </section>

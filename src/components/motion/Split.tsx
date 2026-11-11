@@ -12,7 +12,7 @@ function splitNode(node: ReactNode, inherited: string, key: string): ReactNode {
       /^\s+$/.test(part) ? (
         " "
       ) : part ? (
-        <span key={`${key}-${i}`} className="inline-block overflow-hidden pb-[0.06em] align-top">
+        <span key={`${key}-${i}`} className="-mt-[0.2em] inline-block overflow-hidden pb-[0.06em] pt-[0.2em] align-top">
           <span data-w className={`inline-block will-change-transform ${inherited}`}>
             {part}
           </span>

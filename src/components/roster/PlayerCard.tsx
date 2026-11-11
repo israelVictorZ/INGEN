@@ -7,7 +7,7 @@ import gsap from "gsap";
 import type { Role } from "@/db/schema";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ROLE_META, TIER_META, rankLabel, pct } from "@/lib/format";
-import { championSplash } from "@/lib/ddragon-urls";
+import { championLoading } from "@/lib/ddragon-urls";
 
 export type PlayerCardData = {
   slug: string;
@@ -64,11 +64,11 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
           {p.splash.map((s, i) => (
             <Image
               key={s.key}
-              src={championSplash(s.key)}
+              src={championLoading(s.key)}
               alt=""
               fill
               sizes="(min-width: 1024px) 22vw, 50vw"
-              className={`object-cover object-[60%_20%] transition-[opacity,filter] duration-700 ${
+              className={`object-cover object-[50%_12%] transition-[opacity,filter] duration-700 ${
                 i === skin ? "opacity-60 group-hover:opacity-90" : "opacity-0"
               } grayscale-[0.35] group-hover:grayscale-0`}
             />

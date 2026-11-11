@@ -22,6 +22,10 @@ export type ChampStat = {
   games: number;
   wins: number;
   kda: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  csPerMin: number;
   masteryPoints: number;
 };
 
@@ -72,7 +76,10 @@ export type Player = {
   flex: Rank | null;
   stats: Stats | null;
   roleDist: Partial<Record<Role, number>>;
+  /** todos os campeões (Solo/Duo + maestria) */
   champions: ChampStat[];
+  /** só campeões jogados NA LANE do jogador, melhores winrates primeiro */
+  laneChampions: ChampStat[];
   recent: RecentMatch[];
   socials: { platform: string; url: string }[];
   splashKeys: string[];
@@ -108,6 +115,7 @@ export type SiteData = {
   news: NewsItem[];
 };
 
+const SOLO_QUEUE = 420;
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 function toRank(r: { tier: string; division: string; lp: number; wins: number; losses: number } | undefined): Rank | null {
@@ -158,7 +166,8 @@ export async function getSiteData(): Promise<SiteData> {
     const latest = (queue: string) => ranks.find((r) => r.playerId === p.id && r.queue === queue);
 
     const myParts = parts
-      .filter((x) => x.playerId === p.id && matchById.has(x.matchId))
+      // Estatísticas só de Solo/Duo (fila 420); Flex é ignorada
+      .filter((x) => x.playerId === p.id && matchById.get(x.matchId)?.queueId === SOLO_QUEUE)
       .map((x) => ({ ...x, match: matchById.get(x.matchId)! }))
       .sort((a, b) => b.match.gameStart - a.match.gameStart);
 
@@ -191,25 +200,48 @@ export async function getSiteData(): Promise<SiteData> {
       if (r) roleDist[r] = (roleDist[r] ?? 0) + 1;
     }
 
-    // Pool de campeões: partidas recentes + maestria
-    const pool = new Map<number, ChampStat>();
-    for (const x of myParts) {
-      const c = pool.get(x.championId) ?? { championId: x.championId, key: champ(x.championId).id, name: champ(x.championId).name, games: 0, wins: 0, kda: 0, masteryPoints: 0, _k: 0, _d: 0, _a: 0 } as ChampStat & { _k: number; _d: number; _a: number };
-      const cc = c as ChampStat & { _k: number; _d: number; _a: number };
-      cc.games++;
-      if (x.win) cc.wins++;
-      cc._k += x.kills; cc._d += x.deaths; cc._a += x.assists;
-      cc.kda = cc._d === 0 ? cc._k + cc._a : (cc._k + cc._a) / cc._d;
-      pool.set(x.championId, cc);
+    // Pool de campeões: agrega partidas (todas ou só da lane) + maestria
+    const aggregate = (list: typeof myParts) => {
+      const pool = new Map<number, ChampStat & { _cs: number }>();
+      for (const x of list) {
+        const c = pool.get(x.championId) ?? {
+          championId: x.championId, key: champ(x.championId).id, name: champ(x.championId).name,
+          games: 0, wins: 0, kda: 0, kills: 0, deaths: 0, assists: 0, csPerMin: 0, masteryPoints: 0, _cs: 0,
+        };
+        c.games++;
+        if (x.win) c.wins++;
+        c.kills += x.kills; c.deaths += x.deaths; c.assists += x.assists;
+        c._cs += x.cs / (x.match.durationSec / 60);
+        pool.set(x.championId, c);
+      }
+      for (const mm of mastery.filter((m) => m.playerId === p.id)) {
+        const c = pool.get(mm.championId);
+        if (c) c.masteryPoints = mm.points;
+      }
+      return [...pool.values()].map(({ _cs, ...c }) => ({
+        ...c,
+        kda: c.deaths === 0 ? c.kills + c.assists : (c.kills + c.assists) / c.deaths,
+        kills: c.kills / c.games,
+        deaths: c.deaths / c.games,
+        assists: c.assists / c.games,
+        csPerMin: _cs / c.games,
+      }));
+    };
+
+    const champions: ChampStat[] = aggregate(myParts).sort((a, b) => b.games - a.games || b.wins - a.wins);
+    // completa com campeões só de maestria (fora das partidas recentes)
+    for (const mm of mastery.filter((m) => m.playerId === p.id).sort((a, b) => b.points - a.points)) {
+      if (!champions.some((c) => c.championId === mm.championId))
+        champions.push({ championId: mm.championId, key: champ(mm.championId).id, name: champ(mm.championId).name, games: 0, wins: 0, kda: 0, kills: 0, deaths: 0, assists: 0, csPerMin: 0, masteryPoints: mm.points });
     }
-    for (const mm of mastery.filter((x) => x.playerId === p.id)) {
-      const c = pool.get(mm.championId) ?? { championId: mm.championId, key: champ(mm.championId).id, name: champ(mm.championId).name, games: 0, wins: 0, kda: 0, masteryPoints: 0 };
-      c.masteryPoints = mm.points;
-      pool.set(mm.championId, c);
-    }
-    const champions = [...pool.values()]
-      .map(({ championId, key, name, games, wins, kda, masteryPoints }) => ({ championId, key, name, games, wins, kda, masteryPoints }))
-      .sort((a, b) => b.games - a.games || b.masteryPoints - a.masteryPoints);
+
+    // Campeões da lane: melhor winrate primeiro (com 2+ jogos), depois os de 1 jogo
+    const wr = (c: ChampStat) => c.wins / c.games;
+    const inLane = aggregate(myParts.filter((x) => x.position && POSITION_TO_ROLE[x.position] === m.role));
+    const laneChampions = [
+      ...inLane.filter((c) => c.games >= 2).sort((a, b) => wr(b) - wr(a) || b.games - a.games),
+      ...inLane.filter((c) => c.games < 2).sort((a, b) => wr(b) - wr(a) || b.kda - a.kda),
+    ];
 
     builtPlayers.push({
       id: p.id,
@@ -226,6 +258,7 @@ export async function getSiteData(): Promise<SiteData> {
       stats,
       roleDist,
       champions,
+      laneChampions,
       recent: myParts.slice(0, 20).map((x) => ({
         matchId: x.matchId,
         championId: x.championId,
@@ -242,7 +275,7 @@ export async function getSiteData(): Promise<SiteData> {
         role: x.position ? POSITION_TO_ROLE[x.position] ?? null : null,
       })),
       socials: socials.filter((s) => s.playerId === p.id).map(({ platform, url }) => ({ platform, url })),
-      splashKeys: champions.slice(0, 3).map((c) => c.key),
+      splashKeys: (laneChampions.length ? laneChampions : champions).slice(0, 3).map((c) => c.key),
       syncedAt: p.syncedAt,
     });
   }

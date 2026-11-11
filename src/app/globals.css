@@ -92,6 +92,15 @@ html.lenis body {
   color: transparent;
 }
 
+/* estende o fundo do texto em gradiente acima da linha para pintar acentos (Ó, É)
+   em títulos com entrelinha curta */
+@layer utilities {
+  .grad-text {
+    padding-top: 0.22em;
+    margin-top: -0.22em;
+  }
+}
+
 @utility label-mono {
   font-family: var(--font-mono);
   font-size: 0.72rem;

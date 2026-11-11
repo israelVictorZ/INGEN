@@ -4,6 +4,9 @@ import type { RiftSlot } from "@/components/roster/RiftMap";
 import { riotId } from "./format";
 import { championIcon, profileIcon } from "./ddragon-urls";
 
+/** Campeões da lane do jogador; se ainda não houver partidas na lane, usa o pool geral. */
+export const mainChamps = (p: Player) => (p.laneChampions.length ? p.laneChampions : p.champions);
+
 export function toCard(p: Player): PlayerCardData {
   return {
     slug: p.slug,
@@ -15,7 +18,7 @@ export function toCard(p: Player): PlayerCardData {
     division: p.solo?.division ?? null,
     lp: p.solo?.lp ?? null,
     winrate: p.solo?.winrate ?? null,
-    splash: p.champions.slice(0, 3).map((c) => ({ key: c.key, name: c.name })),
+    splash: mainChamps(p).slice(0, 3).map((c) => ({ key: c.key, name: c.name })),
   };
 }
 
@@ -31,8 +34,8 @@ export function toRiftSlots(team: Team, version: string): RiftSlot[] {
           tier: s.player.solo?.tier ?? null,
           division: s.player.solo?.division ?? null,
           lp: s.player.solo?.lp ?? null,
-          icon: s.player.champions[0]
-            ? championIcon(version, s.player.champions[0].key)
+          icon: mainChamps(s.player)[0]
+            ? championIcon(version, mainChamps(s.player)[0].key)
             : s.player.profileIconId
               ? profileIcon(version, s.player.profileIconId)
               : null,

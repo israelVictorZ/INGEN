@@ -12,6 +12,7 @@ import { championIcon, championSplash, profileIcon } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, fixed, opggUrl, pct, rankLabel, riotId } from "@/lib/format";
 import { TimeAgo } from "@/components/ui/TimeAgo";
 import { ROLES } from "@/db/schema";
+import { mainChamps } from "@/lib/view";
 
 export async function generateStaticParams() {
   const { players } = await getSiteData();
@@ -61,7 +62,9 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
   const { data, player: p } = await getPlayer(slug);
   if (!p) notFound();
   const v = data.version;
-  const main = p.champions[0];
+  const lane = mainChamps(p);
+  const main = lane[0];
+  const others = p.champions.filter((c) => c.games > 0 && !p.laneChampions.some((l) => l.championId === c.championId)).slice(0, 6);
   const s = p.stats;
   const mates = data.players.filter((x) => x.team.slug === p.team.slug && x.slug !== p.slug);
   const totalRole = Object.values(p.roleDist).reduce((a, b) => a + (b ?? 0), 0);
@@ -75,7 +78,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         { k: "Ouro / min", v: fixed(s.goldPerMin, 0), to: s.goldPerMin, dec: 0 },
         { k: "Part. em abates", v: pct(s.kp), to: s.kp * 100, dec: 0, suffix: "%" },
         { k: "Dano no time", v: pct(s.damageShare), to: s.damageShare * 100, dec: 0, suffix: "%" },
-        { k: "Partidas", v: String(s.games), to: s.games, dec: 0, sub: "ranqueadas recentes" },
+        { k: "Partidas", v: String(s.games), to: s.games, dec: 0, sub: "Solo/Duo recentes" },
       ]
     : [];
 
@@ -153,7 +156,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
             <h2 data-reveal="up" className="font-display text-4xl font-extrabold uppercase text-white md:text-5xl">
               Desempenho <span className="text-gray-dim">recente</span>
             </h2>
-            <p className="label-mono hidden md:block">Últimas {s.games} ranqueadas</p>
+            <p className="label-mono hidden md:block">Últimas {s.games} Solo/Duo · Flex não conta</p>
           </div>
           <div data-reveal="stagger" className="mt-8 grid grid-cols-2 gap-px bg-line md:grid-cols-4">
             {metrics.map((m) => (
@@ -202,26 +205,45 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         </div>
 
         <div>
-          <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white">Pool de campeões</h2>
+          <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white">
+            Campeões de {ROLE_META[p.role].label.toLowerCase()}
+          </h2>
+          <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Melhores winrates na lane · Solo/Duo</p>
           <div data-reveal="stagger" className="mt-6 grid gap-3 sm:grid-cols-2">
-            {p.champions.slice(0, 6).map((c) => (
+            {lane.slice(0, 6).map((c) => (
               <div key={c.championId} className="border-run clip-step-sm group relative flex items-center gap-4 overflow-hidden bg-bg-2 p-3 pr-5">
                 <Image src={championIcon(v, c.key)} alt={c.name} width={56} height={56} className="clip-step-sm" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-xl font-extrabold uppercase leading-none text-white">{c.name}</p>
                   <p className="mt-1 font-mono text-[0.65rem] text-gray">
-                    {c.games ? `${c.games} jogos · ${pct(c.wins / c.games)} · KDA ${fixed(c.kda, 1)}` : "fora das recentes"}
+                    {c.games
+                      ? `${c.games} ${c.games === 1 ? "partida" : "partidas"} · KDA ${fixed(c.kda, 1)} · ${fixed(c.csPerMin)} CS/min`
+                      : "só maestria"}
                   </p>
                 </div>
-                {c.masteryPoints > 0 && (
-                  <span className="text-right font-mono text-[0.62rem] uppercase leading-tight text-gray-dim">
-                    <span className="block text-green">{Math.round(c.masteryPoints / 1000)}k</span>
-                    maestria
+                {c.games > 0 && (
+                  <span className={`text-right font-display text-2xl font-black leading-none ${c.wins / c.games >= 0.5 ? "text-green" : "text-white-dim"}`}>
+                    {pct(c.wins / c.games)}
                   </span>
                 )}
               </div>
             ))}
           </div>
+          {others.length > 0 && (
+            <div className="mt-8">
+              <p className="label-mono">Fora da lane</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {others.map((c) => (
+                  <span key={c.championId} className="flex items-center gap-2 bg-bg-2 py-1 pl-1 pr-3" title={c.name}>
+                    <Image src={championIcon(v, c.key)} alt="" width={28} height={28} />
+                    <span className="font-mono text-[0.65rem] text-gray">
+                      {c.name} · {c.games}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

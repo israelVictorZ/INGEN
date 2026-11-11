@@ -62,25 +62,32 @@ const COLOR_A = "#3dfd4e";
 const COLOR_B = "#c9cdd3";
 
 export function CompareView({ players, version, initialA, initialB }: { players: ComparePlayer[]; version: string; initialA?: string; initialB?: string }) {
-  const first = players.find((p) => p.slug === initialA) ?? players[0];
-  const sameTeam = (slug?: string) => players.find((p) => p.slug === slug && p.team.slug === first.team.slug && p.slug !== first.slug);
-  const [a, setA] = useState(first.slug);
-  const [b, setB] = useState((sameTeam(initialB) ?? players.find((p) => p.team.slug === first.team.slug && p.slug !== first.slug))!.slug);
+  // Duelos de lane: mesma posição nos dois times (ex.: JG da Black × JG da Silver)
+  const duels = useMemo(() => {
+    const out: { role: Role; a: string; b: string }[] = [];
+    for (const r of ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as Role[]) {
+      const same = players.filter((p) => p.role === r);
+      if (same.length >= 2) out.push({ role: r, a: same[0].slug, b: same[1].slug });
+    }
+    return out;
+  }, [players]);
+
+  const valid = (slug?: string) => players.some((p) => p.slug === slug);
+  const startA = valid(initialA) ? initialA! : duels[0]?.a ?? players[0].slug;
+  const startB = valid(initialB) && initialB !== startA ? initialB! : (duels.find((d) => d.a === startA)?.b ?? players.find((p) => p.slug !== startA)!.slug);
+  const [a, setA] = useState(startA);
+  const [b, setB] = useState(startB);
   const root = useRef<HTMLDivElement>(null);
 
   const pa = players.find((p) => p.slug === a)!;
   const pb = players.find((p) => p.slug === b)!;
-  const teamMates = useMemo(() => players.filter((p) => p.team.slug === pa.team.slug), [players, pa.team.slug]);
   const teams = useMemo(() => [...new Map(players.map((p) => [p.team.slug, p.team])).values()], [players]);
 
   const sync = (na: string, nb: string) => {
+    if (na === nb) nb = players.find((p) => p.slug !== na)!.slug;
     setA(na);
     setB(nb);
     window.history.replaceState(null, "", `/comparar?a=${na}&b=${nb}`);
-  };
-  const pickTeam = (slug: string) => {
-    const list = players.filter((p) => p.team.slug === slug);
-    sync(list[0].slug, list[1]?.slug ?? list[0].slug);
   };
 
   // Radar: os polígonos se transformam entre jogadores
@@ -109,21 +116,27 @@ export function CompareView({ players, version, initialA, initialB }: { players:
       <div className="relative">
         <select
           value={p.slug}
-          onChange={(e) => (side === "a" ? sync(e.target.value, e.target.value === b ? a : b) : sync(a, e.target.value))}
+          onChange={(e) => (side === "a" ? sync(e.target.value, e.target.value === b ? a : b) : sync(a === e.target.value ? b : a, e.target.value))}
           className="clip-step-sm cursor-pointer appearance-none bg-bg-3 px-4 py-2 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-white outline-none"
           aria-label={side === "a" ? "Jogador A" : "Jogador B"}
         >
-          {teamMates
-            .filter((m) => (side === "a" ? true : m.slug !== a))
-            .map((m) => (
-              <option key={m.slug} value={m.slug}>
-                {ROLE_META[m.role].short} · {m.name}
-              </option>
-            ))}
+          {teams.map((t) => (
+            <optgroup key={t.slug} label={t.name}>
+              {players
+                .filter((m) => m.team.slug === t.slug && m.slug !== (side === "a" ? b : a))
+                .map((m) => (
+                  <option key={m.slug} value={m.slug}>
+                    {ROLE_META[m.role].short} · {m.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
         </select>
         <div className={`mt-6 flex items-center gap-3 ${side === "b" ? "md:justify-end" : ""}`}>
           <LaneIcon role={p.role} className="size-8" />
-          <span className="label-mono">{ROLE_META[p.role].label}</span>
+          <span className="label-mono">
+            {ROLE_META[p.role].label} · <span className={p.team.accent === "silver" ? "text-silver" : "text-green"}>{p.team.name}</span>
+          </span>
         </div>
         <div className="overflow-hidden">
           <Link
@@ -155,19 +168,26 @@ export function CompareView({ players, version, initialA, initialB }: { players:
 
   return (
     <div ref={root}>
-      <div className="no-print mb-8 flex flex-wrap gap-2">
-        {teams.map((t) => (
-          <button
-            key={t.slug}
-            type="button"
-            onClick={() => pickTeam(t.slug)}
-            className={`clip-step-sm px-4 py-2 font-mono text-[0.7rem] uppercase tracking-[0.16em] transition-colors ${
-              t.slug === pa.team.slug ? "bg-green text-bg-0" : "bg-bg-3 text-white hover:bg-white hover:text-bg-0"
-            }`}
-          >
-            {t.name}
-          </button>
-        ))}
+      <div className="no-print mb-8">
+        <p className="label-mono mb-3">Duelos de lane</p>
+        <div className="flex flex-wrap gap-2">
+          {duels.map((d) => {
+            const on = (a === d.a && b === d.b) || (a === d.b && b === d.a);
+            return (
+              <button
+                key={d.role}
+                type="button"
+                onClick={() => sync(d.a, d.b)}
+                className={`clip-step-sm flex items-center gap-2 px-4 py-2 font-mono text-[0.7rem] uppercase tracking-[0.16em] transition-colors ${
+                  on ? "bg-green text-bg-0" : "bg-bg-3 text-white hover:bg-white hover:text-bg-0"
+                }`}
+              >
+                <LaneIcon role={d.role} className="size-4" active={!on} />
+                {ROLE_META[d.role].short}: Black × Silver
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Duelo: divisão pelo chevron do escudo */}
@@ -251,7 +271,7 @@ export function CompareView({ players, version, initialA, initialB }: { players:
             })}
           </ul>
           <p className="mt-6 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-gray-dim">
-            Médias das ranqueadas recentes de cada jogador
+            Médias das últimas partidas Solo/Duo de cada jogador (Flex não conta)
           </p>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ButtonLink } from "@/components/ui";
 import { CopyButton, PrintButton } from "@/components/ui/CopyButton";
 import { championIcon } from "@/lib/ddragon-urls";
+import { mainChamps } from "@/lib/view";
 import { ROLE_META, TIER_META, fixed, opggMultiUrl, opggUrl, pct, rankLabel, riotId, scoreToLabel } from "@/lib/format";
 
 export async function generateStaticParams() {
@@ -29,7 +30,7 @@ function discordText(team: Team, url: string) {
     if (s.kind === "open") return `\`${lane}\` Vaga aberta`;
     const p = s.player;
     const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
-    const champs = p.champions.slice(0, 3).map((c) => c.name).join(", ");
+    const champs = mainChamps(p).slice(0, 3).map((c) => `${c.name}${c.games ? ` (${c.games}j, ${pct(c.wins / c.games)})` : ""}`).join(", ");
     return `\`${lane}\` **${p.displayName}** (${riotId(p)}): ${elo} · WR ${p.solo ? pct(p.solo.winrate) : "—"} · ${champs}`;
   });
   return [
@@ -53,7 +54,7 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
   // Pool do time: campeões mais jogados somando todos os jogadores
   const pool = new Map<string, { key: string; name: string; games: number; wins: number }>();
   team.players.forEach((p) =>
-    p.champions.forEach((c) => {
+    p.laneChampions.forEach((c) => {
       if (!c.games) return;
       const x = pool.get(c.key) ?? { key: c.key, name: c.name, games: 0, wins: 0 };
       x.games += c.games;
@@ -125,46 +126,70 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
             const color = p.solo ? TIER_META[p.solo.tier]?.color : undefined;
             const roleShare = p.stats ? (p.roleDist[p.role] ?? 0) / p.stats.games : null;
             return (
-              <div key={s.role} className="clip-step grid gap-5 bg-bg-2 p-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.6fr)] lg:items-center">
-                <div className="flex items-center gap-5">
-                  <LaneIcon role={s.role} className="size-10 shrink-0" />
-                  <div className="min-w-0">
-                    <Link href={`/jogador/${p.slug}`} className="font-display text-3xl font-black uppercase leading-none text-white hover:text-green">
-                      {p.displayName}
-                    </Link>
-                    <a href={opggUrl(p)} target="_blank" rel="noopener noreferrer" className="block truncate font-mono text-xs text-gray hover:text-green">
-                      {riotId(p)} ↗
-                    </a>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 font-mono text-xs">
-                  <div>
-                    <p className="label-mono text-[0.55rem]">Solo/Duo</p>
-                    <p className="mt-1 uppercase" style={{ color }}>{p.solo ? rankLabel(p.solo.tier, p.solo.division) : "—"}</p>
-                    <p className="text-gray-dim">{p.solo ? `${p.solo.lp} PDL · ${pct(p.solo.winrate)}` : ""}</p>
-                  </div>
-                  <div>
-                    <p className="label-mono text-[0.55rem]">KDA</p>
-                    <p className="mt-1 text-white">{fixed(p.stats?.kda, 2)}</p>
-                    <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.csPerMin)} CS/min` : ""}</p>
-                  </div>
-                  <div>
-                    <p className="label-mono text-[0.55rem]">Na lane</p>
-                    <p className="mt-1 text-white">{pct(roleShare)}</p>
-                    <p className="text-gray-dim">{p.flex ? `Flex ${rankLabel(p.flex.tier, p.flex.division)}` : ""}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {p.champions.slice(0, 5).map((c) => (
-                    <div key={c.championId} className="flex items-center gap-2 bg-bg-0 py-1 pl-1 pr-3" title={c.name}>
-                      <Image src={championIcon(version, c.key)} alt={c.name} width={32} height={32} />
-                      <span className="font-mono text-[0.65rem] leading-tight text-gray">
-                        <span className="block text-white-dim">{c.name}</span>
-                        {c.games ? `${c.games}j · ${pct(c.wins / c.games)}` : "maestria"}
-                      </span>
+              <div key={s.role} className="clip-step bg-bg-2 p-5 md:p-6">
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)] lg:items-center">
+                  <div className="flex items-center gap-5">
+                    <LaneIcon role={s.role} className="size-11 shrink-0" />
+                    <div className="min-w-0">
+                      <Link href={`/jogador/${p.slug}`} className="font-display text-4xl font-black uppercase leading-none text-white hover:text-green">
+                        {p.displayName}
+                      </Link>
+                      <a href={opggUrl(p)} target="_blank" rel="noopener noreferrer" className="block truncate font-mono text-xs text-gray hover:text-green">
+                        {riotId(p)} ↗
+                      </a>
                     </div>
-                  ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-xs sm:grid-cols-4">
+                    <div>
+                      <p className="label-mono text-[0.55rem]">Solo/Duo</p>
+                      <p className="mt-1 uppercase" style={{ color }}>{p.solo ? rankLabel(p.solo.tier, p.solo.division) : "—"}</p>
+                      <p className="text-gray-dim">{p.solo ? `${p.solo.lp} PDL · ${pct(p.solo.winrate)} na temporada` : ""}</p>
+                    </div>
+                    <div>
+                      <p className="label-mono text-[0.55rem]">KDA médio</p>
+                      <p className="mt-1 text-white">{fixed(p.stats?.kda, 2)}</p>
+                      <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.kills)}/${fixed(p.stats.deaths)}/${fixed(p.stats.assists)}` : ""}</p>
+                    </div>
+                    <div>
+                      <p className="label-mono text-[0.55rem]">Farm e visão</p>
+                      <p className="mt-1 text-white">{p.stats ? `${fixed(p.stats.csPerMin)} CS/min` : "—"}</p>
+                      <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.visionPerMin, 2)} visão/min` : ""}</p>
+                    </div>
+                    <div>
+                      <p className="label-mono text-[0.55rem]">Joga na lane</p>
+                      <p className="mt-1 text-white">{pct(roleShare)}</p>
+                      <p className="text-gray-dim">{p.stats ? `das últimas ${p.stats.games}` : ""}</p>
+                    </div>
+                  </div>
                 </div>
+
+                {p.laneChampions.length > 0 && (
+                  <div className="mt-5 border-t border-line pt-5">
+                    <p className="label-mono mb-3 text-[0.58rem]">Campeões de {ROLE_META[s.role].short} · melhores winrates</p>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      {p.laneChampions.slice(0, 4).map((c) => {
+                        const w = c.wins / c.games;
+                        return (
+                          <div key={c.championId} className="flex items-center gap-3 bg-bg-0 p-2.5 pr-4">
+                            <Image src={championIcon(version, c.key)} alt="" width={48} height={48} className="clip-step-sm" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-display text-lg font-extrabold uppercase leading-none text-white">{c.name}</p>
+                              <p className="mt-1 font-mono text-[0.62rem] text-gray">
+                                {c.games} {c.games === 1 ? "partida" : "partidas"} · KDA {fixed(c.kda, 1)}
+                              </p>
+                              <div className="mt-1.5 flex items-center gap-2">
+                                <span className="h-1 flex-1 bg-bg-3">
+                                  <span className={`block h-full ${w >= 0.5 ? "bg-green" : "bg-gray-dim"}`} style={{ width: `${w * 100}%` }} />
+                                </span>
+                                <span className={`font-mono text-[0.62rem] ${w >= 0.5 ? "text-green" : "text-gray"}`}>{pct(w)} vitórias</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -174,7 +199,7 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
       {teamPool.length > 0 && (
         <section className="wrap mt-20">
           <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white">
-            Pool do time <span className="text-gray-dim">(partidas recentes)</span>
+            Pool do time <span className="text-gray-dim">(nas lanes de cada um)</span>
           </h2>
           <div data-reveal="stagger" className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
             {teamPool.map((c) => (

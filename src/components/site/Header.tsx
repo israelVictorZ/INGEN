@@ -1,0 +1,93 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const NAV = [
+  { href: "/elenco", label: "Elenco" },
+  { href: "/ranking", label: "Ranking" },
+  { href: "/comparar", label: "Comparar" },
+  { href: "/scouting/black", label: "Scouting", match: "/scouting" },
+  { href: "/noticias", label: "Notícias" },
+];
+
+export function Header() {
+  const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 24);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+
+  // fecha o menu mobile ao trocar de página
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setOpen(false);
+  }
+
+  return (
+    <header
+      className={`no-print fixed inset-x-0 top-0 z-50 transition-[background,border-color,backdrop-filter] duration-500 ${
+        scrolled || open ? "border-b border-line bg-bg-0/75 backdrop-blur-xl" : "border-b border-transparent"
+      }`}
+    >
+      <div className="wrap flex h-16 items-center justify-between gap-6">
+        <Link href="/" className="group flex items-center gap-3" aria-label="INGEN, início">
+          <Image src="/brand/ingen-logo.webp" alt="" width={42} height={35} priority className="transition-transform duration-500 group-hover:scale-110" />
+          <span className="font-display text-xl font-black tracking-[0.12em] text-white">INGEN</span>
+        </Link>
+
+        <nav className="hidden items-center gap-1 md:flex">
+          {NAV.map((n) => {
+            const active = pathname.startsWith(n.match ?? n.href);
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={`relative px-3 py-2 font-mono text-[0.72rem] uppercase tracking-[0.16em] transition-colors ${
+                  active ? "text-white" : "text-gray hover:text-white"
+                }`}
+              >
+                {active && <span className="absolute left-1 top-1/2 size-1.5 -translate-y-1/2 bg-green" />}
+                {n.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <button
+          type="button"
+          className="relative flex size-10 items-center justify-center md:hidden"
+          aria-label={open ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className={`absolute h-0.5 w-6 bg-white transition-transform duration-300 ${open ? "rotate-45" : "-translate-y-1.5"}`} />
+          <span className={`absolute h-0.5 w-6 bg-green transition-transform duration-300 ${open ? "-rotate-45" : "translate-y-1.5"}`} />
+        </button>
+      </div>
+
+      {open && (
+        <nav className="wrap flex flex-col border-t border-line pb-6 pt-2 md:hidden">
+          {NAV.map((n, i) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className="flex items-baseline gap-4 border-b border-line py-4 font-display text-3xl font-extrabold uppercase text-white"
+            >
+              <span className="font-pixel text-xs text-green">0{i + 1}</span>
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+    </header>
+  );
+}

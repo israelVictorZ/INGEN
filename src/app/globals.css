@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* ============================================================
+   INGEN: tokens (paleta extraída do logo, ver docs/design.md)
+   ============================================================ */
+@theme {
+  --color-bg-0: #04060a;
+  --color-bg-1: #0a0d13;
+  --color-bg-2: #131519;
+  --color-bg-3: #1b1f25;
+  --color-line: #262b33;
+
+  --color-lime: #7cf94f;
+  --color-green: #3dfd4e;
+  --color-mint: #00f07f;
+  --color-deep: #0b3d1e;
+
+  --color-white: #fefffa;
+  --color-white-dim: #e3e4dd;
+  --color-gray: #8a8f98;
+  --color-gray-dim: #5a606a;
+
+  --color-silver: #c9cdd3;
+  --color-loss: #ff4d5e;
+
+  --font-display: var(--font-big-shoulders), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-pixel: var(--font-geist-pixel), var(--font-geist-mono), monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+:root {
+  --grad-ingen: linear-gradient(180deg, #7cf94f 0%, #3dfd4e 45%, #00f07f 100%);
+  --grad-ingen-x: linear-gradient(90deg, #7cf94f 0%, #3dfd4e 45%, #00f07f 100%);
+  --glow: rgb(61 253 78 / 0.35);
+  --gutter: clamp(16px, 4vw, 48px);
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-bg-0);
+  scrollbar-color: var(--color-line) var(--color-bg-0);
+}
+
+body {
+  background: var(--color-bg-1);
+  color: var(--color-white-dim);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-green);
+  color: var(--color-bg-0);
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ============================================================
+   Utilitários de marca
+   ============================================================ */
+@utility wrap {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+@utility grad-text {
+  background: var(--grad-ingen-x);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+/* Cantos "escalonados", o DNA das torres do escudo */
+@utility clip-step {
+  clip-path: polygon(
+    0 12px, 6px 12px, 6px 6px, 12px 6px, 12px 0,
+    calc(100% - 12px) 0, calc(100% - 12px) 6px, calc(100% - 6px) 6px, calc(100% - 6px) 12px, 100% 12px,
+    100% calc(100% - 12px), calc(100% - 6px) calc(100% - 12px), calc(100% - 6px) calc(100% - 6px), calc(100% - 12px) calc(100% - 6px), calc(100% - 12px) 100%,
+    12px 100%, 12px calc(100% - 6px), 6px calc(100% - 6px), 6px calc(100% - 12px), 0 calc(100% - 12px)
+  );
+}
+
+@utility clip-step-sm {
+  clip-path: polygon(
+    0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0,
+    calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px,
+    100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%,
+    6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px)
+  );
+}
+
+/* Grid de linhas verticais finas (inspirado no neon.com) */
+@utility bg-lines {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(8.333% - 1px),
+    rgb(255 255 255 / 0.045) calc(8.333% - 1px),
+    rgb(255 255 255 / 0.045) 8.333%
+  );
+}
+
+@utility bg-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Borda em gradiente que "corre" no hover */
+@utility border-run {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(from var(--angle), transparent 0 60%, #7cf94f 75%, #00f07f 85%, transparent 95%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s;
+    animation: spin-angle 3s linear infinite;
+    z-index: 2;
+    pointer-events: none;
+  }
+  &:hover::before,
+  &:focus-visible::before {
+    opacity: 1;
+  }
+}
+
+@keyframes spin-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@keyframes scan {
+  0% { transform: translateX(-30%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(130%); opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Antes do JS hidratar, escondemos o que será animado (sem flash) */
+.js [data-reveal],
+.js [data-hero] {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .js [data-reveal],
+  .js [data-hero] {
+    visibility: visible;
+  }
+}
+
+@media print {
+  body { background: #fff; color: #000; }
+  .no-print { display: none !important; }
+}

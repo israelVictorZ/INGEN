@@ -1,5 +1,23 @@
 # Roadmap: features futuras
 
+## Status da v1 (fase-1-base)
+
+**Pronto:**
+- Home animada
+- Elenco com Mapa do Rift
+- Perfil do jogador com dados da Riot
+- Comparar jogadores
+- Scouting (op.gg multi, Discord, PDF)
+- Ranking interno
+- Notícias
+
+**Próximo:**
+- **Painel admin** (Better Auth) para notícias, jogadores, redes sociais e vagas. Hoje a edição é via seed/banco.
+- **Sync automático** (cron) quando houver a Personal Key da Riot. Hoje é `npm run sync` local.
+- **Imagem de compartilhamento (OG)** do scouting para o Discord/WhatsApp.
+- **Gráfico de evolução de elo** (os snapshots diários já estão sendo gravados em `rank_snapshots`).
+- **Logo em SVG** para animar as partes do escudo separadamente.
+
 ## Twitch: selo "Ao vivo" (pausada)
 
 **Status:** pausada até confirmar quais membros têm canal na Twitch.

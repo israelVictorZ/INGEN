@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteData } from "@/lib/data";
+import { ogFor } from "@/lib/site";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { TeamBlock } from "@/components/roster/TeamBlock";
 
 export const metadata: Metadata = {
   title: "Elenco",
-  description: "INGEN Black e INGEN Silver: jogadores, lanes, elo e campeões.",
+  description: "Elenco da INGEN Black e da INGEN Silver: jogadores de cada lane, elo na Solo/Duo, winrate e campeões mais jogados.",
+  alternates: { canonical: "/elenco" },
+  openGraph: ogFor("/elenco"),
 };
 
 export default async function ElencoPage() {

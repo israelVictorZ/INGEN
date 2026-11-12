@@ -6,6 +6,7 @@ import { Footer } from "@/components/site/Footer";
 import { MotionRoot } from "@/components/motion/MotionRoot";
 import { LivePin } from "@/components/live/Live";
 import { getSiteData } from "@/lib/data";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const display = Big_Shoulders({ variable: "--font-big-shoulders", subsets: ["latin"], weight: ["700", "800", "900"] });
@@ -14,10 +15,14 @@ const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const pixel = Geist_Pixel({ variable: "--font-geist-pixel", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: { default: "INGEN · League of Legends", template: "%s · INGEN" },
-  description: "Organização brasileira de League of Legends. Conheça a INGEN Black e a INGEN Silver: elencos, estatísticas, comparação de jogadores e scouting.",
-  openGraph: { siteName: "INGEN", locale: "pt_BR", type: "website" },
+  metadataBase: new URL(SITE_URL),
+  title: { default: "INGEN · Time de League of Legends", template: "%s · INGEN" },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ["INGEN", "INGEN Black", "INGEN Silver", "League of Legends", "LoL", "time de LoL", "e-sports", "Solo/Duo", "elo", "scouting"],
+  openGraph: { siteName: SITE_NAME, locale: "pt_BR", type: "website" },
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
 };
 
 export const viewport: Viewport = { themeColor: "#04060a" };

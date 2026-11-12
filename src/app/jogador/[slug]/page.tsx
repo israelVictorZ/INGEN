@@ -14,6 +14,8 @@ import { ROLES } from "@/db/schema";
 import { mainChamps } from "@/lib/view";
 import { ChampionTable, EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos, PlayerInsights } from "@/components/player/sections";
 import { LiveBadge, TwitchButton } from "@/components/live/Live";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { ORG_LD, abs } from "@/lib/site";
 
 export async function generateStaticParams() {
   const { players } = await getSiteData();
@@ -24,9 +26,20 @@ export async function generateMetadata({ params }: PageProps<"/jogador/[slug]">)
   const { slug } = await params;
   const { player } = await getPlayer(slug);
   if (!player) return {};
+  const elo = player.solo ? `${rankLabel(player.solo.tier, player.solo.division)} (${player.solo.lp} PDL) na Solo/Duo` : "sem ranqueada Solo/Duo no momento";
+  const champs = mainChamps(player)
+    .slice(0, 3)
+    .map((c) => c.name)
+    .join(", ");
+  const s = player.stats;
   return {
-    title: `${player.displayName} · ${player.team.name}`,
-    description: `${ROLE_META[player.role].label} da ${player.team.name}. ${player.solo ? rankLabel(player.solo.tier, player.solo.division) : ""} · ${riotId(player)}`,
+    title: `${player.displayName} (${riotId(player)}) · ${ROLE_META[player.role].label} da ${player.team.name}`,
+    description:
+      `${player.displayName} joga de ${ROLE_META[player.role].label.toLowerCase()} na ${player.team.name}: ${elo}` +
+      (s ? `, ${pct(s.winrate)} de winrate e KDA ${fixed(s.kda, 2)} nas últimas ${s.games} partidas` : "") +
+      (champs ? `. Campeões: ${champs}.` : "."),
+    alternates: { canonical: `/jogador/${player.slug}` },
+    openGraph: { url: `/jogador/${player.slug}`, type: "profile" },
   };
 }
 
@@ -84,15 +97,36 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         { k: "Winrate", v: pct(s.winrate), to: s.winrate * 100, dec: 0, suffix: "%", sub: `${s.wins}V ${s.games - s.wins}D`, place: place((x) => x.winrate) },
         { k: "CS / min", v: fixed(s.csPerMin), to: s.csPerMin, dec: 1, place: place((x) => x.csPerMin) },
         { k: "Visão / min", v: fixed(s.visionPerMin, 2), to: s.visionPerMin, dec: 2, place: place((x) => x.visionPerMin) },
-        { k: "Ouro / min", v: fixed(s.goldPerMin, 0), to: s.goldPerMin, dec: 0, place: place((x) => x.goldPerMin) },
-        { k: "Part. em abates", v: pct(s.kp), to: s.kp * 100, dec: 0, suffix: "%", place: place((x) => x.kp) },
-        { k: "Dano no time", v: pct(s.damageShare), to: s.damageShare * 100, dec: 0, suffix: "%", place: place((x) => x.damageShare) },
-        { k: "Partidas", v: String(s.games), to: s.games, dec: 0, sub: "Solo/Duo recentes", place: null },
       ]
     : [];
 
   return (
     <RevealScope>
+      <JsonLd
+        data={{
+          "@graph": [
+            {
+              "@type": "Person",
+              "@id": abs(`/jogador/${p.slug}#person`),
+              name: p.displayName,
+              alternateName: riotId(p),
+              url: abs(`/jogador/${p.slug}`),
+              ...(p.profileIconId ? { image: profileIcon(v, p.profileIconId) } : {}),
+              jobTitle: `${ROLE_META[p.role].label} de League of Legends`,
+              memberOf: { "@type": "SportsTeam", name: p.team.name, sport: "League of Legends", url: abs(`/elenco#${p.team.slug}`), parentOrganization: ORG_LD },
+              sameAs: p.socials.map((so) => so.url),
+            },
+            {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "INGEN", item: abs("/") },
+                { "@type": "ListItem", position: 2, name: "Elenco", item: abs("/elenco") },
+                { "@type": "ListItem", position: 3, name: p.displayName, item: abs(`/jogador/${p.slug}`) },
+              ],
+            },
+          ],
+        }}
+      />
       {/* HERO */}
       <section className="relative overflow-hidden pb-16 pt-32 md:pt-40">
         {main && (
@@ -188,7 +222,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
             </h2>
             <p className="label-mono hidden md:block">Últimas {s.games} Solo/Duo · Flex não conta</p>
           </div>
-          <div data-reveal="stagger" className="mt-8 grid grid-cols-2 gap-px bg-line md:grid-cols-4">
+          <div data-reveal="stagger" className="mt-8 grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
             {metrics.map((m) => (
               <div key={m.k} className="bg-bg-1 p-5 md:p-6">
                 <p className="label-mono text-[0.6rem]">{m.k}</p>
@@ -216,7 +250,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
 
       {s && (
         <section className="wrap mt-6 space-y-6">
-          <ExtraMetrics p={p} />
+          <ExtraMetrics p={p} peers={peers.map((x) => x.stats)} />
           <FormAndRecords p={p} version={v} />
         </section>
       )}

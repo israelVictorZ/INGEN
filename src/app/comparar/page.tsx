@@ -7,10 +7,14 @@ import { CompareView, type ComparePlayer } from "@/components/compare/CompareVie
 import { riotId } from "@/lib/format";
 import { mainChamps } from "@/lib/view";
 import slugRedirects from "@/lib/slug-redirects.json";
+import { ogFor } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Comparar jogadores",
-  description: "Compare jogadores da INGEN Black e da INGEN Silver, métrica por métrica.",
+  description: "Compare jogadores da INGEN Black e da INGEN Silver lado a lado: KDA, farm, visão, dano, forma, elo e pool de campeões.",
+  // ?a=…&b=… gera infinitas combinações: todas apontam para a mesma página canônica
+  alternates: { canonical: "/comparar" },
+  openGraph: ogFor("/comparar"),
 };
 
 async function getComparePlayers(): Promise<{ version: string; until: number | null; players: ComparePlayer[] }> {

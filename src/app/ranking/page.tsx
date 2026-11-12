@@ -8,10 +8,13 @@ import { LaneIcon } from "@/components/brand/LaneIcon";
 import { RankEmblem, TeamTag } from "@/components/ui";
 import { championIcon } from "@/lib/ddragon-urls";
 import { TIER_META, pct, rankLabel } from "@/lib/format";
+import { ogFor } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Ranking interno",
-  description: "Todos os jogadores da INGEN ordenados por elo na ranqueada Solo/Duo.",
+  description: "Ranking interno da INGEN: todos os jogadores da Black e da Silver ordenados por elo na ranqueada Solo/Duo, com PDL e winrate.",
+  alternates: { canonical: "/ranking" },
+  openGraph: ogFor("/ranking"),
 };
 
 export default async function RankingPage() {

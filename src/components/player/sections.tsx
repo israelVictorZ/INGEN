@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { PerfSnap, Player, RecentMatch, SiteData, WinSplit } from "@/lib/data";
+import type { PerfSnap, Player, RecentMatch, SiteData, Stats, WinSplit } from "@/lib/data";
 import { championIcon, itemIcon, runeIcon, spellIcon } from "@/lib/ddragon-urls";
 import { TIER_META, fixed, pct, rankLabel, scoreToLabel, scoreToTier } from "@/lib/format";
 import { TimeAgo } from "@/components/ui/TimeAgo";
@@ -114,39 +114,124 @@ function rankLabelFromScore(score: number) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Métricas extras                                                     */
+/* Métricas agrupadas: Combate · Farm e objetivos · Visão + ritmo      */
 /* ------------------------------------------------------------------ */
-export function ExtraMetrics({ p }: { p: Player }) {
+type MetricDef = {
+  k: string;
+  get: (s: Stats) => number | null;
+  fmt: (v: number) => string;
+  /** "low": menor é melhor (mortes); "none": sem ranking (dano recebido depende da função) */
+  better?: "high" | "low" | "none";
+  sub?: string;
+};
+
+const GROUPS: { title: string; hint: string; rows: MetricDef[] }[] = [
+  {
+    title: "Combate",
+    hint: "Médias por partida",
+    rows: [
+      { k: "Dano / min", get: (s) => s.damagePerMin, fmt: (v) => v.toFixed(0) },
+      { k: "Dano no time", get: (s) => s.damageShare, fmt: pct },
+      { k: "Part. em abates", get: (s) => s.kp, fmt: pct },
+      { k: "Abates solo", get: (s) => s.soloKills, fmt: (v) => v.toFixed(1) },
+      { k: "Mortes", get: (s) => s.deaths, fmt: (v) => v.toFixed(1), better: "low" },
+      { k: "First blood", get: (s) => s.firstBloodRate, fmt: pct, sub: "participação" },
+      { k: "Dano recebido", get: (s) => s.damageTaken, fmt: (v) => `${(v / 1000).toFixed(1)}k`, better: "none" },
+    ],
+  },
+  {
+    title: "Farm e objetivos",
+    hint: "Economia e pressão de lane",
+    rows: [
+      { k: "Ouro / min", get: (s) => s.goldPerMin, fmt: (v) => v.toFixed(0) },
+      { k: "CS aos 10 min", get: (s) => s.csAt10, fmt: (v) => v.toFixed(1) },
+      { k: "Placas de torre", get: (s) => s.turretPlates, fmt: (v) => v.toFixed(1) },
+    ],
+  },
+  {
+    title: "Visão",
+    hint: "Controle de mapa por partida",
+    rows: [
+      { k: "Wards colocadas", get: (s) => s.wardsPlaced, fmt: (v) => v.toFixed(1) },
+      { k: "Wards destruídas", get: (s) => s.wardsKilled, fmt: (v) => v.toFixed(1) },
+      { k: "Control wards", get: (s) => s.controlWards, fmt: (v) => v.toFixed(1) },
+    ],
+  },
+];
+
+function MetricLine({ m, s, peers }: { m: MetricDef; s: Stats; peers: Stats[] }) {
+  const me = m.get(s);
+  const vals = peers.map(m.get).filter((x): x is number => x != null);
+  const better = m.better ?? "high";
+  const pos = me == null || better === "none" ? null : 1 + vals.filter((x) => (better === "low" ? x < me : x > me)).length;
+  // barra: quão perto do melhor da INGEN (para "low", o melhor é o menor valor)
+  const best = better === "low" ? Math.min(...vals) : Math.max(...vals);
+  const fill = me == null || !vals.length ? 0 : better === "low" ? (me ? best / me : 1) : best ? me / best : 0;
+  return (
+    <li className="py-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-gray">
+          {m.k}
+          {m.sub && <span className="ml-1.5 normal-case tracking-normal text-gray-dim">{m.sub}</span>}
+        </span>
+        <span className="flex items-baseline gap-2.5">
+          <span className="font-display text-xl font-black leading-none text-white">{me != null ? m.fmt(me) : "—"}</span>
+          <span className={`w-7 text-right font-mono text-[0.6rem] ${pos === 1 ? "text-green" : pos != null && pos <= 3 ? "text-white-dim" : "text-gray-dim"}`}>
+            {pos != null ? `${pos}º` : ""}
+          </span>
+        </span>
+      </div>
+      {better !== "none" && (
+        <div className="mt-2 h-[3px] bg-bg-3">
+          <div data-reveal="bar" className={`h-full ${pos === 1 ? "bg-green" : "bg-white/35"}`} style={{ width: `${Math.max(4, Math.min(1, fill) * 100)}%` }} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Painéis de métricas por tema. A barra e o "Nº" mostram a posição entre os jogadores da INGEN. */
+export function ExtraMetrics({ p, peers }: { p: Player; peers: Stats[] }) {
   const s = p.stats;
   if (!s) return null;
   const ins = p.insights;
-  const items = [
-    { k: "Dano / min", v: fixed(s.damagePerMin, 0) },
-    { k: "Dano recebido", v: s.damageTaken != null ? `${(s.damageTaken / 1000).toFixed(1)}k` : "—", sub: "por partida" },
-    { k: "CS aos 10 min", v: fixed(s.csAt10, 1) },
-    { k: "Abates solo", v: fixed(s.soloKills, 1), sub: "por partida" },
-    { k: "Wards colocadas", v: fixed(s.wardsPlaced, 1), sub: "por partida" },
-    { k: "Wards destruídas", v: fixed(s.wardsKilled, 1), sub: "por partida" },
-    { k: "Control wards", v: fixed(s.controlWards, 1), sub: "compradas por partida" },
-    { k: "First blood", v: pct(s.firstBloodRate), sub: ins?.firstBloodWinrate != null ? `${pct(ins.firstBloodWinrate)} de vitórias quando participa` : "participação" },
-    { k: "Placas de torre", v: fixed(s.turretPlates, 1), sub: "por partida" },
+  const [combat, ...rest] = GROUPS;
+  const panel = (g: (typeof GROUPS)[number]) => (
+    <div key={g.title} className="clip-step bg-bg-2 px-6 pb-3 pt-5">
+      <div className="flex items-baseline justify-between gap-4 border-b border-line pb-3">
+        <p className="label-mono">{g.title}</p>
+        <p className="font-mono text-[0.58rem] text-gray-dim">{g.hint}</p>
+      </div>
+      <ul className="divide-y divide-line/60">
+        {g.rows.map((m) => (
+          <MetricLine key={m.k} m={m} s={s} peers={peers} />
+        ))}
+      </ul>
+    </div>
+  );
+  const pace = [
+    { k: "Partidas", v: String(s.games), sub: "Solo/Duo analisadas" },
+    { k: "Últimos 7 dias", v: ins ? String(ins.gamesLast7d) : "—", sub: "partidas" },
     { k: "Duração média", v: ins ? mmss(ins.avgDurationSec) : "—", sub: "por partida" },
-    { k: "Últimos 7 dias", v: ins ? String(ins.gamesLast7d) : "—", sub: "partidas Solo/Duo" },
-    {
-      k: "Pool",
-      v: ins ? String(ins.uniqueChamps) : "—",
-      sub: ins ? `campeões · ${ins.comfortChamps} com 3+ jogos · ${pct(ins.oneTrickShare)} no principal` : undefined,
-    },
+    { k: "Pool", v: ins ? String(ins.uniqueChamps) : "—", sub: ins ? `${ins.comfortChamps} com 3+ jogos · ${pct(ins.oneTrickShare)} no principal` : "campeões" },
   ];
   return (
-    <div data-reveal="stagger" className="grid grid-cols-2 gap-px bg-line md:grid-cols-4">
-      {items.map((m) => (
-        <div key={m.k} className="bg-bg-1 p-5">
-          <p className="label-mono text-[0.6rem]">{m.k}</p>
-          <p className="mt-2 font-display text-3xl font-black leading-none text-white">{m.v}</p>
-          {m.sub && <p className="mt-1 font-mono text-[0.62rem] text-gray-dim">{m.sub}</p>}
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div data-reveal="stagger" className="grid gap-4 lg:grid-cols-2">
+        {panel(combat)}
+        <div className="grid gap-4">{rest.map(panel)}</div>
+      </div>
+      <dl data-reveal="stagger" className="grid grid-cols-2 gap-px bg-line md:grid-cols-4">
+        {pace.map((m) => (
+          <div key={m.k} className="flex items-baseline gap-3 bg-bg-1 px-5 py-4">
+            <dd className="font-display text-2xl font-black leading-none text-white">{m.v}</dd>
+            <div className="min-w-0">
+              <dt className="label-mono text-[0.58rem]">{m.k}</dt>
+              <dd className="truncate font-mono text-[0.6rem] text-gray-dim">{m.sub}</dd>
+            </div>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -202,7 +287,8 @@ export function PlayerInsights({ p, data }: { p: Player; data: Pick<SiteData, "r
   const favDay = byDay.indexOf(Math.max(...byDay));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-2">
       {/* Vitórias × derrotas */}
       <div className="clip-step bg-bg-2 p-6">
         <p className="label-mono">Nas vitórias × nas derrotas</p>
@@ -263,51 +349,79 @@ export function PlayerInsights({ p, data }: { p: Player; data: Pick<SiteData, "r
         )}
       </div>
 
-      {/* Contexto: lado e duração */}
-      <div className="clip-step bg-bg-2 p-6">
-        <p className="label-mono">Contexto de jogo</p>
-        <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Winrate por lado do mapa e por duração da partida</p>
-        <ul className="mt-5 space-y-3.5">
-          <SplitBar label="Lado azul" s={ins.sides.blue} />
-          <SplitBar label="Lado vermelho" s={ins.sides.red} />
-          <SplitBar label="Jogos curtos" hint="até 25 min" s={ins.duration.short} />
-          <SplitBar label="Jogos médios" hint="25 a 35 min" s={ins.duration.mid} />
-          <SplitBar label="Jogos longos" hint="35+ min" s={ins.duration.long} />
-        </ul>
-        {ins.keystones.length > 0 && (
-          <div className="mt-6 border-t border-line pt-5">
-            <p className="label-mono text-[0.6rem]">Runas principais</p>
-            <ul className="mt-3 grid grid-cols-2 gap-2">
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
+        {/* Contexto: lado e duração */}
+        <div className="clip-step bg-bg-2 p-6 xl:col-span-4">
+          <p className="label-mono">Contexto de jogo</p>
+          <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Winrate por lado do mapa e por duração</p>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            {[
+              { label: "Lado azul", s: ins.sides.blue, color: "#4a90e2" },
+              { label: "Lado vermelho", s: ins.sides.red, color: "#e2544a" },
+            ].map((x) => {
+              const wr = x.s.games ? x.s.wins / x.s.games : null;
+              return (
+                <div key={x.label} className="relative overflow-hidden bg-bg-0 p-3">
+                  <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: x.color }} />
+                  <p className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-gray-dim">{x.label}</p>
+                  <p className={`mt-1.5 font-display text-2xl font-black leading-none ${wr == null ? "text-gray-dim" : wr >= 0.5 ? "text-green" : "text-loss"}`}>
+                    {wr == null ? "—" : pct(wr)}
+                  </p>
+                  <p className="mt-1 font-mono text-[0.58rem] text-gray-dim">{x.s.games} jogos</p>
+                </div>
+              );
+            })}
+          </div>
+          <ul className="mt-5 space-y-3.5">
+            <SplitBar label="Curtos" hint="até 25 min" s={ins.duration.short} />
+            <SplitBar label="Médios" hint="25 a 35 min" s={ins.duration.mid} />
+            <SplitBar label="Longos" hint="35+ min" s={ins.duration.long} />
+          </ul>
+        </div>
+
+        {/* Runas */}
+        <div className="clip-step bg-bg-2 p-6 xl:col-span-3">
+          <p className="label-mono">Runas principais</p>
+          <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Runa-chave mais usada e o resultado</p>
+          {ins.keystones.length ? (
+            <ul className="mt-5 space-y-2">
               {ins.keystones.map((k) => {
                 const wr = k.wins / k.games;
                 return (
-                  <li key={k.id} className="flex items-center gap-2.5 bg-bg-0 p-2">
+                  <li key={k.id} className="flex items-center gap-3 bg-bg-0 p-2.5">
                     {data.runes[k.id] ? (
-                      <Image src={runeIcon(data.runes[k.id])} alt="" width={30} height={30} className="rounded-full bg-bg-3" />
+                      <Image src={runeIcon(data.runes[k.id])} alt="" width={32} height={32} className="rounded-full bg-bg-3" />
                     ) : (
-                      <span className="size-[30px] rounded-full bg-bg-3" />
+                      <span className="size-8 rounded-full bg-bg-3" />
                     )}
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-mono text-[0.65rem] text-white">{data.runeNames[k.id] ?? `Runa ${k.id}`}</span>
-                      <span className="font-mono text-[0.58rem] text-gray-dim">
-                        {k.games} jogos · <span className={wr >= 0.5 ? "text-green" : "text-loss"}>{pct(wr)}</span>
+                      <span className="block truncate font-mono text-[0.7rem] text-white">{data.runeNames[k.id] ?? `Runa ${k.id}`}</span>
+                      <span className="mt-1.5 block h-[3px] bg-bg-3">
+                        <span className={`block h-full ${wr >= 0.5 ? "bg-green" : "bg-loss/70"}`} style={{ width: `${wr * 100}%` }} />
                       </span>
+                    </span>
+                    <span className="text-right font-mono text-[0.6rem] leading-tight">
+                      <span className={`block ${wr >= 0.5 ? "text-green" : "text-loss"}`}>{pct(wr)}</span>
+                      <span className="text-gray-dim">{k.games}j</span>
                     </span>
                   </li>
                 );
               })}
             </ul>
-          </div>
-        )}
-      </div>
+          ) : (
+            <p className="mt-5 text-sm text-gray">Sem dados de runas ainda.</p>
+          )}
+        </div>
 
       {/* Quando joga */}
-      <div className="clip-step bg-bg-2 p-6">
+      <div className="clip-step flex flex-col bg-bg-2 p-6 md:col-span-2 xl:col-span-5">
         <p className="label-mono">Quando joga</p>
         <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">
           Horário de Brasília · mais ativo {PERIODS[favPeriod].toLowerCase()}, {WEEKDAYS[favDay].toLowerCase()}
         </p>
-        <div className="mt-5 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1">
+        <div className="mt-5 grid flex-1 grid-cols-[auto_repeat(7,minmax(0,1fr))] grid-rows-[auto_repeat(4,minmax(2.25rem,1fr))] gap-1">
           <span />
           {WEEKDAYS.map((d) => (
             <span key={d} className="pb-1 text-center font-mono text-[0.56rem] uppercase tracking-wider text-gray-dim">
@@ -316,14 +430,14 @@ export function PlayerInsights({ p, data }: { p: Player; data: Pick<SiteData, "r
           ))}
           {PERIODS.map((label, pi) => (
             <div key={label} className="contents">
-              <span className="pr-2 font-mono text-[0.56rem] uppercase leading-8 tracking-wider text-gray-dim">{label}</span>
+              <span className="flex items-center pr-2 font-mono text-[0.56rem] uppercase tracking-wider text-gray-dim">{label}</span>
               {ins.schedule.map((day, di) => {
                 const n = day[pi];
                 return (
                   <span
                     key={di}
                     title={`${WEEKDAYS[di]} · ${label}: ${n} ${n === 1 ? "partida" : "partidas"}`}
-                    className="flex h-8 items-center justify-center font-mono text-[0.6rem] text-bg-0"
+                    className="flex items-center justify-center font-mono text-[0.6rem] text-bg-0"
                     style={{ background: n ? `rgb(61 253 78 / ${0.15 + (n / maxCell) * 0.85})` : "#1b1f25" }}
                   >
                     {n || ""}
@@ -334,6 +448,7 @@ export function PlayerInsights({ p, data }: { p: Player; data: Pick<SiteData, "r
           ))}
         </div>
         <p className="mt-4 font-mono text-[0.6rem] text-gray-dim">Madrugada 0h–6h · manhã 6h–12h · tarde 12h–18h · noite 18h–24h</p>
+      </div>
       </div>
     </div>
   );

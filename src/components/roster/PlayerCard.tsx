@@ -75,26 +75,28 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
             />
           ))}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-0 via-bg-0/70 to-transparent" />
+        {/* véus escuros: o texto fica legível mesmo com splash clara (ex.: Seraphine, Lux) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-0 from-[28%] via-bg-0/80 via-[52%] to-transparent to-[82%]" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-bg-0/75 to-transparent" />
         <div className="absolute inset-0 bg-dots opacity-40 mix-blend-overlay" />
 
-        <div className="absolute left-4 top-4 flex items-center gap-2">
-          <LaneIcon role={p.role} className="size-7" />
-          <span className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white-dim">{ROLE_META[p.role].short}</span>
+        <div className="absolute left-3 top-3 flex items-center gap-2 bg-bg-0/70 py-1 pl-1.5 pr-2.5 backdrop-blur-sm">
+          <LaneIcon role={p.role} className="size-6" />
+          <span className="font-mono text-[0.66rem] uppercase tracking-[0.2em] text-white">{ROLE_META[p.role].short}</span>
         </div>
-        <span className="absolute right-4 top-4 font-pixel text-xs text-white/30">0{index + 1}</span>
+        <span className="absolute right-3 top-3 bg-bg-0/70 px-2 py-1.5 font-pixel text-xs text-white/60 backdrop-blur-sm">0{index + 1}</span>
         <LiveBadge slug={p.slug} className="absolute right-3 top-10 z-10" />
 
         <div className="absolute inset-x-0 bottom-0 p-5">
           {p.splash[skin] && (
-            <p className="mb-2 font-mono text-[0.62rem] uppercase tracking-[0.2em] text-gray transition-opacity">
+            <p className="mb-2 font-mono text-[0.62rem] uppercase tracking-[0.2em] text-white-dim transition-opacity">
               {p.splash[skin].name}
             </p>
           )}
-          <h3 className="font-display text-4xl font-black uppercase leading-none text-white transition-colors group-hover:text-green">
+          <h3 className="font-display text-4xl font-black uppercase leading-none text-white transition-colors [text-shadow:0_2px_12px_rgb(0_0_0/0.8)] group-hover:text-green">
             {p.displayName}
           </h3>
-          <p className="mt-1 truncate font-mono text-[0.7rem] text-gray">{p.riotId}</p>
+          <p className="mt-1 truncate font-mono text-[0.7rem] text-white-dim">{p.riotId}</p>
           <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
             <span className="flex items-center gap-2 font-mono text-[0.7rem] uppercase tracking-wider" style={{ color: tierColor }}>
               <span className="size-1.5 rotate-45" style={{ background: tierColor }} />

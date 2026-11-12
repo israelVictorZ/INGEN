@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
@@ -7,9 +8,16 @@ import { LiveNowStrip, TeamTwitchPanel } from "@/components/live/Live";
 import { DiscordIcon } from "@/components/brand/SocialIcons";
 import { NewsCard } from "@/components/news/NewsCard";
 import { FEATURES, LINKS, RECRUIT_HREF } from "@/lib/features";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { ORG_LD, SITE_DESCRIPTION, SITE_URL, abs, ogFor } from "@/lib/site";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { SectionHead, ButtonLink, RankLine, TeamTag } from "@/components/ui";
 import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: ogFor("/"),
+};
 
 export default async function Home() {
   const data = await getSiteData();
@@ -26,6 +34,23 @@ export default async function Home() {
 
   return (
     <RevealScope>
+      <JsonLd
+        data={{
+          "@graph": [
+            { ...ORG_LD, description: SITE_DESCRIPTION, subOrganization: teams.map((t) => ({ "@id": abs(`/elenco#${t.slug}`) })) },
+            { "@type": "WebSite", "@id": `${SITE_URL}/#site`, url: SITE_URL, name: "INGEN", inLanguage: "pt-BR", publisher: { "@id": ORG_LD["@id"] } },
+            ...teams.map((t) => ({
+              "@type": "SportsTeam",
+              "@id": abs(`/elenco#${t.slug}`),
+              name: t.name,
+              sport: "League of Legends",
+              url: abs(`/elenco#${t.slug}`),
+              parentOrganization: { "@id": ORG_LD["@id"] },
+              athlete: t.players.map((p) => ({ "@type": "Person", name: p.displayName, alternateName: `${p.gameName}#${p.tagLine}`, url: abs(`/jogador/${p.slug}`) })),
+            })),
+          ],
+        }}
+      />
       <Hero
         blackAvg={black?.avgScore != null ? scoreToLabel(black.avgScore) : "—"}
         silverAvg={silver?.avgScore != null ? scoreToLabel(silver.avgScore) : "—"}
@@ -173,7 +198,7 @@ export default async function Home() {
       )}
 
       {/* 03: Comunidade (Twitch + Discord) */}
-      <section className="wrap pb-28 md:pb-40">
+      <section className="wrap py-28 md:py-40">
         <SectionHead n="03" label="Comunidade" title="Assista e" muted="chegue junto.">
           <p data-reveal="up" className="mt-6 max-w-xl text-gray">
             A INGEN transmite na Twitch. Quando o canal estiver ao vivo, a partida aparece aqui e um aviso fica fixo no canto da tela em

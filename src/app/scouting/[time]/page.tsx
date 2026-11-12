@@ -11,6 +11,7 @@ import { CopyButton, PrintButton } from "@/components/ui/CopyButton";
 import { championIcon } from "@/lib/ddragon-urls";
 import { mainChamps } from "@/lib/view";
 import { ROLE_META, TIER_META, fixed, opggMultiUrl, opggUrl, pct, rankLabel, riotId, scoreToLabel } from "@/lib/format";
+import { ogFor } from "@/lib/site";
 
 export async function generateStaticParams() {
   const { teams } = await getSiteData();
@@ -21,7 +22,14 @@ export async function generateMetadata({ params }: PageProps<"/scouting/[time]">
   const { time } = await params;
   const { teams } = await getSiteData();
   const t = teams.find((x) => x.slug === time);
-  return t ? { title: `Scouting · ${t.name}`, description: `Relatório de scouting da ${t.name}: elo, campeões e estatísticas de cada lane.` } : {};
+  return t
+    ? {
+        title: `Scouting · ${t.name}`,
+        description: `Relatório de scouting da ${t.name}: elo, campeões e estatísticas de cada lane.`,
+        alternates: { canonical: `/scouting/${t.slug}` },
+        openGraph: ogFor(`/scouting/${t.slug}`),
+      }
+    : {};
 }
 
 function discordText(team: Team, url: string) {

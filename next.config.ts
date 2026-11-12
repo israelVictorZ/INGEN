@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       permanent: true,
     }));
   },
+  // kit de stream (página /stream e overlays em public/stream): uso interno, fora do Google
+  async headers() {
+    const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+    return [
+      { source: "/stream", headers: noindex },
+      { source: "/stream/:path*", headers: noindex },
+    ];
+  },
   cacheComponents: true,
   partialPrefetching: true,
   images: {

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INGEN · Chat</title>
+<link rel="stylesheet" href="../core/ingen.css">
+<link rel="stylesheet" href="../core/chat.css">
+<style>
+  body.preview { background: #2a2f37 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='10' height='10' fill='%23323843'/><rect x='10' y='10' width='10' height='10' fill='%23323843'/></svg>"); }
+</style>
+</head>
+<body>
+<script src="../config.js"></script>
+<script src="../core/ingen.js"></script>
+<script src="../core/twitch.js"></script>
+<script src="../core/chat.js"></script>
+<script>
+  /* Chat transparente: use como Fonte de Navegador por cima do layout.
+     Parâmetros: canal, limite, sumir (seg), fonte (px), esconder (logins), comandos=1, cores=0, demo=1, fundo=1 */
+  IG.ready(function () {
+  IG.applyTeam();
+  if (IG.flag("fundo", false)) document.body.classList.add("preview");
+  IGChat.mount(document.body, {
+    canal: IG.opt("canal", "ingen_team"),
+    limite: IG.num("limite", 30),
+    sumir: IG.num("sumir", 0),
+    fonte: IG.num("fonte", 22),
+    esconder: IG.opt("esconder", ""),
+    comandos: IG.flag("comandos", false),
+    cores: IG.flag("cores", true),
+    demo: IG.flag("demo", false),
+  });
+  });
+</script>
+</body>
+</html>

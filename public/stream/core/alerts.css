@@ -1,0 +1,62 @@
+/* INGEN · Alertas (follow, sub, resub, presente, raid, bits) */
+.al {
+  position: absolute;
+  left: 50%;
+  width: 1000px;
+  height: 210px;
+  margin-left: -500px;
+  top: 80px;
+  pointer-events: none;
+}
+.al.pos-centro { top: 435px; }
+.al.pos-baixo { top: auto; bottom: 120px; }
+
+.al-cols { position: absolute; inset: 0; display: flex; z-index: 3; }
+.al-cols i { flex: 1; background: var(--grad); transform: scaleY(0); transform-origin: bottom; }
+.al-cols i:nth-child(even) { background: linear-gradient(180deg, var(--acc1), var(--acc3)); }
+
+.al-panel { position: absolute; inset: 0; opacity: 0; z-index: 2; }
+.al-inner { position: absolute; inset: 0; display: flex; align-items: center; }
+
+.al-badge { position: relative; width: 210px; height: 210px; flex: none; display: grid; place-items: center; }
+.al-badge::before {
+  content: ""; position: absolute; inset: 22px; border-radius: 50%;
+  background: conic-gradient(from var(--ang), transparent 0 60%, var(--acc1) 75%, var(--acc3) 90%, transparent);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  animation: al-spin 2.4s linear infinite;
+}
+.al-badge::after {
+  content: ""; position: absolute; inset: 30px; border-radius: 50%;
+  background: radial-gradient(circle, var(--glow) 0%, transparent 65%);
+}
+@keyframes al-spin { to { --ang: 360deg; } }
+.al-badge img { position: relative; z-index: 1; width: 132px; filter: drop-shadow(0 0 14px var(--glow)); }
+
+.al-text { position: relative; flex: 1; min-width: 0; padding: 0 44px 0 6px; }
+.al-text::before {
+  content: ""; position: absolute; left: -8px; top: 34px; bottom: 34px; width: 1px;
+  background: linear-gradient(180deg, transparent, var(--line), transparent);
+}
+.al-kicker { font-size: 18px; color: var(--acc1); display: flex; align-items: center; gap: 12px; }
+.al-kicker::before { content: ""; width: 12px; height: 12px; background: var(--grad); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.al-name { font-size: 100px; color: var(--white); margin: 10px 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top: 0.08em; margin-top: 2px; }
+.al-detail { font-family: var(--f-mono); font-size: 19px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-detail b { color: var(--white); font-weight: 600; }
+.al-msg { margin-top: 10px; font-size: 21px; font-weight: 500; color: var(--white-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-msg:empty { display: none; }
+.al.has-msg .al-name { font-size: 84px; }
+
+.al-shine {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(100deg, transparent 35%, rgba(254, 255, 250, 0.16) 50%, transparent 65%);
+  transform: translateX(-110%);
+}
+
+.al-px { position: absolute; width: 12px; height: 12px; background: var(--acc1); z-index: 4; box-shadow: 0 0 10px var(--glow); }
+.al-px:nth-child(3n) { background: var(--acc3); }
+.al-px:nth-child(5n) { background: var(--white); width: 8px; height: 8px; }
+
+/* faixa de pixels embaixo do painel enquanto ele está na tela */
+.al-steps { position: absolute; left: 0; right: 0; bottom: -18px; height: 10px; display: flex; gap: 4px; z-index: 1; opacity: 0; }
+.al-steps i { flex: 1; background: var(--acc2); opacity: 0.25; }

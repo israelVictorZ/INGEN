@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INGEN · Fundo do cliente</title>
+<link rel="stylesheet" href="../core/ingen.css">
+<link rel="stylesheet" href="../core/chat.css">
+<style>
+  .slot { position: absolute; }
+  .slot__in { position: absolute; inset: 0; }
+  .ticks i { position: absolute; width: 18px; height: 18px; border: 0 solid var(--acc2); opacity: 0.9; }
+  .ticks i:nth-child(1) { left: -12px; top: -12px; border-left-width: 2px; border-top-width: 2px; }
+  .ticks i:nth-child(2) { right: -12px; top: -12px; border-right-width: 2px; border-top-width: 2px; }
+  .ticks i:nth-child(3) { right: -12px; bottom: -12px; border-right-width: 2px; border-bottom-width: 2px; }
+  .ticks i:nth-child(4) { left: -12px; bottom: -12px; border-left-width: 2px; border-bottom-width: 2px; }
+
+  /* chat */
+  .chat-head {
+    position: absolute; left: 0; right: 0; top: 0; height: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px 0 22px; font-size: 14px; color: var(--white);
+  }
+  .chat-head .dim { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .chat-head::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 1px;
+    background: linear-gradient(90deg, var(--line), rgba(38, 43, 51, 0));
+  }
+  .chat-body { position: absolute; left: 6px; right: 6px; top: 52px; bottom: 6px; }
+  .chat-body .ic-list { --chat-font: 21px; }
+
+  /* painel inferior */
+  .panel { display: flex; align-items: stretch; }
+  .panel__logo { width: 250px; flex: none; display: grid; place-items: center; position: relative; padding-bottom: 36px; }
+  .panel__logo img { width: 190px; }
+  .panel__logo::after {
+    content: ""; position: absolute; right: 0; top: 34px; bottom: 70px; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
+  }
+  .panel__main { flex: 1; padding: 26px 36px 0; min-width: 0; position: relative; }
+  .panel__kicker { font-size: 14px; display: flex; align-items: center; gap: 12px; color: var(--gray); }
+  .panel__kicker b { color: var(--white); font-weight: 600; }
+  .panel__nick { font-size: 104px; margin: 8px 0 12px; white-space: nowrap; overflow: hidden; text-overflow: clip; filter: drop-shadow(0 0 22px var(--glow-soft)); }
+  .panel__meta { display: flex; gap: 10px; flex-wrap: nowrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 10px; height: 38px; padding: 0 16px;
+    font-family: var(--f-mono); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gray);
+    background: rgba(19, 21, 25, 0.85); box-shadow: inset 0 0 0 1px var(--line);
+    clip-path: polygon(0 6px, 6px 6px, 6px 0, 100% 0, 100% 100%, 0 100%);
+    white-space: nowrap;
+  }
+  .chip b { color: var(--white); font-weight: 600; }
+  .chip .ig-ico { width: 22px; height: 22px; fill: var(--acc2); }
+  .panel__side { position: relative; width: 330px; flex: none; padding: 34px 32px 0 0; display: flex; flex-direction: column; gap: 14px; }
+  .panel__side .mono { font-size: 12px; color: var(--gray); }
+  .social { display: flex; align-items: center; gap: 14px; font-family: var(--f-mono); font-size: 15px; letter-spacing: 0.06em; color: var(--white-dim); }
+  .social .ig-ico { width: 22px; height: 22px; fill: var(--acc2); }
+  .panel__ticker {
+    position: absolute; left: 8px; right: 8px; bottom: 8px; height: 36px;
+    display: flex; align-items: center; font-family: var(--f-display); font-weight: 800; font-size: 20px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--bg0); background: var(--grad-x);
+    clip-path: polygon(0 0, calc(100% - 16px) 0, calc(100% - 16px) 8px, calc(100% - 8px) 8px, calc(100% - 8px) 16px, 100% 16px, 100% 100%, 0 100%);
+  }
+  .panel__ticker .ig-sep { background: var(--bg0); }
+</style>
+</head>
+<body class="opaque">
+<div class="stage" id="stage">
+  <div class="ig-grid"></div>
+  <canvas class="ig-pixels" id="px"></canvas>
+  <div class="ig-vignette"></div>
+
+  <div class="slot" id="client"></div>
+  <div class="slot" id="cam"></div>
+  <div class="slot" id="chat">
+    <div class="chat-head">
+      <span class="mono mark">Chat</span>
+      <span class="mono dim"><i class="live-dot"></i><span id="chatChannel"></span></span>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+  </div>
+
+  <div class="slot panel" id="panel">
+    <div class="panel__logo"><img class="ig-logo ig-logo--pulse" id="logo" alt="INGEN"></div>
+    <div class="panel__main">
+      <div class="panel__kicker mono"><i class="live-dot"></i><b>Ao vivo</b><span>·</span><span id="team"></span></div>
+      <div class="panel__nick display grad-text" id="nick"></div>
+      <div class="panel__meta" id="meta"></div>
+    </div>
+    <div class="panel__side">
+      <div class="mono mark">Siga a INGEN</div>
+      <div id="socials" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+    <div class="panel__ticker" id="ticker"></div>
+  </div>
+  <div class="ig-grain"></div>
+</div>
+
+<script src="../config.js"></script>
+<script src="../core/ingen.js"></script>
+<script src="../core/twitch.js"></script>
+<script src="../core/chat.js"></script>
+<script>
+IG.ready(function () {
+  /* Layout 1920×1080 (posições para encaixar as fontes no OBS):
+     Cliente do LoL ... x 40   y 40   1280×720  (tamanho padrão do cliente)
+     Câmera ........... x 1344 y 40   536×302   (16:9)
+     Chat ............. x 1344 y 414  536×626   (ou x 1344 y 112 536×928 com cam=0)
+     Parâmetros: nome, time, lane, elo, meta, canal, cam=0, chat=0 (deixa o espaço do chat vazio), demo=1 */
+  IG.applyTeam();
+  IG.fitStage(document.getElementById("stage"));
+
+  var hasCam = IG.flag("cam", true);
+  var showChat = IG.flag("chat", true);
+  var M = 40, G = 24;
+  var R = { client: [M, M, 1280, 720] };
+  var colX = M + 1280 + G, colW = 1920 - M - colX;
+  R.cam = [colX, M, colW, Math.round(colW * 9 / 16)];
+  var chatTop = hasCam ? M + R.cam[3] + G : M;
+  R.chat = [colX, chatTop, colW, 1080 - M - chatTop];
+  R.panel = [M, M + 720 + G, 1280, 1080 - M - (M + 720 + G)];
+
+  Object.keys(R).forEach(function (k) {
+    var e = document.getElementById(k), r = R[k];
+    e.style.cssText += ";left:" + r[0] + "px;top:" + r[1] + "px;width:" + r[2] + "px;height:" + r[3] + "px";
+  });
+  if (!hasCam) document.getElementById("cam").style.display = "none";
+
+  // molduras
+  // cliente e câmera ficam POR CIMA destas molduras: borda reta por fora do espaço e degraus como blocos de pixel na margem
+  IG.frame(document.getElementById("client"), { step: 9, corners: [3, 0, 0, 3], stairs: "out", stroke: 3, fill: "#05070b", dash: 70, inset: -1.5 });
+  IG.frame(document.getElementById("cam"), { step: 8, corners: [0, 3, 0, 0], stairs: "out", stroke: 3, fill: "#05070b", dash: 110, inset: -1.5 });
+  IG.frame(document.getElementById("chat"), { step: 8, corners: [0, 3, 0, 3], stroke: 2, fill: "rgba(6,8,12,.92)", dash: 90, base: 0.45 });
+  IG.frame(document.getElementById("panel"), { step: 8, corners: [0, 0, 3, 3], stroke: 2, fill: "rgba(6,8,12,.72)", dash: 60, base: 0.4 });
+
+  // campo de pixels: manchas que "vazam" pelas margens e atrás do painel
+  IG.pixelField(document.getElementById("px"), {
+    cell: 8, fps: 18,
+    blobs: [
+      { x: 0.0, y: 1.02, r: 0.16, s: 1.5, sp: 0.1 },
+      { x: 0.7, y: 1.06, r: 0.1, s: 1.1, sp: 0.14, ph: 2 },
+      { x: 1.02, y: 0.0, r: 0.12, s: 1.4, sp: 0.12, ph: 1 },
+      { x: 1.03, y: 0.55, r: 0.06, s: 1.2, sp: 0.2, ph: 4 },
+      { x: -0.02, y: 0.3, r: 0.05, s: 1.1, sp: 0.18, ph: 3 },
+    ],
+  });
+
+  // logo e conteúdo
+  document.getElementById("logo").src = IG.logoSrc();
+  var nome = IG.opt("nome", "");
+  var nick = document.getElementById("nick");
+  var nickText = nome || "INGEN";
+  nick.style.fontSize = nickText.length > 12 ? "86px" : nickText.length > 9 ? "100px" : "";
+  IG.scramble(nick, nickText.toUpperCase(), 1200);
+  setInterval(function () { IG.scramble(nick, nickText.toUpperCase(), 700); }, 24000);
+  document.getElementById("team").textContent = IG.teamName();
+
+  function renderChips() {
+    var chips = [];
+    var ln = IG.lane(IG.opt("lane", ""));
+    if (ln) chips.push('<span class="chip">' + ln.icon + "<b>" + ln.label + "</b></span>");
+    var elo = IG.opt("elo", "");
+    if (elo) chips.push('<span class="chip">Elo <b>' + IG.esc(elo) + "</b></span>");
+    var meta = IG.opt("meta", "");
+    if (meta) chips.push('<span class="chip">Meta <b>' + IG.esc(meta) + "</b></span>");
+    if (!chips.length) chips.push('<span class="chip"><b>League of Legends</b></span><span class="chip">Black <b>·</b> Silver</span>');
+    document.getElementById("meta").innerHTML = chips.join("");
+  }
+  renderChips();
+  // com ?jogador=slug o elo vem do site e se atualiza sozinho a cada 5 min
+  IG.watchPlayer(renderChips, 300000);
+
+  document.getElementById("socials").innerHTML = IG.socials().map(function (s) {
+    return '<div class="social">' + s.icon + "<span>" + IG.esc(s.label) + "</span></div>";
+  }).join("");
+
+  IG.ticker(document.getElementById("ticker"), ["INGEN Black", "INGEN Silver", "League of Legends", IG.opt("instagram", "@ingen.gg"), "Fora de partida"], 55);
+
+  // chat embutido
+  var canal = IG.opt("canal", "ingen_team");
+  document.getElementById("chatChannel").textContent = "twitch.tv/" + canal;
+  if (showChat) {
+    IGChat.mount(document.getElementById("chatBody"), {
+      canal: canal,
+      limite: 24,
+      sumir: IG.num("sumir", 0),
+      fonte: IG.num("fonte", 21),
+      esconder: IG.opt("esconder", ""),
+      comandos: IG.flag("comandos", false),
+      demo: IG.flag("demo", false),
+    });
+  }
+});
+</script>
+</body>
+</html>

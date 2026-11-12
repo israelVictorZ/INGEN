@@ -1,0 +1,113 @@
+/* INGEN · Chat customizado */
+.ic-list {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.42em;
+  padding: 0.5em;
+  overflow: hidden;
+  font-size: var(--chat-font, 22px);
+}
+.ic-msg {
+  position: relative;
+  flex: none;
+  padding: 0.5em 0.8em 0.58em 1em;
+  background: linear-gradient(100deg, rgba(23, 26, 32, 0.95), rgba(10, 13, 19, 0.9));
+  clip-path: polygon(0 0.6em, 0.3em 0.6em, 0.3em 0.3em, 0.6em 0.3em, 0.6em 0, 100% 0, 100% calc(100% - 0.6em), calc(100% - 0.3em) calc(100% - 0.6em), calc(100% - 0.3em) calc(100% - 0.3em), calc(100% - 0.6em) calc(100% - 0.3em), calc(100% - 0.6em) 100%, 0 100%);
+  animation: ic-in 0.55s var(--ease) both;
+}
+.ic-msg::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  bottom: 0;
+  width: 0.18em;
+  background: var(--uc, var(--acc2));
+  box-shadow: 0 0 12px var(--uc, var(--acc2));
+  transform-origin: top;
+  animation: ic-bar 0.6s var(--ease) both;
+}
+.ic-msg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(254, 255, 250, 0.14) 50%, transparent 70%);
+  transform: translateX(-110%);
+  animation: ic-shine 0.9s 0.1s var(--ease) both;
+  pointer-events: none;
+}
+.ic-head { display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.18em; min-width: 0; }
+.ic-badges { display: inline-flex; gap: 0.25em; flex: none; }
+.ic-badges:empty { display: none; }
+.ic-b {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.5em;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 0.38em 0.5em 0.34em;
+  color: var(--acc1);
+  background: rgba(11, 61, 30, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(61, 253, 78, 0.35);
+}
+.team-silver .ic-b { background: rgba(38, 43, 51, 0.95); box-shadow: inset 0 0 0 1px rgba(201, 205, 211, 0.35); }
+.ic-b--streamer { background: var(--grad-x); color: var(--bg0); box-shadow: none; }
+.ic-b--mod { color: var(--white); background: #1e2a22; }
+.ic-b--vip { color: #ffd4f5; background: #2a1830; box-shadow: inset 0 0 0 1px rgba(255, 120, 230, 0.35); }
+.ic-b--new { color: var(--bg0); background: var(--white); box-shadow: none; }
+.ic-name {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 1.08em;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--uc, var(--acc1));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ic-reply { font-family: var(--f-mono); font-size: 0.55em; letter-spacing: 0.08em; color: var(--gray); text-transform: uppercase; white-space: nowrap; }
+.ic-body {
+  font-weight: 500;
+  font-size: 0.86em;
+  line-height: 1.38;
+  color: var(--white-dim);
+  overflow-wrap: anywhere;
+}
+.ic-msg.is-action .ic-body { font-style: italic; color: var(--uc, var(--acc1)); }
+.ic-body .emote { display: inline-block; height: 1.7em; width: auto; vertical-align: middle; margin: -0.3em 0.05em; }
+.ic-body.only-emotes .emote { height: 2.6em; margin: 0.1em 0.08em 0; }
+.ic-msg.is-streamer { background: linear-gradient(100deg, rgba(11, 61, 30, 0.96), rgba(10, 13, 19, 0.92)); }
+.team-silver .ic-msg.is-streamer { background: linear-gradient(100deg, rgba(48, 53, 61, 0.96), rgba(10, 13, 19, 0.92)); }
+.ic-msg.is-streamer .ic-name { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ic-msg.is-mention { box-shadow: inset 0 0 0 1px rgba(124, 249, 79, 0.45); }
+.ic-msg.is-out { animation: ic-out 0.45s var(--ease) forwards; }
+.ic-msg.is-deleted .ic-body { color: var(--gray-dim); font-style: italic; }
+
+@keyframes ic-in {
+  0% { opacity: 0; transform: translateX(1.6em); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes ic-bar { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes ic-shine { to { transform: translateX(110%); } }
+@keyframes ic-out { to { opacity: 0; transform: translateX(-1.2em); } }
+
+/* status discreto (só aparece no modo de teste ou quando o canal não conecta) */
+.ic-status {
+  position: absolute;
+  right: 0.6em;
+  top: 0.5em;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gray);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.ic-status.show { opacity: 1; }

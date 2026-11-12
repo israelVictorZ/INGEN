@@ -1,0 +1,73 @@
+{
+  "time": {
+    "type": "dropdown",
+    "label": "Time",
+    "value": "black",
+    "options": {
+      "black": "INGEN Black",
+      "silver": "INGEN Silver"
+    }
+  },
+  "posicao": {
+    "type": "dropdown",
+    "label": "Posição na tela",
+    "value": "topo",
+    "options": {
+      "topo": "Topo",
+      "centro": "Centro",
+      "baixo": "Embaixo"
+    }
+  },
+  "tempo": {
+    "type": "number",
+    "label": "Tempo na tela (segundos)",
+    "value": 6,
+    "min": 3,
+    "max": 20,
+    "step": 1
+  },
+  "som": {
+    "type": "dropdown",
+    "label": "Som",
+    "value": "sim",
+    "options": {
+      "sim": "Ligado",
+      "nao": "Desligado"
+    }
+  },
+  "volume": {
+    "type": "slider",
+    "label": "Volume",
+    "value": 0.35,
+    "min": 0,
+    "max": 1,
+    "step": 0.05
+  },
+  "follow": {
+    "type": "dropdown",
+    "label": "Alertar follows",
+    "value": "sim",
+    "options": {
+      "sim": "Sim",
+      "nao": "Não"
+    }
+  },
+  "bits": {
+    "type": "dropdown",
+    "label": "Alertar bits",
+    "value": "sim",
+    "options": {
+      "sim": "Sim",
+      "nao": "Não"
+    }
+  },
+  "tips": {
+    "type": "dropdown",
+    "label": "Alertar doações",
+    "value": "sim",
+    "options": {
+      "sim": "Sim",
+      "nao": "Não"
+    }
+  }
+}

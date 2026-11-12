@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INGEN · Alertas</title>
+<link rel="stylesheet" href="../core/ingen.css">
+<link rel="stylesheet" href="../core/alerts.css">
+</head>
+<!-- Fonte transparente 1920×1080 por cima de tudo.
+     Sozinha, lê do chat da Twitch (sem login): subs, resubs, subs de presente, raids e bits.
+     Follows não passam pelo chat da Twitch: para eles use a versão StreamElements (pasta streamelements/).
+     Parâmetros: canal, time, tempo (s), posicao=topo|centro|baixo, som=0, volume (0–1), bits=0, demo=1 -->
+<body>
+<div class="stage" id="stage"></div>
+<script src="../config.js"></script>
+<script src="../core/ingen.js"></script>
+<script src="../core/twitch.js"></script>
+<script src="../core/alerts.js"></script>
+<script>
+  IG.fitStage(document.getElementById("stage"));
+  IG.ready(function () {
+  IG.applyTeam();
+  var o = {
+    canal: IG.opt("canal", "ingen_team"),
+    tempo: IG.num("tempo", 6),
+    som: IG.flag("som", true),
+    volume: IG.num("volume", 0.35),
+    posicao: IG.opt("posicao", "topo"),
+    bits: IG.flag("bits", true),
+    demo: IG.flag("demo", false),
+  };
+  IGAlerts.connectSources(IGAlerts.init(document.getElementById("stage"), o), o);
+  });
+</script>
+</body>
+</html>

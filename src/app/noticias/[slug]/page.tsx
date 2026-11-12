@@ -2,12 +2,23 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FEATURES } from "@/lib/features";
 import Link from "next/link";
-import { marked } from "marked";
+import { Marked, Renderer } from "marked";
+import { EXTERNAL_LINK, isExternal } from "@/lib/links";
 import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { NewsCard } from "@/components/news/NewsCard";
 import { NEWS_CATEGORY_LABEL, dateBR } from "@/lib/format";
+
+/** Markdown das notícias: links externos abrem em nova aba (regra do site, ver src/lib/links.ts). */
+const md = new Marked({
+  renderer: {
+    link(token) {
+      const html = Renderer.prototype.link.call(this, token);
+      return isExternal(token.href) ? html.replace(/^<a /, `<a target="${EXTERNAL_LINK.target}" rel="${EXTERNAL_LINK.rel}" `) : html;
+    },
+  },
+});
 
 export async function generateStaticParams() {
   const { news } = await getSiteData();
@@ -27,7 +38,7 @@ export default async function NoticiaPage({ params }: PageProps<"/noticias/[slug
   const { news } = await getSiteData();
   const n = news.find((x) => x.slug === slug);
   if (!n) notFound();
-  const html = await marked.parse(n.body);
+  const html = await md.parse(n.body);
   const more = news.filter((x) => x.slug !== n.slug).slice(0, 3);
 
   return (

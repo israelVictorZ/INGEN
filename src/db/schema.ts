@@ -58,6 +58,29 @@ export const teamMemberships = pgTable(
   (t) => [index("membership_team_idx").on(t.teamId)],
 );
 
+/**
+ * Reservas: ficam FORA de team_memberships de propósito. Não entram em ranking, comparação,
+ * scouting, médias do time nem têm página própria; só aparecem discretos no /elenco.
+ * Cada time tem os seus (uma linha por time; a mesma conta pode estar nos dois).
+ * `role` é opcional: sem ela, o site mostra a lane mais jogada nas Solo/Duo recentes.
+ */
+export const teamReserves = pgTable(
+  "team_reserves",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    role: text("role").$type<Role>(),
+    joinedAt: date("joined_at").notNull().defaultNow(),
+    leftAt: date("left_at"),
+  },
+  (t) => [index("reserve_team_idx").on(t.teamId)],
+);
+
 /** Vagas abertas ("Recrutando") por time e lane. */
 export const openSlots = pgTable("open_slots", {
   id: serial("id").primaryKey(),

@@ -4,6 +4,7 @@ import { Big_Shoulders, Geist, Geist_Mono, Geist_Pixel } from "next/font/google"
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { MotionRoot } from "@/components/motion/MotionRoot";
+import { ExternalLinks } from "@/components/site/ExternalLinks";
 import { LivePin } from "@/components/live/Live";
 import { getSiteData } from "@/lib/data";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1">{children}</main>
         <Footer />
         <MotionRoot />
+        <ExternalLinks />
         <Suspense>
           <LivePinMount />
         </Suspense>

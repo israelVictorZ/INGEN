@@ -85,3 +85,4 @@ Em português, curto:
 - INGEN Black aparece sempre antes da Silver. O site nunca exibe "Line 1/2".
 - Não editar `scripts/seed.ts` para mudanças de elenco.
 - Twitch de jogador é outra skill: `ingen-twitch`.
+- Reservas são outra skill: `ingen-reserva`. Se o usuário disser que alguém é reserva/suplente, use aquela. Um `player:add` de quem era reserva do mesmo time já o tira da reserva.

@@ -130,19 +130,24 @@ export default async function Home() {
             </p>
           </SectionHead>
 
-          <ol data-reveal="stagger" className="mt-14 grid gap-3 md:ml-[220px] md:grid-cols-3">
+          {/* Pódio: linhas empilhadas até xl (3 colunas espremiam os nomes no tablet); 3 cards lado a lado no desktop largo */}
+          <ol data-reveal="stagger" className="mt-14 grid gap-3 md:ml-[220px] xl:grid-cols-3">
             {podium.map((p, i) => {
               const color = TIER_META[p.solo!.tier]?.color;
+              const elo = `${rankLabel(p.solo!.tier, p.solo!.division)} · ${p.solo!.lp} PDL`;
               return (
                 <li key={p.slug}>
-                  <Link href={`/jogador/${p.slug}`} className="border-run clip-step group relative flex h-full items-center gap-4 overflow-hidden bg-bg-2 p-5">
-                    <span className="font-pixel text-5xl leading-none text-white/15 group-hover:text-green">{i + 1}</span>
+                  <Link href={`/jogador/${p.slug}`} className="border-run clip-step group relative flex h-full items-center gap-4 overflow-hidden bg-bg-2 p-5 lg:gap-6 lg:px-7 xl:gap-4 xl:px-5">
+                    <span className="w-8 shrink-0 font-pixel text-5xl leading-none text-white/15 group-hover:text-green lg:w-10">{i + 1}</span>
                     <span className="min-w-0 flex-1">
                       <TeamTag accent={p.team.accent} name={p.team.name} />
-                      <span className="mt-1 block truncate font-display text-3xl font-black uppercase leading-none text-white">{p.displayName}</span>
-                      <span className="mt-1 block font-mono text-xs uppercase tracking-wider" style={{ color }}>
-                        {rankLabel(p.solo!.tier, p.solo!.division)} · {p.solo!.lp} PDL
+                      <span className="mt-1 block truncate font-display text-3xl font-black uppercase leading-none text-white lg:text-4xl xl:text-3xl">{p.displayName}</span>
+                      <span className="mt-1 block font-mono text-xs uppercase tracking-wider lg:max-xl:hidden" style={{ color }}>
+                        {elo}
                       </span>
+                    </span>
+                    <span className="hidden shrink-0 text-right font-mono text-xs uppercase tracking-wider lg:max-xl:block" style={{ color }}>
+                      {elo}
                     </span>
                     <LaneIcon role={p.role} className="size-8 shrink-0" />
                   </Link>
@@ -151,15 +156,15 @@ export default async function Home() {
             })}
           </ol>
 
-          <dl data-reveal="stagger" className="mt-3 grid gap-px bg-line md:ml-[220px] md:grid-cols-3">
+          <dl data-reveal="stagger" className="mt-3 grid gap-px bg-line sm:grid-cols-3 md:ml-[220px]">
             {[
               { k: "Partidas analisadas", v: String(totalGames), caption: `Últimas ${PER_PLAYER} Solo/Duo de cada jogador` },
               { k: "Winrate da organização", v: totalGames ? ((totalWins / totalGames) * 100).toFixed(0) : "0", suffix: "%", caption: "Vitórias somadas nessas partidas" },
               { k: "Campeões diferentes", v: String(champsPlayed), caption: "Tamanho do pool somando os dois times" },
             ].map((s) => (
-              <div key={s.k} className="bg-bg-0 p-6 md:p-8">
+              <div key={s.k} className="bg-bg-0 p-6 md:p-5 lg:p-8">
                 <dt className="label-mono text-[0.62rem]">{s.k}</dt>
-                <dd data-reveal="count" data-to={s.v} data-suffix={s.suffix ?? ""} className="mt-4 font-display text-5xl font-black leading-none text-white md:text-6xl">
+                <dd data-reveal="count" data-to={s.v} data-suffix={s.suffix ?? ""} className="mt-4 font-display text-5xl font-black leading-none text-white lg:text-6xl">
                   {s.v}
                   {s.suffix}
                 </dd>

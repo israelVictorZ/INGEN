@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getSiteData, type Team } from "@/lib/data";
+import { getSiteData, type Player, type Team } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ButtonLink } from "@/components/ui";
+import { EXTERNAL_LINK } from "@/lib/links";
 import { CopyButton, PrintButton } from "@/components/ui/CopyButton";
 import { championIcon } from "@/lib/ddragon-urls";
 import { mainChamps } from "@/lib/view";
@@ -42,13 +43,18 @@ function discordText(team: Team, url: string) {
     const champs = mainChamps(p).slice(0, 3).map((c) => `${c.name}${c.games ? ` (${c.games}j, ${pct(c.wins / c.games)})` : ""}`).join(", ");
     return `\`${lane}\` **${p.displayName}** (${riotId(p)}): ${elo} · WR ${p.solo ? pct(p.solo.winrate) : "—"} · ${champs}`;
   });
+  const reserves = team.reserves.map((p) => {
+    const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
+    return `\`RES\` ${p.displayName} (${riotId(p)}, ${ROLE_META[p.role].short}): ${elo}`;
+  });
   return [
     `**${team.name}: Relatório de scouting**`,
     `Elo médio: ${team.avgScore != null ? scoreToLabel(team.avgScore) : "—"} · Winrate recente: ${team.stats ? pct(team.stats.winrate) : "—"}`,
     "",
     ...lines,
+    ...(reserves.length ? ["", "**Reservas**", ...reserves] : []),
     "",
-    `op.gg: <${opggMultiUrl(team.players)}>`,
+    `op.gg: <${opggMultiUrl([...team.players, ...team.reserves])}>`,
     `Relatório completo: <${url}>`,
   ].join("\n");
 }
@@ -63,6 +69,21 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
 
   const pool = teamPool(team);
   const summary = teamSummary(team);
+  const summaryCards = [
+    summary.strongest && {
+      k: "Lane mais forte",
+      v: summary.strongest.displayName,
+      sub: `${ROLE_META[summary.strongest.role].label} · ${rankLabel(summary.strongest.solo!.tier, summary.strongest.solo!.division)}`,
+      tone: "text-green",
+    },
+    summary.hot && { k: "Em melhor fase", v: summary.hot.p.displayName, sub: `${summary.hot.wins} vitórias nas últimas ${summary.hot.of}`, tone: "text-green" },
+    pool.unique > 0 && { k: "Pool do time", v: `${pool.unique} campeões`, sub: `${pool.shared.length} jogados por mais de um`, tone: "text-gray" },
+    summary.open.length
+      ? { k: "Vaga aberta", v: summary.open.join(", "), sub: "Escalação incompleta", tone: "text-gray" }
+      : team.reserves.length
+        ? { k: "Reservas", v: String(team.reserves.length), sub: team.reserves.map((r) => r.displayName).join(", "), tone: "text-gray" }
+        : null,
+  ].filter((x): x is { k: string; v: string; sub: string; tone: string } => !!x);
   const generatedAt = data.lastSync
     ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(data.lastSync))
     : null;
@@ -109,7 +130,7 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
           </dl>
 
           <div data-reveal="up" className="no-print mt-10 flex flex-wrap gap-3">
-            <ButtonLink href={opggMultiUrl(team.players)} external>
+            <ButtonLink href={opggMultiUrl([...team.players, ...team.reserves])} external>
               Abrir no op.gg multi-search
             </ButtonLink>
             <CopyButton text={discordText(team, `${site}/scouting/${team.slug}`)} label="Copiar para Discord" />
@@ -123,55 +144,17 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
         <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white md:text-4xl">
           Resumo <span className="text-gray-dim">do time</span>
         </h2>
-        <div data-reveal="stagger" className="mt-6 grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
-          {[
-            summary.strongest && {
-              k: "Lane mais forte",
-              v: summary.strongest.displayName,
-              sub: `${ROLE_META[summary.strongest.role].label} · ${rankLabel(summary.strongest.solo!.tier, summary.strongest.solo!.division)}`,
-              tone: "text-green",
-            },
-            summary.hot && { k: "Em melhor fase", v: summary.hot.p.displayName, sub: `${summary.hot.wins} vitórias nas últimas ${summary.hot.of}`, tone: "text-green" },
-            summary.weakest && {
-              k: "Lane mais vulnerável",
-              v: summary.weakest.displayName,
-              sub: `${ROLE_META[summary.weakest.role].label} · ${rankLabel(summary.weakest.solo!.tier, summary.weakest.solo!.division)}`,
-              tone: "text-loss",
-            },
-            summary.cold
-              ? { k: "Fase ruim", v: summary.cold.p.displayName, sub: `${summary.cold.wins} vitórias nas últimas ${summary.cold.of}`, tone: "text-loss" }
-              : summary.open.length
-                ? { k: "Vaga aberta", v: summary.open.join(", "), sub: "Escalação incompleta", tone: "text-loss" }
-                : null,
-          ]
-            .filter((x): x is { k: string; v: string; sub: string; tone: string } => !!x)
-            .map((x) => (
-              <div key={x.k} className="min-w-0 bg-bg-1 p-4 sm:p-5">
-                <p className={`font-mono text-[0.56rem] uppercase tracking-[0.16em] sm:text-[0.6rem] ${x.tone}`}>{x.k}</p>
-                <p className="mt-2 truncate font-display text-2xl font-black uppercase leading-none text-white sm:text-3xl">{x.v}</p>
-                <p className="mt-1.5 font-mono text-[0.65rem] text-gray">{x.sub}</p>
-              </div>
-            ))}
-        </div>
-        {summary.bans.length > 0 && (
-          <div data-reveal="up" className="clip-step mt-3 bg-bg-2 p-5">
-            <p className="label-mono">Bans sugeridos contra a {team.name}</p>
-            <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">Os campeões mais fortes do time, pesando winrate e quantidade de partidas</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              {summary.bans.map((b) => (
-                <div key={b.champ.key} className="flex items-center gap-3 bg-bg-0 p-2.5">
-                  <Image src={championIcon(version, b.champ.key)} alt="" width={44} height={44} className="clip-step-sm" />
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-lg font-extrabold uppercase leading-none text-white">{b.champ.name}</p>
-                    <p className="mt-1 truncate font-mono text-[0.62rem] text-gray">
-                      {b.player.displayName} · {b.champ.reason}
-                    </p>
-                  </div>
-                </div>
-              ))}
+        {/* Relatório público (vai para os adversários): só o que o op.gg já mostra e pontos fortes.
+            Fraquezas, fase ruim e bans sugeridos ficam para a área interna "O que melhorar". */}
+        <div data-reveal="stagger" className={`mt-6 grid grid-cols-2 gap-px bg-line ${summaryCards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          {summaryCards.map((x) => (
+            <div key={x.k} className="min-w-0 bg-bg-1 p-4 sm:p-5">
+              <p className={`font-mono text-[0.56rem] uppercase tracking-[0.16em] sm:text-[0.6rem] ${x.tone}`}>{x.k}</p>
+              <p className="mt-2 truncate font-display text-2xl font-black uppercase leading-none text-white sm:text-3xl">{x.v}</p>
+              <p className="mt-1.5 font-mono text-[0.65rem] text-gray">{x.sub}</p>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </section>
 
       <section className="wrap">
@@ -188,147 +171,27 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
                   <span className="font-display text-3xl font-black uppercase text-gray-dim">Vaga aberta</span>
                 </div>
               );
-            const p = s.player;
-            const color = p.solo ? TIER_META[p.solo.tier]?.color : undefined;
-            const roleShare = p.stats ? (p.roleDist[p.role] ?? 0) / p.stats.games : null;
-            const read = scoutRead(p);
-            return (
-              <div key={s.role} className="clip-step bg-bg-2 p-5 md:p-6">
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)] lg:items-center">
-                  <div className="flex items-center gap-5">
-                    <LaneIcon role={s.role} className="size-11 shrink-0" />
-                    <div className="min-w-0">
-                      <Link href={`/jogador/${p.slug}`} className="font-display text-4xl font-black uppercase leading-none text-white hover:text-green">
-                        {p.displayName}
-                      </Link>
-                      <a href={opggUrl(p)} target="_blank" rel="noopener noreferrer" className="block truncate font-mono text-xs text-gray hover:text-green">
-                        {riotId(p)} ↗
-                      </a>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-xs sm:grid-cols-4">
-                    <div>
-                      <p className="label-mono text-[0.55rem]">Solo/Duo</p>
-                      <p className="mt-1 uppercase" style={{ color }}>{p.solo ? rankLabel(p.solo.tier, p.solo.division) : "—"}</p>
-                      <p className="text-gray-dim">{p.solo ? `${p.solo.lp} PDL · ${pct(p.solo.winrate)} na temporada` : ""}</p>
-                    </div>
-                    <div>
-                      <p className="label-mono text-[0.55rem]">KDA médio</p>
-                      <p className="mt-1 text-white">{fixed(p.stats?.kda, 2)}</p>
-                      <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.kills)}/${fixed(p.stats.deaths)}/${fixed(p.stats.assists)}` : ""}</p>
-                    </div>
-                    <div>
-                      <p className="label-mono text-[0.55rem]">Farm e visão</p>
-                      <p className="mt-1 text-white">{p.stats ? `${fixed(p.stats.csPerMin)} CS/min` : "—"}</p>
-                      <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.visionPerMin, 2)} visão/min` : ""}</p>
-                    </div>
-                    <div>
-                      <p className="label-mono text-[0.55rem]">Joga na lane</p>
-                      <p className="mt-1 text-white">{pct(roleShare)}</p>
-                      <p className="text-gray-dim">{p.stats ? `das últimas ${p.stats.games}` : ""}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 grid gap-5 border-t border-line pt-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-                  <div>
-                    <p className="label-mono mb-1 text-[0.58rem]">Picks mais fortes de {ROLE_META[s.role].short}</p>
-                    <p className="mb-3 font-mono text-[0.58rem] text-gray-dim">Ordem pelo winrate ajustado ao nº de partidas: poucos jogos pesam menos</p>
-                    {p.laneChampions.length ? (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {p.laneChampions.slice(0, 4).map((c) => {
-                          const w = c.wins / c.games;
-                          const conf = sampleLabel(c.games);
-                          const isBan = read.ban?.championId === c.championId;
-                          return (
-                            <div key={c.championId} className="relative flex items-center gap-3 bg-bg-0 p-2.5 pr-3">
-                              <Image src={championIcon(version, c.key)} alt="" width={44} height={44} className="clip-step-sm" />
-                              <div className="min-w-0 flex-1">
-                                <p className="flex items-center gap-2">
-                                  <span className="truncate font-display text-lg font-extrabold uppercase leading-none text-white">{c.name}</span>
-                                  {isBan && <span className="shrink-0 bg-loss px-1.5 py-0.5 font-mono text-[0.5rem] font-semibold uppercase tracking-wider text-white">Ban</span>}
-                                </p>
-                                <p className="mt-1 font-mono text-[0.62rem] text-gray">
-                                  {c.games} {c.games === 1 ? "partida" : "partidas"} · KDA {fixed(c.kda, 1)}
-                                </p>
-                                <div className="mt-1.5 flex items-center gap-2">
-                                  <span className="h-1 flex-1 bg-bg-3">
-                                    <span className={`block h-full ${conf === "baixa" ? "bg-gray-dim" : w >= 0.5 ? "bg-green" : "bg-loss/70"}`} style={{ width: `${w * 100}%` }} />
-                                  </span>
-                                  <span className={`font-mono text-[0.62rem] ${conf === "baixa" ? "text-gray" : w >= 0.5 ? "text-green" : "text-loss"}`}>{pct(w)}</span>
-                                </div>
-                                <p className="mt-1 flex items-center gap-1 font-mono text-[0.55rem] uppercase tracking-wider text-gray-dim" title="Confiança da amostra">
-                                  {[1, 2, 3].map((n) => (
-                                    <span key={n} className={`size-1.5 ${n <= (conf === "alta" ? 3 : conf === "média" ? 2 : 1) ? "bg-white/70" : "bg-bg-3"}`} />
-                                  ))}
-                                  <span className="ml-1">{conf === "baixa" ? "poucos jogos" : `confiança ${conf}`}</span>
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray">Sem partidas na lane ainda.</p>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                    <div>
-                      <p className="label-mono mb-2 text-[0.58rem] !text-green">Pontos fortes</p>
-                      {read.strengths.length ? (
-                        <ul className="space-y-1.5">
-                          {read.strengths.map((x) => (
-                            <li key={x.text} className="flex gap-2 text-sm leading-snug text-white">
-                              <span aria-hidden className="font-mono text-green">+</span>
-                              <span>
-                                {x.text}
-                                {x.detail && <span className="ml-1.5 font-mono text-[0.62rem] text-gray">{x.detail}</span>}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-gray">Nada que se destaque nas últimas partidas.</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="label-mono mb-2 text-[0.58rem] !text-loss">Fraquezas</p>
-                      {read.weaknesses.length ? (
-                        <ul className="space-y-1.5">
-                          {read.weaknesses.map((x) => (
-                            <li key={x.text} className="flex gap-2 text-sm leading-snug text-white">
-                              <span aria-hidden className="font-mono text-loss">−</span>
-                              <span>
-                                {x.text}
-                                {x.detail && <span className="ml-1.5 font-mono text-[0.62rem] text-gray">{x.detail}</span>}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-gray">Nenhuma fraqueza clara nas últimas partidas.</p>
-                      )}
-                      {read.tough.length > 0 && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-[0.58rem] uppercase tracking-wider text-gray-dim">Confrontos difíceis</span>
-                          {read.tough.map((m) => (
-                            <span key={m.key} className="flex items-center gap-1.5 bg-bg-0 py-1 pl-1 pr-2" title={`${m.name}: ${m.wins}V ${m.games - m.wins}D`}>
-                              <Image src={championIcon(version, m.key)} alt={m.name} width={22} height={22} />
-                              <span className="font-mono text-[0.6rem] text-loss">
-                                {m.wins}-{m.games - m.wins}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
+            return <ScoutCard key={s.role} p={s.player} version={version} />;
           })}
         </div>
+
+        {/* Reservas em bloco próprio, depois da escalação, para ninguém confundir com titular */}
+        {team.reserves.length > 0 && (
+          <div className="mt-12">
+            <div data-reveal="up" className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-t border-dashed border-[#e2a33a]/30 pt-6">
+              <h3 className="flex items-center gap-3 font-display text-2xl font-extrabold uppercase text-white md:text-3xl">
+                Reservas
+                <span className="bg-[#e2a33a] px-2 py-0.5 font-mono text-xs font-semibold text-bg-0">{team.reserves.length}</span>
+              </h3>
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.16em] text-gray">Fora da escalação titular · nome abre o op.gg</p>
+            </div>
+            <div data-reveal="stagger" className="mt-5 space-y-3">
+              {team.reserves.map((p) => (
+                <ScoutCard key={`reserva-${p.slug}`} p={p} version={version} />
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {pool.top.length > 0 && (
@@ -384,5 +247,125 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
         </section>
       )}
     </RevealScope>
+  );
+}
+
+/** Card de um jogador no relatório. Titular abre o perfil; reserva (selo próprio) abre o op.gg. */
+function ScoutCard({ p, version }: { p: Player; version: string }) {
+  const color = p.solo ? TIER_META[p.solo.tier]?.color : undefined;
+  const roleShare = p.stats ? (p.roleDist[p.role] ?? 0) / p.stats.games : null;
+  const read = scoutRead(p);
+  const role = p.role;
+  return (
+    // reserva: fundo mais escuro, borda tracejada e selo âmbar (cor que não é de nenhum time)
+    <div className={`clip-step p-5 md:p-6 ${p.reserve ? "border border-dashed border-[#e2a33a]/45 bg-bg-1" : "bg-bg-2"}`}>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)] lg:items-center">
+        <div className="flex items-center gap-5">
+          <LaneIcon role={role} className="size-11 shrink-0" />
+          <div className="min-w-0">
+            {p.reserve && (
+              <span className="mb-2 inline-flex items-center gap-1.5 bg-[#e2a33a] px-2.5 py-1 font-mono text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-bg-0">
+                <span className="size-1.5 bg-bg-0" /> Reserva
+              </span>
+            )}
+            {p.reserve ? (
+              <a href={opggUrl(p)} {...EXTERNAL_LINK} title="Ver no op.gg" className="block font-display text-4xl font-black uppercase leading-none text-white hover:text-green">
+                {p.displayName}
+              </a>
+            ) : (
+              <Link href={`/jogador/${p.slug}`} className="block font-display text-4xl font-black uppercase leading-none text-white hover:text-green">
+                {p.displayName}
+              </Link>
+            )}
+            <a href={opggUrl(p)} {...EXTERNAL_LINK} className="block truncate font-mono text-xs text-gray hover:text-green">
+              {riotId(p)} ↗
+            </a>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-xs sm:grid-cols-4">
+          <div>
+            <p className="label-mono text-[0.55rem]">Solo/Duo</p>
+            <p className="mt-1 uppercase" style={{ color }}>{p.solo ? rankLabel(p.solo.tier, p.solo.division) : "—"}</p>
+            <p className="text-gray-dim">{p.solo ? `${p.solo.lp} PDL · ${pct(p.solo.winrate)} na temporada` : ""}</p>
+          </div>
+          <div>
+            <p className="label-mono text-[0.55rem]">KDA médio</p>
+            <p className="mt-1 text-white">{fixed(p.stats?.kda, 2)}</p>
+            <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.kills)}/${fixed(p.stats.deaths)}/${fixed(p.stats.assists)}` : ""}</p>
+          </div>
+          <div>
+            <p className="label-mono text-[0.55rem]">Farm e visão</p>
+            <p className="mt-1 text-white">{p.stats ? `${fixed(p.stats.csPerMin)} CS/min` : "—"}</p>
+            <p className="text-gray-dim">{p.stats ? `${fixed(p.stats.visionPerMin, 2)} visão/min` : ""}</p>
+          </div>
+          <div>
+            <p className="label-mono text-[0.55rem]">Joga na lane</p>
+            <p className="mt-1 text-white">{pct(roleShare)}</p>
+            <p className="text-gray-dim">{p.stats ? `das últimas ${p.stats.games}` : ""}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-5 border-t border-line pt-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div>
+          <p className="label-mono mb-1 text-[0.58rem]">Picks mais fortes de {ROLE_META[role].short}</p>
+          <p className="mb-3 font-mono text-[0.58rem] text-gray-dim">Ordem pelo winrate ajustado ao nº de partidas: poucos jogos pesam menos</p>
+          {p.laneChampions.length ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {p.laneChampions.slice(0, 4).map((c) => {
+                const w = c.wins / c.games;
+                const conf = sampleLabel(c.games);
+                return (
+                  <div key={c.championId} className="relative flex items-center gap-3 bg-bg-0 p-2.5 pr-3">
+                    <Image src={championIcon(version, c.key)} alt="" width={44} height={44} className="clip-step-sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display text-lg font-extrabold uppercase leading-none text-white">{c.name}</p>
+                      <p className="mt-1 font-mono text-[0.62rem] text-gray">
+                        {c.games} {c.games === 1 ? "partida" : "partidas"} · KDA {fixed(c.kda, 1)}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="h-1 flex-1 bg-bg-3">
+                          <span className={`block h-full ${conf === "baixa" ? "bg-gray-dim" : w >= 0.5 ? "bg-green" : "bg-loss/70"}`} style={{ width: `${w * 100}%` }} />
+                        </span>
+                        <span className={`font-mono text-[0.62rem] ${conf === "baixa" ? "text-gray" : w >= 0.5 ? "text-green" : "text-loss"}`}>{pct(w)}</span>
+                      </div>
+                      <p className="mt-1 flex items-center gap-1 font-mono text-[0.55rem] uppercase tracking-wider text-gray-dim" title="Confiança da amostra">
+                        {[1, 2, 3].map((n) => (
+                          <span key={n} className={`size-1.5 ${n <= (conf === "alta" ? 3 : conf === "média" ? 2 : 1) ? "bg-white/70" : "bg-bg-3"}`} />
+                        ))}
+                        <span className="ml-1">{conf === "baixa" ? "poucos jogos" : `confiança ${conf}`}</span>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray">Sem partidas na lane ainda.</p>
+          )}
+        </div>
+
+        <div>
+          <div>
+            <p className="label-mono mb-2 text-[0.58rem] !text-green">Pontos fortes</p>
+            {read.strengths.length ? (
+              <ul className="space-y-1.5">
+                {read.strengths.map((x) => (
+                  <li key={x.text} className="flex gap-2 text-sm leading-snug text-white">
+                    <span aria-hidden className="font-mono text-green">+</span>
+                    <span>
+                      {x.text}
+                      {x.detail && <span className="ml-1.5 font-mono text-[0.62rem] text-gray">{x.detail}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray">Nada que se destaque nas últimas partidas.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

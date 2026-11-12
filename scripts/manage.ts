@@ -5,6 +5,8 @@
  *   npx tsx scripts/manage.ts player:add --riot "Nome#TAG" --team black|silver [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug] [--replace]
  *   npx tsx scripts/manage.ts player:remove --slug slug [--no-open-slot]
  *   npx tsx scripts/manage.ts player:rename --slug atual --to novo [--name "Exibição"]   (antigo vira redirecionamento 308)
+ *   npx tsx scripts/manage.ts reserve:add --riot "Nome#TAG" --team black|silver [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug]
+ *   npx tsx scripts/manage.ts reserve:remove --slug slug [--team black|silver]   (sem --team: sai de todos os times)
  *   npx tsx scripts/manage.ts twitch:set --slug slug --url https://www.twitch.tv/canal
  *   npx tsx scripts/manage.ts twitch:remove --slug slug
  *
@@ -68,6 +70,7 @@ async function list() {
   const ms = await db.select().from(schema.teamMemberships).where(isNull(schema.teamMemberships.leftAt));
   const slots = await db.select().from(schema.openSlots).where(eq(schema.openSlots.active, true));
   const socials = await db.select().from(schema.socialLinks);
+  const reserves = await db.select().from(schema.teamReserves).where(isNull(schema.teamReserves.leftAt));
   for (const t of teams.sort((a, b) => a.sortOrder - b.sortOrder)) {
     console.log(`\n${t.name} (${t.slug})`);
     for (const r of ROLES) {
@@ -77,8 +80,12 @@ async function list() {
       const open = slots.some((s) => s.teamId === t.id && s.role === r);
       console.log(`  ${r.padEnd(7)} ${p ? `${p.displayName} [${p.slug}] ${p.gameName}#${p.tagLine}${tw ? `  twitch: ${tw.url}` : ""}` : open ? "— vaga aberta —" : "— vazio —"}`);
     }
+    for (const rv of reserves.filter((x) => x.teamId === t.id)) {
+      const p = players.find((x) => x.id === rv.playerId)!;
+      console.log(`  RESERVA ${p.displayName} [${p.slug}] ${p.gameName}#${p.tagLine}${rv.role ? ` (${rv.role})` : ""}`);
+    }
   }
-  const out = players.filter((p) => !ms.some((m) => m.playerId === p.id));
+  const out = players.filter((p) => !ms.some((m) => m.playerId === p.id) && !reserves.some((r) => r.playerId === p.id));
   if (out.length) console.log(`\nEx-jogadores: ${out.map((p) => `${p.displayName} [${p.slug}]`).join(", ")}`);
 }
 
@@ -139,6 +146,13 @@ async function playerAdd() {
   await db.update(schema.teamMemberships).set({ leftAt: today() }).where(and(eq(schema.teamMemberships.playerId, player.id), isNull(schema.teamMemberships.leftAt)));
   await db.insert(schema.teamMemberships).values({ playerId: player.id, teamId: team.id, role: role! });
   await db.update(schema.openSlots).set({ active: false }).where(and(eq(schema.openSlots.teamId, team.id), eq(schema.openSlots.role, role!)));
+  // era reserva deste time? virou titular, então sai da reserva
+  const promoted = await db
+    .update(schema.teamReserves)
+    .set({ leftAt: today() })
+    .where(and(eq(schema.teamReserves.playerId, player.id), eq(schema.teamReserves.teamId, team.id), isNull(schema.teamReserves.leftAt)))
+    .returning();
+  if (promoted.length) console.log("↑ Era reserva deste time: saiu da reserva.");
 
   console.log(`✔ ${displayName} [${slug}] entrou na ${team.name} como ${role}.`);
   console.log(`  Próximo passo: SYNC_MATCH_COUNT=50 npm run sync (puxa elo, maestria e partidas).`);
@@ -158,6 +172,70 @@ async function playerRemove() {
     console.log(`✔ ${p.displayName} saiu da lane ${m.role}${args["no-open-slot"] ? "" : " (vaga aberta)"}.`);
   }
   await db.delete(schema.liveStatus).where(eq(schema.liveStatus.playerId, p.id));
+}
+
+/**
+ * Reserva: entra em team_reserves (não em team_memberships), então não ocupa lane,
+ * não fecha vaga e não aparece em ranking/comparação/scouting. Um registro por time.
+ */
+async function reserveAdd() {
+  const riotId = str("riot") ?? fail('Informe --riot "Nome#TAG"');
+  const [gameName, tagLine] = riotId.split("#");
+  if (!gameName || !tagLine) fail('Riot ID inválido. Formato: "Nome#TAG"');
+  const team = await teamBySlug(str("team") ?? fail("Informe --team black|silver"));
+  const role = str("role")?.toUpperCase() as Role | undefined;
+  if (role && !ROLES.includes(role)) fail(`Lane inválida: ${role}. Use ${ROLES.join(", ")}`);
+
+  const acc = await riot<{ puuid: string; gameName: string; tagLine: string }>(
+    process.env.RIOT_REGION ?? "americas",
+    `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
+  );
+  if (!acc) fail(`Conta "${riotId}" não encontrada na Riot (confira nome e tag).`);
+  console.log(`✔ Conta encontrada: ${acc!.gameName}#${acc!.tagLine}`);
+
+  const [byPuuid] = await db.select().from(schema.players).where(eq(schema.players.puuid, acc!.puuid));
+  let player = byPuuid;
+  if (!player) {
+    const displayName = str("name") ?? acc!.gameName.split(" ").at(-1)!;
+    const slug = str("slug") ?? slugify(displayName);
+    const [bySlug] = await db.select().from(schema.players).where(eq(schema.players.slug, slug));
+    if (bySlug) fail(`O slug "${slug}" já é de outro jogador. Use --slug.`);
+    [player] = await db.insert(schema.players).values({ slug, displayName, gameName: acc!.gameName, tagLine: acc!.tagLine, puuid: acc!.puuid }).returning();
+  } else if (str("name")) {
+    [player] = await db.update(schema.players).set({ displayName: str("name")! }).where(eq(schema.players.id, player.id)).returning();
+  }
+
+  const [starter] = await db
+    .select()
+    .from(schema.teamMemberships)
+    .where(and(eq(schema.teamMemberships.playerId, player.id), eq(schema.teamMemberships.teamId, team.id), isNull(schema.teamMemberships.leftAt)));
+  if (starter) fail(`${player.displayName} já é titular da ${team.name} (${starter.role}). Para virar reserva, remova-o primeiro com player:remove.`);
+
+  const [already] = await db
+    .select()
+    .from(schema.teamReserves)
+    .where(and(eq(schema.teamReserves.playerId, player.id), eq(schema.teamReserves.teamId, team.id), isNull(schema.teamReserves.leftAt)));
+  if (already) {
+    await db.update(schema.teamReserves).set({ role: role ?? already.role }).where(eq(schema.teamReserves.id, already.id));
+    console.log(`ℹ ${player.displayName} já era reserva da ${team.name}${role ? `; lane atualizada para ${role}` : ""}.`);
+    return;
+  }
+  await db.insert(schema.teamReserves).values({ playerId: player.id, teamId: team.id, role: role ?? null });
+  console.log(`✔ ${player.displayName} [${player.slug}] entrou como reserva da ${team.name}${role ? ` (${role})` : " (lane: a mais jogada nas Solo/Duo)"}.`);
+  console.log(`  Próximo passo: SYNC_MATCH_COUNT=50 npm run sync (puxa elo, maestria e partidas).`);
+}
+
+async function reserveRemove() {
+  const p = await playerBySlug(str("slug") ?? fail("Informe --slug"));
+  const teamSlug = str("team");
+  const team = teamSlug ? await teamBySlug(teamSlug) : null;
+  const closed = await db
+    .update(schema.teamReserves)
+    .set({ leftAt: today() })
+    .where(and(eq(schema.teamReserves.playerId, p.id), isNull(schema.teamReserves.leftAt), ...(team ? [eq(schema.teamReserves.teamId, team.id)] : [])))
+    .returning();
+  if (!closed.length) fail(`${p.displayName} não é reserva${team ? ` da ${team.name}` : " de nenhum time"}.`);
+  console.log(`✔ ${p.displayName} saiu da reserva (${closed.length} time${closed.length > 1 ? "s" : ""}).`);
 }
 
 const channelOf = (url: string) => url.replace(/\/+$/, "").split("/").pop()!.toLowerCase();
@@ -226,6 +304,8 @@ const commands: Record<string, () => Promise<void>> = {
   "player:add": playerAdd,
   "player:remove": playerRemove,
   "player:rename": playerRename,
+  "reserve:add": reserveAdd,
+  "reserve:remove": reserveRemove,
   "twitch:set": twitchSet,
   "twitch:remove": twitchRemove,
 };

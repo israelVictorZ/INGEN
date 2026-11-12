@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { getSiteData } from "@/lib/data";
+import { getSiteData, type Player } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { RankEmblem, TeamTag } from "@/components/ui";
 import { championIcon, profileIcon } from "@/lib/ddragon-urls";
 import { TeamEloChart, type EloSeries } from "@/components/ranking/TeamEloChart";
-import { TIER_META, fixed, pct, rankLabel } from "@/lib/format";
+import { TIER_META, fixed, opggUrl, pct, rankLabel } from "@/lib/format";
 import { ogFor } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -18,20 +18,44 @@ export const metadata: Metadata = {
   openGraph: ogFor("/ranking"),
 };
 
+/** Titular abre o perfil; reserva (sem página própria) abre o op.gg. */
+function PlayerLink({ p, children, ...rest }: { p: Player } & Omit<React.ComponentProps<"a">, "href">) {
+  return p.reserve ? (
+    <a href={opggUrl(p)} target="_blank" rel="noopener noreferrer" {...rest}>
+      {children}
+    </a>
+  ) : (
+    <Link href={`/jogador/${p.slug}`} {...rest}>
+      {children}
+    </Link>
+  );
+}
+
+/** "Silver" / "Silver · Reserva" */
+const teamLabel = (p: Player, name: string) => (p.reserve ? `${name} · Reserva` : name);
+
 export default async function RankingPage() {
-  const { players, version, lastSync } = await getSiteData();
+  const { players: starters, reserves, version, lastSync } = await getSiteData();
+  // Reservas entram no ranking (pódio, destaques, gráfico e tabela), sempre marcados como tal
+  const players = [...starters, ...reserves];
   // Ranking: única exceção à regra "Black primeiro". Aqui vale só o elo.
   const ranked = [...players].sort((a, b) => (b.solo?.score ?? -1) - (a.solo?.score ?? -1));
   const top = ranked[0]?.solo?.score ?? 1;
   const until = lastSync ? new Date(lastSync).getTime() : Math.max(0, ...players.flatMap((p) => p.rankHistory.map((h) => h.t)));
 
-  // cor fixa por jogador (ordem do elenco: Black antes da Silver), validada para daltonismo no fundo escuro
+  // cor fixa por jogador (ordem do elenco: Black antes da Silver), validada para daltonismo no fundo escuro;
+  // reservas em tons neutros e linha tracejada, para não competir com os titulares
   const PALETTE = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
-  const series: EloSeries[] = players.map((p, i) => ({
+  const RESERVE_PALETTE = ["#aeb5c0", "#8a8f99", "#c9bfa8"];
+  const series: EloSeries[] = [
+    ...starters.map((p, i) => ({ p, color: PALETTE[i % PALETTE.length] })),
+    ...reserves.map((p, i) => ({ p, color: RESERVE_PALETTE[i % RESERVE_PALETTE.length] })),
+  ].map(({ p, color }) => ({
     slug: p.slug,
     name: p.displayName,
-    team: p.team.shortName,
-    color: PALETTE[i % PALETTE.length],
+    team: p.reserve ? "Reserva" : p.team.shortName,
+    color,
+    dashed: p.reserve,
     pts: p.rankHistory.map((h) => ({ t: h.t, score: h.score })),
   }));
 
@@ -53,6 +77,12 @@ export default async function RankingPage() {
   const sharp = pick(players.filter((p) => p.week.games >= 5), (p) => kda(p.week));
   const streaker = pick(players.filter((p) => p.streak >= 2), (p) => p.streak);
   const grinder = pick(players.filter((p) => p.week.games > 0), (p) => p.week.games);
+  // reservas da lista: completam os 6 cards quando algum destaque principal não tem ganhador
+  const killer = pick(players.filter((p) => p.week.kills > 0), (p) => p.week.kills);
+  const accurate = pick(players.filter((p) => p.week.games >= 5), (p) => p.week.wins / p.week.games);
+  const helper = pick(players.filter((p) => p.week.assists > 0), (p) => p.week.assists);
+  const safe = pick(players.filter((p) => p.week.games >= 5), (p) => -p.week.deaths / p.week.games);
+  const peak = pick(players.filter((p) => p.solo), (p) => p.solo!.score);
   const highlights = [
     climber && { k: "Maior subida", p: climber, v: `+${climber.week.lpDelta} PDL`, sub: climber.solo ? `agora ${rankLabel(climber.solo.tier, climber.solo.division)}` : "" },
     winner && { k: "Mais vitórias", p: winner, v: `${winner.week.wins} vitórias`, sub: `em ${winner.week.games} partidas · ${pct(winner.week.wins / winner.week.games)}` },
@@ -66,7 +96,15 @@ export default async function RankingPage() {
     },
     streaker && { k: "Em sequência", p: streaker, v: `${streaker.streak} vitórias`, sub: "seguidas, sem perder" },
     grinder && { k: "Mais ativo", p: grinder, v: `${grinder.week.games} partidas`, sub: "na semana" },
-  ].filter((x): x is { k: string; p: (typeof players)[number]; v: string; sub: string; champ?: string } => !!x);
+    killer && { k: "Mais abates", p: killer, v: `${killer.week.kills} abates`, sub: `em ${killer.week.games} partidas` },
+    accurate && { k: "Melhor aproveitamento", p: accurate, v: pct(accurate.week.wins / accurate.week.games), sub: `${accurate.week.wins}V ${accurate.week.games - accurate.week.wins}D · mín. 5` },
+    helper && { k: "Mais assistências", p: helper, v: `${helper.week.assists} assist.`, sub: `em ${helper.week.games} partidas` },
+    safe && { k: "Menos mortes", p: safe, v: fixed(safe.week.deaths / safe.week.games, 1), sub: "mortes por partida · mín. 5" },
+    peak && { k: "Elo mais alto", p: peak, v: rankLabel(peak.solo!.tier, peak.solo!.division), sub: `${peak.solo!.lp} PDL` },
+  ]
+    .filter((x): x is { k: string; p: Player; v: string; sub: string; champ?: string } => !!x)
+    // sempre 6 (grade 3x2 / 2x3 sem buraco); com menos, a grade se ajusta
+    .slice(0, 6);
 
   return (
     <RevealScope>
@@ -86,9 +124,9 @@ export default async function RankingPage() {
         {ranked.slice(0, 3).map((p, i) => {
           const color = p.solo ? TIER_META[p.solo.tier]?.color : undefined;
           return (
-            <Link
+            <PlayerLink
               key={p.slug}
-              href={`/jogador/${p.slug}`}
+              p={p}
               data-reveal="up"
               data-delay={i * 0.1}
               className={`border-run clip-step group relative overflow-hidden bg-bg-2 p-6 ${i === 0 ? "md:-translate-y-6" : ""}`}
@@ -102,7 +140,7 @@ export default async function RankingPage() {
                   </div>
                 )}
                 <div>
-                  <TeamTag accent={p.team.accent} name={p.team.shortName} />
+                  <TeamTag accent={p.team.accent} name={teamLabel(p, p.team.shortName)} />
                   <p className="mt-1 font-display text-4xl font-black uppercase leading-none text-white group-hover:text-green">{p.displayName}</p>
                   {p.solo && (
                     <p className="mt-1 font-mono text-xs uppercase tracking-wider" style={{ color }}>
@@ -111,7 +149,7 @@ export default async function RankingPage() {
                   )}
                 </div>
               </div>
-            </Link>
+            </PlayerLink>
           );
         })}
       </section>
@@ -124,19 +162,22 @@ export default async function RankingPage() {
             </h2>
             <p className="label-mono">Últimos 7 dias · Solo/Duo</p>
           </div>
-          <div data-reveal="stagger" className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div data-reveal="stagger" className={`mt-6 grid gap-3 sm:grid-cols-2 ${highlights.length === 4 ? "" : "lg:grid-cols-3"}`}>
             {highlights.map((h) => {
               const icon = h.champ ? championIcon(version, h.champ) : h.p.profileIconId ? profileIcon(version, h.p.profileIconId) : null;
               return (
-                <Link key={h.k} href={`/jogador/${h.p.slug}`} className="border-run clip-step group relative flex items-center gap-4 overflow-hidden bg-bg-2 p-5">
+                <PlayerLink key={h.k} p={h.p} className="border-run clip-step group relative flex items-center gap-4 overflow-hidden bg-bg-2 p-5">
                   {icon && <Image src={icon} alt="" width={52} height={52} className="clip-step-sm shrink-0" />}
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-green">{h.k}</p>
+                    <p className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-green">
+                      {h.k}
+                      {h.p.reserve && <span className="text-gray-dim"> · Reserva</span>}
+                    </p>
                     <p className="mt-1 truncate font-display text-2xl font-black uppercase leading-none text-white group-hover:text-green">{h.p.displayName}</p>
                     <p className="mt-1 truncate font-mono text-[0.65rem] text-gray">{h.sub}</p>
                   </div>
                   <p className="shrink-0 text-right font-display text-2xl font-black leading-none text-white">{h.v}</p>
-                </Link>
+                </PlayerLink>
               );
             })}
           </div>
@@ -158,8 +199,8 @@ export default async function RankingPage() {
             const color = p.solo ? TIER_META[p.solo.tier]?.color : "#5a606a";
             return (
               <li key={p.slug} className="border-b border-line">
-                <Link
-                  href={`/jogador/${p.slug}`}
+                <PlayerLink
+                  p={p}
                   className="group grid grid-cols-[36px_1fr_auto] items-center gap-4 py-4 transition-colors hover:bg-bg-2 md:grid-cols-[48px_1.4fr_1fr_1.2fr_90px]"
                 >
                   <span className="font-pixel text-lg text-gray-dim group-hover:text-green">{String(i + 1).padStart(2, "0")}</span>
@@ -175,7 +216,7 @@ export default async function RankingPage() {
                     </span>
                   </span>
                   <span className="hidden md:block">
-                    <TeamTag accent={p.team.accent} name={p.team.name} />
+                    <TeamTag accent={p.team.accent} name={teamLabel(p, p.team.name)} />
                   </span>
                   <span className="hidden md:block">
                     <span className="font-mono text-xs uppercase tracking-wider" style={{ color }}>
@@ -191,13 +232,13 @@ export default async function RankingPage() {
                     </span>
                     {p.solo ? pct(p.solo.winrate) : "—"}
                   </span>
-                </Link>
+                </PlayerLink>
               </li>
             );
           })}
         </ol>
         <p className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim">
-          Ordenado por elo na ranqueada Solo/Duo · Winrate da temporada
+          Ordenado por elo na ranqueada Solo/Duo · Winrate da temporada{reserves.length > 0 && " · Reservas abrem o op.gg"}
         </p>
       </section>
     </RevealScope>

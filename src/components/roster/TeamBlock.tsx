@@ -2,9 +2,10 @@ import type { Team } from "@/lib/data";
 import { toCard, toRiftSlots } from "@/lib/view";
 import { TIER_META, opggMultiUrl, pct, scoreToLabel, scoreToTier } from "@/lib/format";
 import { ButtonLink, TeamTag } from "@/components/ui";
-import { PlayerCard } from "./PlayerCard";
-import { OpenSlotCard } from "./OpenSlotCard";
+import { PlayerCard, PlayerRow } from "./PlayerCard";
+import { OpenSlotCard, OpenSlotRow } from "./OpenSlotCard";
 import { RiftMap } from "./RiftMap";
+import { ReserveList } from "./ReserveList";
 import { Split } from "@/components/motion/Split";
 
 export function TeamBlock({ team, version, index }: { team: Team; version: string; index: number }) {
@@ -44,7 +45,7 @@ export function TeamBlock({ team, version, index }: { team: Team; version: strin
 
             <div data-reveal="up" className="mt-10 flex flex-wrap gap-3">
               <ButtonLink href={`/scouting/${team.slug}`}>Relatório de scouting</ButtonLink>
-              <ButtonLink href={opggMultiUrl(team.players)} variant="ghost" external>
+              <ButtonLink href={opggMultiUrl([...team.players, ...team.reserves])} variant="ghost" external>
                 op.gg multi
               </ButtonLink>
             </div>
@@ -55,7 +56,18 @@ export function TeamBlock({ team, version, index }: { team: Team; version: strin
           </div>
         </div>
 
-        <div data-reveal="stagger" className="mt-20 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+        {/* Mobile: lista de linhas (os cards em 2 colunas ficavam espremidos e deixavam um buraco no 5º) */}
+        <div data-reveal="stagger" className="mt-12 grid gap-2.5 sm:hidden">
+          {team.slots.map((s, i) =>
+            s.kind === "player" ? (
+              <PlayerRow key={s.role} p={toCard(s.player)} index={i} />
+            ) : (
+              <OpenSlotRow key={s.role} role={s.role} teamName={team.name} />
+            ),
+          )}
+        </div>
+
+        <div data-reveal="stagger" className="mt-20 hidden grid-cols-2 gap-3 sm:grid md:gap-4 lg:grid-cols-5">
           {team.slots.map((s, i) =>
             s.kind === "player" ? (
               <PlayerCard key={s.role} p={toCard(s.player)} index={i} />
@@ -64,6 +76,8 @@ export function TeamBlock({ team, version, index }: { team: Team; version: strin
             ),
           )}
         </div>
+
+        <ReserveList reserves={team.reserves} version={version} />
       </div>
     </section>
   );

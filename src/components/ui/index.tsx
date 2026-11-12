@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { EXTERNAL_LINK, isExternal } from "@/lib/links";
 import Link from "next/link";
 import { Split } from "@/components/motion/Split";
 import type { Rank } from "@/lib/data";
@@ -91,9 +92,11 @@ export function ButtonLink({
   href: string;
   children: React.ReactNode;
   variant?: "primary" | "ghost";
+  /** padrão: detectado pelo endereço (http/https abre em nova aba) */
   external?: boolean;
   className?: string;
 }) {
+  external ??= isExternal(href);
   const base =
     "group clip-step-sm inline-flex items-center gap-3 px-5 py-3 font-mono text-[0.75rem] font-medium uppercase tracking-[0.16em] transition-all duration-300";
   const styles =
@@ -104,7 +107,7 @@ export function ButtonLink({
     <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">{external ? "↗" : "→"}</span>
   );
   return external ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={`${base} ${styles} ${className}`}>
+    <a href={href} {...EXTERNAL_LINK} className={`${base} ${styles} ${className}`}>
       {children}
       {arrow}
     </a>
@@ -119,7 +122,7 @@ export function ButtonLink({
 export function TeamTag({ accent, name }: { accent: string; name: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-mono text-[0.68rem] uppercase tracking-[0.16em] ${
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[0.68rem] uppercase tracking-[0.16em] ${
         accent === "silver" ? "text-silver" : "text-green"
       }`}
     >

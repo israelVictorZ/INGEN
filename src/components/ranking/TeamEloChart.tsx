@@ -8,6 +8,8 @@ export type EloSeries = {
   name: string;
   team: string;
   color: string;
+  /** reservas: linha tracejada */
+  dashed?: boolean;
   /** mudanças de elo (score = tier*400 + divisão*100 + PDL) */
   pts: { t: number; score: number }[];
 };
@@ -125,7 +127,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
               onBlur={() => setFocus(null)}
               className={`flex items-center gap-2 font-mono text-[0.68rem] transition-opacity ${focus && focus !== s.slug ? "opacity-40" : ""} ${s.pts.length ? "text-white-dim" : "text-gray-dim"}`}
             >
-              <span className="h-0.5 w-4 rounded-full" style={{ background: s.color }} />
+              <span className="h-0 w-4 border-t-2" style={{ borderColor: s.color, borderStyle: s.dashed ? "dashed" : "solid" }} />
               {s.name}
               <span className="text-gray-dim">{s.team}</span>
             </button>
@@ -154,6 +156,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
                   fill="none"
                   stroke={s.color}
                   strokeWidth={focus === s.slug ? 3 : 2}
+                  strokeDasharray={s.dashed ? "6 5" : undefined}
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
                   style={{ opacity: focus && focus !== s.slug ? 0.15 : 1, transition: "opacity .2s" }}

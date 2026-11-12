@@ -4,6 +4,8 @@
  *   npm run sync                  -> incremental: elo, maestria, partidas novas, status da Twitch
  *   SYNC_BACKFILL=1 npm run sync  -> também completa detalhes de partidas antigas
  *   SYNC_STATE_FILE=.sync-state.json -> modo sonda: só acessa o banco se algo mudou
+ *   SYNC_ONLY=slug1,slug2 npm run sync -> só esses jogadores (ex.: recém-cadastrado); não mexe
+ *                                        em Twitch nem no "last_sync", que seguem sendo do sync completo
  *
  * Roda localmente ou no GitHub Actions (.github/workflows/sync.yml).
  * A chave da Riot NUNCA vai para a Vercel: o site só lê do banco.
@@ -18,6 +20,7 @@ const PLATFORM = process.env.RIOT_PLATFORM ?? "br1";
 const REGION = process.env.RIOT_REGION ?? "americas";
 const MATCH_COUNT = Number(process.env.SYNC_MATCH_COUNT ?? 20);
 const BACKFILL = process.env.SYNC_BACKFILL === "1";
+const ONLY = process.env.SYNC_ONLY?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
 const SOLO_QUEUE = 420; // estatísticas só de Solo/Duo
 
 if (!KEY) throw new Error("RIOT_API_KEY não configurada");
@@ -41,6 +44,12 @@ async function throttle(route: string) {
   }
 }
 
+/**
+ * O PUUID vem criptografado para o app dono da chave da Riot. Se a chave trocar de app
+ * (outra conta/projeto), os PUUIDs gravados viram "Exception decrypting" (400).
+ */
+class PuuidMismatch extends Error {}
+
 let calls = 0;
 async function riot<T>(host: string, path: string): Promise<T | null> {
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -61,6 +70,12 @@ async function riot<T>(host: string, path: string): Promise<T | null> {
       continue;
     }
     if (res.status === 404) return null;
+    if (res.status === 400) {
+      const body = await res.text();
+      if (body.includes("decrypting")) throw new PuuidMismatch(path);
+      throw new Error(`400 ${path}
+${body}`);
+    }
     if (res.status === 401 || res.status === 403) throw new Error(`Chave da Riot recusada (${res.status}). A Development Key expira a cada 24h.`);
     if (!res.ok) throw new Error(`${res.status} ${path}\n${await res.text()}`);
     return (await res.json()) as T;
@@ -137,20 +152,58 @@ function participantRow(m: MatchDto, me: Participant, playerId: number) {
 /** Mesmo critério do cadastro (scripts/manage.ts): última palavra do nick, ex.: "IGN Atlas" → "Atlas". */
 const autoDisplayName = (gameName: string) => gameName.trim().split(" ").at(-1)!;
 
+/**
+ * Último recurso quando o PUUID é de outra chave E o Riot ID mudou (trocou de nick):
+ * busca uma partida recente já gravada desse jogador com a chave atual e acha o participante
+ * pelo campeão + lado do mapa (únicos na partida). O PUUID dele leva à conta com o nick novo.
+ */
+async function recoverFromMatches(playerId: number): Promise<Account | null> {
+  const rows = await db
+    .select({ matchId: schema.matchParticipants.matchId, championId: schema.matchParticipants.championId, teamId: schema.matchParticipants.teamId })
+    .from(schema.matchParticipants)
+    .innerJoin(schema.matches, eq(schema.matches.matchId, schema.matchParticipants.matchId))
+    .where(eq(schema.matchParticipants.playerId, playerId))
+    .orderBy(desc(schema.matches.gameStart))
+    .limit(3);
+  for (const r of rows) {
+    if (r.teamId == null) continue;
+    const m = await riot<MatchDto>(REGION, `/lol/match/v5/matches/${r.matchId}`);
+    const me = m?.info.participants.find((x) => x.championId === r.championId && x.teamId === r.teamId);
+    if (!me) continue;
+    const acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${me.puuid}`);
+    if (acc) return acc;
+  }
+  return null;
+}
+
 async function syncRiot() {
-  const players = await db.select().from(schema.players);
+  const players = (await db.select().from(schema.players)).filter((p) => !ONLY.length || ONLY.includes(p.slug));
+  if (ONLY.length && players.length !== ONLY.length) throw new Error(`SYNC_ONLY: slug não encontrado (${ONLY.filter((s) => !players.some((p) => p.slug === s)).join(", ")})`);
   const matchCache = new Map<string, MatchDto | null>();
 
   for (const p of players) {
     console.log(`\n▶ ${p.gameName}#${p.tagLine}`);
-    // Conta: por PUUID quando já conhecido (acompanha troca de nick), senão por Riot ID
-    const acc = p.puuid
-      ? await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${p.puuid}`)
-      : await riot<Account>(REGION, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(p.gameName)}/${encodeURIComponent(p.tagLine)}`);
+    // Conta: por PUUID quando já conhecido (acompanha troca de nick), senão por Riot ID.
+    // PUUID de outra chave da Riot (ou sumido): recupera pelo Riot ID e grava o PUUID desta chave.
+    let acc: Account | null = null;
+    if (p.puuid) {
+      try {
+        acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${p.puuid}`);
+      } catch (e) {
+        if (!(e instanceof PuuidMismatch)) throw e;
+        console.log("  PUUID gravado é de outra chave da Riot: recuperando pelo Riot ID");
+      }
+    }
+    if (!acc) acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(p.gameName)}/${encodeURIComponent(p.tagLine)}`);
+    if (!acc && p.puuid) {
+      acc = await recoverFromMatches(p.id);
+      if (acc) console.log(`  recuperado por uma partida gravada: agora é ${acc.gameName}#${acc.tagLine}`);
+    }
     if (!acc) {
-      console.warn("  conta não encontrada, pulando");
+      console.warn("  conta não encontrada (nem por PUUID, Riot ID ou partidas gravadas), pulando");
       continue;
     }
+    if (p.puuid && acc.puuid !== p.puuid) console.log("  PUUID atualizado para a chave atual");
     const summ = await riot<Summoner>(PLATFORM, `/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
     // Trocou de nick: o nome de exibição acompanha, a menos que tenha sido definido à mão (--name)
     const renamed = acc.gameName !== p.gameName;
@@ -283,7 +336,14 @@ async function fingerprint(state: Pick<SyncState, "players" | "channels">) {
   const parts: string[] = [];
   for (const p of state.players) {
     // troca de nick não muda elo nem partidas: sem isto a sonda só perceberia na sincronização completa (6h)
-    const acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${p.puuid}`);
+    const acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${p.puuid}`).catch((e) => {
+      if (e instanceof PuuidMismatch) return undefined; // PUUID de outra chave: marca e segue
+      throw e;
+    });
+    if (acc === undefined) {
+      parts.push(`${p.id}|puuid-invalido`);
+      continue;
+    }
     const entries = (await riot<LeagueEntry[]>(PLATFORM, `/lol/league/v4/entries/by-puuid/${p.puuid}`)) ?? [];
     const elo = entries
       .filter((e) => e.queueType === "RANKED_SOLO_5x5" || e.queueType === "RANKED_FLEX_SR")
@@ -307,8 +367,13 @@ async function main() {
   if (STATE_FILE && existsSync(STATE_FILE)) {
     const state = JSON.parse(readFileSync(STATE_FILE, "utf-8")) as SyncState;
     if (state.players.length && Date.now() - state.lastFull < FULL_EVERY_MS) {
-      const fp = await fingerprint(state);
-      if (fp === state.fingerprint) {
+      // PUUID do estado salvo inválido para a chave atual: segue para o sync completo, que o recupera
+      const fp = await fingerprint(state).catch((e) => {
+        if (!(e instanceof PuuidMismatch)) throw e;
+        console.log("Sonda: PUUID de outra chave da Riot no estado salvo, sincronizando tudo.");
+        return null;
+      });
+      if (fp !== null && fp === state.fingerprint) {
         console.log(`Sem mudanças (sonda: ${calls} chamadas em ${Math.round((Date.now() - t0) / 1000)}s). Banco não foi acessado.`);
         setOutput("full", "false");
         return;
@@ -318,6 +383,11 @@ async function main() {
   }
 
   await syncRiot();
+  if (ONLY.length) {
+    console.log(`
+✔ Sync parcial (${ONLY.join(", ")}): ${calls} chamadas à Riot em ${Math.round((Date.now() - t0) / 1000)}s`);
+    return;
+  }
   await syncTwitch().catch((e) => console.warn("Twitch falhou:", e.message));
 
   const versions = (await (await fetch("https://ddragon.leagueoflegends.com/api/versions.json")).json()) as string[];

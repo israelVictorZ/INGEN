@@ -38,8 +38,10 @@ export default async function ElencoPage() {
           </nav>
         </div>
       </section>
+      {/* Mesmo fundo nos dois times (com bg-0 o mapa e a base dos cards se fundiam no fundo);
+          o último bloco não tem respiro inferior porque o rodapé já tem margem própria */}
       {teams.map((t, i) => (
-        <div key={t.slug} className={i % 2 ? "border-t border-line bg-bg-0" : ""}>
+        <div key={t.slug} className={`${i > 0 ? "border-t border-line" : ""} ${i === teams.length - 1 ? "[&>section]:pb-0" : ""}`}>
           <TeamBlock team={t} version={version} index={i} />
         </div>
       ))}

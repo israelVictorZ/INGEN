@@ -15,6 +15,13 @@
       "when": 1794432373362,
       "tag": "0001_warm_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794514053379,
+      "tag": "0002_heavy_nightshade",
+      "breakpoints": true
     }
   ]
 }

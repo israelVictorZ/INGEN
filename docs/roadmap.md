@@ -20,6 +20,7 @@
 **Próximo:**
 - **Twitch** (em andamento, ver abaixo).
 - **Painel admin** (pausado, ver abaixo).
+- **Fase 2: tela interna "O que melhorar"**, com login: fraquezas, recomendações e metas por jogador. Plano em `docs/fase-2-o-que-melhorar.md`.
 - **Imagem de compartilhamento (OG)** do scouting para Discord e WhatsApp.
 - **Logo em SVG**, para animar as partes do escudo separadamente.
 - ~~**Links de recrutamento** para o Discord do time~~ feito: vagas abertas e CTAs apontam para `LINKS.discord` (`src/lib/features.ts`).

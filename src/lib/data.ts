@@ -169,12 +169,16 @@ export type Player = {
   };
   insights: Insights | null;
   live: { channel: string; isLive: boolean; title: string | null; viewers: number | null } | null;
+  /** reserva: fora do elenco titular (sem página própria; aparece no /elenco e no /ranking) */
+  reserve: boolean;
 };
 
 export type Team = TeamRef & {
   tagline: string | null;
   slots: ({ kind: "player"; role: Role; player: Player } | { kind: "open"; role: Role })[];
   players: Player[];
+  /** reservas do time (vazio = a seção some do /elenco) */
+  reserves: Player[];
   avgScore: number | null;
   stats: { games: number; winrate: number } | null;
 };
@@ -200,6 +204,8 @@ export type SiteData = {
   lastSync: string | null;
   teams: Team[];
   players: Player[];
+  /** reservas sem repetição (quem é reserva dos dois times aparece uma vez, no primeiro time) */
+  reserves: Player[];
   news: NewsItem[];
 };
 
@@ -277,7 +283,7 @@ export async function getSiteData(): Promise<SiteData> {
   cacheLife({ stale: 60, revalidate: 300, expire: 86_400 });
   cacheTag("site");
 
-  const [teams, players, memberships, slots, socials, ranks, mastery, matches, parts, news, meta, history, lives] = await Promise.all([
+  const [teams, players, memberships, slots, socials, ranks, mastery, matches, parts, news, meta, history, lives, reserveRows] = await Promise.all([
     db.select().from(schema.teams),
     db.select().from(schema.players),
     db.select().from(schema.teamMemberships).where(isNull(schema.teamMemberships.leftAt)),
@@ -291,6 +297,7 @@ export async function getSiteData(): Promise<SiteData> {
     db.select().from(schema.appMeta),
     db.select().from(schema.rankHistory).orderBy(schema.rankHistory.capturedAt),
     db.select().from(schema.liveStatus),
+    db.select().from(schema.teamReserves).where(isNull(schema.teamReserves.leftAt)).orderBy(schema.teamReserves.joinedAt, schema.teamReserves.id),
   ]);
 
   const version = meta.find((m) => m.key === "ddragon_version")?.value ?? "16.22.1";
@@ -304,10 +311,8 @@ export async function getSiteData(): Promise<SiteData> {
     return { slug: t.slug, name: t.name, shortName: t.shortName, accent: t.accent, sortOrder: t.sortOrder };
   };
 
-  const builtPlayers: Player[] = [];
-  for (const m of memberships) {
-    const p = players.find((x) => x.id === m.playerId);
-    if (!p) continue;
+  /** Monta o jogador completo. Titular: time + lane da participação; reserva: lane cadastrada ou inferida. */
+  const buildPlayer = (p: (typeof players)[number], teamId: number, roleArg: Role | null, reserve: boolean): Player | null => {
     const latest = (queue: string) => ranks.find((r) => r.playerId === p.id && r.queue === queue);
 
     const myParts = parts
@@ -348,6 +353,9 @@ export async function getSiteData(): Promise<SiteData> {
       const r = x.position ? POSITION_TO_ROLE[x.position] : undefined;
       if (r) roleDist[r] = (roleDist[r] ?? 0) + 1;
     }
+    // reserva sem lane cadastrada: a mais jogada nas Solo/Duo recentes
+    const role = roleArg ?? (Object.entries(roleDist).sort((a, b) => b[1] - a[1])[0]?.[0] as Role | undefined);
+    if (!role) return null;
 
     // Pool de campeões: agrega partidas (todas ou só da lane) + maestria
     const aggregate = (list: typeof myParts) => {
@@ -385,7 +393,7 @@ export async function getSiteData(): Promise<SiteData> {
     }
 
     // Campeões da lane: winrate ajustado pelo nº de partidas (2 jogos 100% não passa à frente de 30 jogos 60%)
-    const inLane = aggregate(myParts.filter((x) => x.position && POSITION_TO_ROLE[x.position] === m.role));
+    const inLane = aggregate(myParts.filter((x) => x.position && POSITION_TO_ROLE[x.position] === role));
     // amostras de 1–2 jogos só entram depois dos campeões com 3+ partidas
     const byConfidence = (a: ChampStat, b: ChampStat) => confidentWr(b.wins, b.games) - confidentWr(a.wins, a.games) || b.games - a.games || b.kda - a.kda;
     const laneChampions = [...inLane.filter((c) => c.games >= 3).sort(byConfidence), ...inLane.filter((c) => c.games < 3).sort(byConfidence)];
@@ -475,7 +483,7 @@ export async function getSiteData(): Promise<SiteData> {
     // Confrontos de lane (adversário direto)
     const mu = new Map<number, { games: number; wins: number }>();
     for (const x of myParts) {
-      if (!x.opponentChampionId || !x.position || POSITION_TO_ROLE[x.position] !== m.role) continue;
+      if (!x.opponentChampionId || !x.position || POSITION_TO_ROLE[x.position] !== role) continue;
       const v = mu.get(x.opponentChampionId) ?? { games: 0, wins: 0 };
       v.games++;
       if (x.win) v.wins++;
@@ -527,7 +535,7 @@ export async function getSiteData(): Promise<SiteData> {
         uniqueChamps: champions.filter((c) => c.games > 0).length,
         comfortChamps: champions.filter((c) => c.games >= 3).length,
         oneTrickShare: (champions[0]?.games ?? 0) / myParts.length,
-        mainRoleShare: (roleDist[m.role] ?? 0) / myParts.length,
+        mainRoleShare: (roleDist[role] ?? 0) / myParts.length,
         firstBloodWinrate: fb.length ? fb.filter((x) => x.win).length / fb.length : null,
       };
     }
@@ -536,7 +544,7 @@ export async function getSiteData(): Promise<SiteData> {
     const twitchLink = socials.find((so) => so.playerId === p.id && so.platform === "twitch");
     const live = lv ?? (twitchLink ? { channel: twitchLink.url.replace(/\/+$/, "").split("/").pop()!, isLive: false, title: null, viewers: null } : null);
 
-    builtPlayers.push({
+    return {
       id: p.id,
       slug: p.slug,
       displayName: p.displayName,
@@ -544,8 +552,8 @@ export async function getSiteData(): Promise<SiteData> {
       tagLine: p.tagLine,
       profileIconId: p.profileIconId,
       level: p.summonerLevel,
-      team: teamRef(m.teamId),
-      role: m.role,
+      team: teamRef(teamId),
+      role: role,
       solo: toRank(latest("RANKED_SOLO_5x5")),
       flex: toRank(latest("RANKED_FLEX_SR")),
       stats,
@@ -572,8 +580,26 @@ export async function getSiteData(): Promise<SiteData> {
       },
       insights,
       live: live ? { channel: live.channel, isLive: live.isLive, title: live.title, viewers: live.viewers } : null,
-    });
+      reserve,
+    };
+  };
+
+  const builtPlayers: Player[] = [];
+  for (const m of memberships) {
+    const p = players.find((x) => x.id === m.playerId);
+    const built = p && buildPlayer(p, m.teamId, m.role, false);
+    if (built) builtPlayers.push(built);
   }
+
+  // Reservas: mesmo cálculo dos titulares, mas FORA de `players` (não entram em médias, scouting,
+  // comparação nem têm página). Uma entrada por time; a mesma conta pode estar nos dois.
+  const builtReserves: Player[] = [];
+  for (const r of reserveRows) {
+    const p = players.find((x) => x.id === r.playerId);
+    const built = p && buildPlayer(p, r.teamId, r.role, true);
+    if (built) builtReserves.push(built);
+  }
+  builtReserves.sort((a, b) => a.team.sortOrder - b.team.sortOrder || ROLE_META[a.role].order - ROLE_META[b.role].order);
 
   const builtTeams: Team[] = teams
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -592,6 +618,7 @@ export async function getSiteData(): Promise<SiteData> {
         tagline: t.tagline,
         slots: slotList,
         players: slotList.flatMap((s) => (s.kind === "player" ? [s.player] : [])),
+        reserves: builtReserves.filter((r) => r.team.slug === t.slug),
         avgScore: scores.length ? avg(scores) : null,
         stats: games ? { games, winrate: wins / games } : null,
       };
@@ -608,6 +635,7 @@ export async function getSiteData(): Promise<SiteData> {
     lastSync,
     teams: builtTeams,
     players: builtPlayers,
+    reserves: builtReserves.filter((r, i, arr) => arr.findIndex((x) => x.slug === r.slug) === i),
     news: news.map((n) => ({ ...n, category: n.category as NewsCategory })),
   };
 }

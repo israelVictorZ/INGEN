@@ -214,6 +214,8 @@ export function Select({
       {open && pos && createPortal(
         <div
           ref={pop}
+          // o Lenis (scroll suave da página) captura a roda do mouse; isto devolve a rolagem à lista
+          data-lenis-prevent
           style={{ top: pos.top, left: pos.left }}
           className="fixed z-[70] w-[min(340px,calc(100vw-32px))] origin-top animate-[pin-in_0.35s_var(--ease-out-expo)_both] border border-line bg-bg-0/95 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl"
         >

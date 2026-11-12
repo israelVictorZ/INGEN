@@ -4,7 +4,7 @@ import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { CompareView, type ComparePlayer } from "@/components/compare/CompareView";
-import { riotId } from "@/lib/format";
+import { opggUrl, riotId } from "@/lib/format";
 import { mainChamps } from "@/lib/view";
 import slugRedirects from "@/lib/slug-redirects.json";
 import { ogFor } from "@/lib/site";
@@ -18,12 +18,15 @@ export const metadata: Metadata = {
 };
 
 async function getComparePlayers(): Promise<{ version: string; until: number | null; players: ComparePlayer[] }> {
-  const { players, version, lastSync } = await getSiteData();
+  const { players, reserves, version, lastSync } = await getSiteData();
   return {
     version,
     until: lastSync ? new Date(lastSync).getTime() : null,
-    players: players.map((p) => ({
+    // reservas entram no fim (grupo próprio no select); não têm página, então o nome leva ao op.gg
+    players: [...players, ...reserves].map((p) => ({
       slug: p.slug,
+      reserve: p.reserve,
+      href: p.reserve ? opggUrl(p) : `/jogador/${p.slug}`,
       name: p.displayName,
       riotId: riotId(p),
       role: p.role,

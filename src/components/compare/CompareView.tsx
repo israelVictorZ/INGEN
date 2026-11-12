@@ -14,6 +14,10 @@ import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
 
 export type ComparePlayer = {
   slug: string;
+  /** reserva: grupo próprio no select, fora dos duelos de lane padrão */
+  reserve: boolean;
+  /** perfil do titular ou op.gg do reserva */
+  href: string;
   name: string;
   riotId: string;
   role: Role;
@@ -314,7 +318,7 @@ export function CompareView({
   const duels = useMemo(() => {
     const out: { role: Role; a: string; b: string }[] = [];
     for (const r of ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as Role[]) {
-      const same = players.filter((p) => p.role === r);
+      const same = players.filter((p) => p.role === r && !p.reserve);
       if (same.length >= 2) out.push({ role: r, a: same[0].slug, b: same[1].slug });
     }
     return out;
@@ -371,7 +375,7 @@ export function CompareView({
   const options: SelectOption[] = players.map((m) => ({
     value: m.slug,
     label: m.name,
-    group: m.team.name,
+    group: m.reserve ? "Reservas" : m.team.name,
     keywords: `${ROLE_META[m.role].label} ${ROLE_META[m.role].short} ${m.tier ? rankLabel(m.tier, m.division ?? "") : ""}`,
   }));
   const bySlug = (slug: string | undefined) => players.find((p) => p.slug === slug);
@@ -434,12 +438,19 @@ export function CompareView({
             <span className="label-mono min-w-0 truncate text-[0.58rem] sm:text-[0.68rem]">
               <span className="hidden sm:inline">{ROLE_META[p.role].label} · </span>
               <span className={p.team.accent === "silver" ? "text-silver" : "text-green"}>{p.team.name}</span>
+              {p.reserve && <span className="text-gray-dim"> · Reserva</span>}
             </span>
           </div>
           <div className="overflow-hidden">
-            <Link href={`/jogador/${p.slug}`} data-cmp-name className="mt-2 block truncate font-display text-[clamp(2.1rem,7vw,6rem)] font-black uppercase leading-[0.85]" style={{ color }}>
-              {p.name}
-            </Link>
+            {p.reserve ? (
+              <a href={p.href} target="_blank" rel="noopener noreferrer" title="Ver no op.gg" data-cmp-name className="mt-2 block truncate font-display text-[clamp(2.1rem,7vw,6rem)] font-black uppercase leading-[0.85]" style={{ color }}>
+                {p.name}
+              </a>
+            ) : (
+              <Link href={p.href} data-cmp-name className="mt-2 block truncate font-display text-[clamp(2.1rem,7vw,6rem)] font-black uppercase leading-[0.85]" style={{ color }}>
+                {p.name}
+              </Link>
+            )}
           </div>
           <p className="mt-2 truncate font-mono text-[0.65rem] text-gray sm:text-xs">{p.riotId}</p>
           <p className="mt-3 font-mono text-[0.62rem] uppercase tracking-wider sm:text-xs" style={{ color: p.tier ? TIER_META[p.tier]?.color : undefined }}>

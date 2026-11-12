@@ -557,9 +557,12 @@ export function ChampionTable({ p, version }: { p: Player; version: string }) {
                 <td className="px-4 py-2.5">
                   <span className="flex items-center gap-2">
                     <span className="h-1 w-16 bg-bg-3">
-                      <span className={`block h-full ${wr >= 0.5 ? "bg-green" : "bg-gray-dim"}`} style={{ width: `${wr * 100}%` }} />
+                      <span className={`block h-full ${c.games < 3 ? "bg-white/25" : wr >= 0.5 ? "bg-green" : "bg-gray-dim"}`} style={{ width: `${wr * 100}%` }} />
                     </span>
-                    <span className={`font-mono text-sm ${wr >= 0.5 ? "text-green" : "text-gray"}`}>{pct(wr)}</span>
+                    <span className={`font-mono text-sm ${c.games < 3 ? "text-gray-dim" : wr >= 0.5 ? "text-green" : "text-gray"}`} title={c.games < 3 ? "Poucos jogos: ainda não diz muito" : undefined}>
+                      {pct(wr)}
+                      {c.games < 3 && <span className="ml-1 text-[0.55rem]">*</span>}
+                    </span>
                   </span>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-sm text-white-dim">

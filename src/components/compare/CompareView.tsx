@@ -382,7 +382,7 @@ export function CompareView({
         <LaneIcon role={m.role} className="size-5 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-display text-lg font-extrabold uppercase leading-none text-white">{m.name}</span>
-          <span className="mt-0.5 block font-mono text-[0.6rem] uppercase tracking-wider" style={{ color: m.tier ? TIER_META[m.tier]?.color : "#5a606a" }}>
+          <span className="mt-0.5 block font-mono text-[0.6rem] uppercase tracking-wider" style={{ color: m.tier ? TIER_META[m.tier]?.color : "#767c87" }}>
             {ROLE_META[m.role].short} · {m.tier ? `${rankLabel(m.tier, m.division ?? "")} ${m.lp} PDL` : "Sem ranqueada"}
           </span>
         </span>
@@ -394,7 +394,7 @@ export function CompareView({
     const color = side === "a" ? COLOR_A : COLOR_B;
     const other = side === "a" ? b : a;
     return (
-      <div className={`relative overflow-hidden p-6 md:p-10 ${side === "b" ? "md:text-right" : ""}`}>
+      <div className={`relative min-w-0 overflow-hidden p-4 sm:p-6 md:p-10 ${side === "b" ? "text-right" : ""}`}>
         {p.champs[0] && (
           <Image
             src={championSplash(p.champs[0].key)}
@@ -406,8 +406,9 @@ export function CompareView({
         )}
         <div className={`absolute inset-0 ${side === "a" ? "bg-gradient-to-r" : "bg-gradient-to-l"} from-bg-1 via-bg-1/80 to-transparent`} />
         <div className="relative">
-          <div className={`flex ${side === "b" ? "md:justify-end" : ""}`}>
+          <div className={`flex ${side === "b" ? "justify-end" : ""}`}>
             <Select
+              className="w-full sm:w-auto"
               label={side === "a" ? "Jogador A" : "Jogador B"}
               value={p.slug}
               options={options.map((o) => ({ ...o, disabled: o.value === other }))}
@@ -420,31 +421,43 @@ export function CompareView({
                 return m ? (
                   <span className="flex items-center gap-2.5">
                     <LaneIcon role={m.role} className="size-4 shrink-0" />
-                    <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-white">Trocar jogador</span>
+                    <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-white">
+                      Trocar<span className="hidden sm:inline"> jogador</span>
+                    </span>
                   </span>
                 ) : null;
               }}
             />
           </div>
-          <div className={`mt-6 flex items-center gap-3 ${side === "b" ? "md:justify-end" : ""}`}>
-            <LaneIcon role={p.role} className="size-8" />
-            <span className="label-mono">
-              {ROLE_META[p.role].label} · <span className={p.team.accent === "silver" ? "text-silver" : "text-green"}>{p.team.name}</span>
+          <div className={`mt-5 flex items-center gap-2 sm:mt-6 sm:gap-3 ${side === "b" ? "flex-row-reverse" : ""}`}>
+            <LaneIcon role={p.role} className="size-6 shrink-0 sm:size-8" />
+            <span className="label-mono min-w-0 truncate text-[0.58rem] sm:text-[0.68rem]">
+              <span className="hidden sm:inline">{ROLE_META[p.role].label} · </span>
+              <span className={p.team.accent === "silver" ? "text-silver" : "text-green"}>{p.team.name}</span>
             </span>
           </div>
           <div className="overflow-hidden">
-            <Link href={`/jogador/${p.slug}`} data-cmp-name className="mt-2 block font-display text-[clamp(3rem,7vw,6rem)] font-black uppercase leading-[0.85]" style={{ color }}>
+            <Link href={`/jogador/${p.slug}`} data-cmp-name className="mt-2 block truncate font-display text-[clamp(2.1rem,7vw,6rem)] font-black uppercase leading-[0.85]" style={{ color }}>
               {p.name}
             </Link>
           </div>
-          <p className="mt-2 font-mono text-xs text-gray">{p.riotId}</p>
-          <p className="mt-3 font-mono text-xs uppercase tracking-wider" style={{ color: p.tier ? TIER_META[p.tier]?.color : undefined }}>
-            {p.tier ? `${rankLabel(p.tier, p.division ?? "")} · ${p.lp} PDL` : "Sem ranqueada"}
-            {p.ranked && <span className="text-gray"> · {p.ranked.wins}V {p.ranked.losses}D</span>}
+          <p className="mt-2 truncate font-mono text-[0.65rem] text-gray sm:text-xs">{p.riotId}</p>
+          <p className="mt-3 font-mono text-[0.62rem] uppercase tracking-wider sm:text-xs" style={{ color: p.tier ? TIER_META[p.tier]?.color : undefined }}>
+            {p.tier ? rankLabel(p.tier, p.division ?? "") : "Sem ranqueada"}
+            {p.tier && <span className="block sm:inline"><span className="hidden sm:inline"> · </span>{p.lp} PDL</span>}
+            {p.ranked && <span className="hidden text-gray sm:inline"> · {p.ranked.wins}V {p.ranked.losses}D</span>}
           </p>
-          <div className={`mt-5 flex gap-2 ${side === "b" ? "md:justify-end" : ""}`}>
-            {p.champs.slice(0, 5).map((c) => (
-              <Image key={c.key} src={championIcon(version, c.key)} alt={c.name} title={c.name} width={40} height={40} className="clip-step-sm" />
+          <div className={`mt-4 flex gap-1.5 sm:mt-5 sm:gap-2 ${side === "b" ? "justify-end" : ""}`}>
+            {p.champs.slice(0, 5).map((c, i) => (
+              <Image
+                key={c.key}
+                src={championIcon(version, c.key)}
+                alt={c.name}
+                title={c.name}
+                width={40}
+                height={40}
+                className={`clip-step-sm size-8 sm:size-10 ${i >= 3 ? "hidden sm:block" : ""}`}
+              />
             ))}
           </div>
         </div>
@@ -477,10 +490,10 @@ export function CompareView({
       </div>
 
       {/* Duelo: divisão pelo chevron do escudo */}
-      <div className="clip-step relative grid bg-bg-2 md:grid-cols-2">
+      <div className="clip-step relative grid grid-cols-2 bg-bg-2">
         {renderSide(pa, "a")}
         {renderSide(pb, "b")}
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-24 -translate-x-1/2 md:block">
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 w-12 -translate-x-1/2 md:w-24">
           <svg viewBox="0 0 40 100" preserveAspectRatio="none" className="size-full">
             <path d="M20 0 L20 38 L8 50 L20 62 L20 100" stroke="#262b33" strokeWidth="1" fill="none" vectorEffect="non-scaling-stroke" />
           </svg>
@@ -490,7 +503,7 @@ export function CompareView({
           onClick={swap}
           aria-label="Inverter lados"
           title="Inverter lados"
-          className="clip-step-sm group absolute left-1/2 top-1/2 hidden size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-bg-0 font-display text-2xl font-black text-white transition-colors hover:bg-green hover:text-bg-0 md:flex"
+          className="clip-step-sm group absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-bg-0 font-display text-lg font-black text-white transition-colors hover:bg-green hover:text-bg-0 md:size-14 md:text-2xl"
         >
           <span className="group-hover:hidden">VS</span>
           <span className="hidden text-xl group-hover:inline">⇄</span>

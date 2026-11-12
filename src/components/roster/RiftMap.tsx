@@ -114,8 +114,13 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
             <span className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full border border-line bg-bg-0">
               <LaneIcon role={s.role} className="size-4" />
             </span>
-            <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-center">
-              <span className="block font-display text-lg font-extrabold uppercase leading-none text-white md:text-xl">
+            {/* nos cantos do mapa o rótulo alinha para dentro (no celular ele passava da borda) */}
+            <span
+              className={`pointer-events-none absolute top-full mt-2 whitespace-nowrap ${
+                pos.x < 22 ? "left-0 text-left" : pos.x > 78 ? "right-0 text-right" : "left-1/2 -translate-x-1/2 text-center"
+              }`}
+            >
+              <span className="block font-display text-base font-extrabold uppercase leading-none text-white [text-shadow:0_1px_6px_rgb(0_0_0/0.9)] sm:text-lg md:text-xl">
                 {s.kind === "player" ? s.name : "Vaga aberta"}
               </span>
               <span

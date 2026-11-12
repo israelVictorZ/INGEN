@@ -1,7 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FEATURES, LINKS } from "@/lib/features";
+import { Suspense } from "react";
 import { DiscordIcon, TwitchIcon } from "@/components/brand/SocialIcons";
+import { getSiteData } from "@/lib/data";
+import { SyncStatus } from "./SyncStatus";
+
+async function LastSync() {
+  const { lastSync } = await getSiteData();
+  return lastSync ? (
+    <>
+      {" · "}
+      <SyncStatus ts={new Date(lastSync).getTime()} />
+    </>
+  ) : null;
+}
 
 export function Footer() {
   return (
@@ -54,6 +67,9 @@ export function Footer() {
         </p>
         <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-gray-dim">
           © {2026} INGEN · Dados via Riot Games API
+          <Suspense>
+            <LastSync />
+          </Suspense>
         </p>
       </div>
       <p

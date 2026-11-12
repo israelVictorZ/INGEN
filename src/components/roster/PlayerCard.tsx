@@ -93,14 +93,17 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
               {p.splash[skin].name}
             </p>
           )}
-          <h3 className="font-display text-4xl font-black uppercase leading-none text-white transition-colors [text-shadow:0_2px_12px_rgb(0_0_0/0.8)] group-hover:text-green">
+          <h3 className="truncate font-display text-3xl font-black uppercase leading-none text-white sm:text-4xl transition-colors [text-shadow:0_2px_12px_rgb(0_0_0/0.8)] group-hover:text-green">
             {p.displayName}
           </h3>
           <p className="mt-1 truncate font-mono text-[0.7rem] text-white-dim">{p.riotId}</p>
-          <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-            <span className="flex items-center gap-2 font-mono text-[0.7rem] uppercase tracking-wider" style={{ color: tierColor }}>
-              <span className="size-1.5 rotate-45" style={{ background: tierColor }} />
-              {p.tier ? `${rankLabel(p.tier, p.division ?? "")} · ${p.lp} PDL` : "Sem ranqueada"}
+          <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/10 pt-3">
+            <span className="flex min-w-0 items-center gap-2 font-mono text-[0.62rem] uppercase tracking-wider sm:text-[0.7rem]" style={{ color: tierColor }}>
+              <span className="size-1.5 shrink-0 rotate-45" style={{ background: tierColor }} />
+              <span className="truncate">
+                {p.tier ? rankLabel(p.tier, p.division ?? "") : "Sem ranqueada"}
+                {p.tier && <span className="hidden sm:inline"> · {p.lp} PDL</span>}
+              </span>
             </span>
             {p.winrate != null && (
               <span className={`font-mono text-[0.7rem] ${p.winrate >= 0.5 ? "text-green" : "text-gray"}`}>{pct(p.winrate)}</span>

@@ -3,7 +3,7 @@ import { desc, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Role, NewsCategory } from "@/db/schema";
 import { getChampionMap, getRuneMap, getRuneNames, getSpellMap, type ChampionInfo } from "./ddragon";
-import { POSITION_TO_ROLE, ROLE_META, rankScore } from "./format";
+import { POSITION_TO_ROLE, ROLE_META, confidentWr, rankScore } from "./format";
 
 export type Rank = {
   tier: string;
@@ -157,6 +157,8 @@ export type Player = {
   /** sequência atual: +3 = 3 vitórias seguidas, -2 = 2 derrotas */
   streak: number;
   duos: { slug: string; name: string; games: number; wins: number }[];
+  /** últimos 7 dias (em relação ao último sync): partidas, KDA somado, variação de elo e melhor partida */
+  week: { games: number; wins: number; kills: number; deaths: number; assists: number; lpDelta: number | null; since: number | null; best: RecentMatch | null };
   matchups: { key: string; name: string; games: number; wins: number }[];
   records: {
     mostKills: RecentMatch | null;
@@ -382,13 +384,11 @@ export async function getSiteData(): Promise<SiteData> {
         champions.push({ championId: mm.championId, key: champ(mm.championId).id, name: champ(mm.championId).name, games: 0, wins: 0, kda: 0, kills: 0, deaths: 0, assists: 0, csPerMin: 0, masteryPoints: mm.points });
     }
 
-    // Campeões da lane: melhor winrate primeiro (com 2+ jogos), depois os de 1 jogo
-    const wr = (c: ChampStat) => c.wins / c.games;
+    // Campeões da lane: winrate ajustado pelo nº de partidas (2 jogos 100% não passa à frente de 30 jogos 60%)
     const inLane = aggregate(myParts.filter((x) => x.position && POSITION_TO_ROLE[x.position] === m.role));
-    const laneChampions = [
-      ...inLane.filter((c) => c.games >= 2).sort((a, b) => wr(b) - wr(a) || b.games - a.games),
-      ...inLane.filter((c) => c.games < 2).sort((a, b) => wr(b) - wr(a) || b.kda - a.kda),
-    ];
+    // amostras de 1–2 jogos só entram depois dos campeões com 3+ partidas
+    const byConfidence = (a: ChampStat, b: ChampStat) => confidentWr(b.wins, b.games) - confidentWr(a.wins, a.games) || b.games - a.games || b.kda - a.kda;
+    const laneChampions = [...inLane.filter((c) => c.games >= 3).sort(byConfidence), ...inLane.filter((c) => c.games < 3).sort(byConfidence)];
 
     const toRecent = (x: (typeof myParts)[number]): RecentMatch => ({
       matchId: x.matchId,
@@ -437,6 +437,22 @@ export async function getSiteData(): Promise<SiteData> {
     const dayAgo = (lastPoint?.t ?? 0) - 86_400_000;
     const before = [...rankHistory].reverse().find((h) => h.t <= dayAgo) ?? (rankHistory.length > 1 ? rankHistory[0] : undefined);
     const lpToday = before && lastPoint && before !== lastPoint ? lastPoint.score - before.score : null;
+
+    // Semana: últimos 7 dias em relação ao último sync
+    const weekRef = lastSync ? new Date(lastSync).getTime() : (lastPoint?.t ?? 0);
+    const weekAgo = weekRef - 7 * 86_400_000;
+    const weekMatches = recent.filter((r) => r.gameStart >= weekAgo);
+    const weekBase = [...rankHistory].reverse().find((h) => h.t <= weekAgo) ?? rankHistory[0];
+    const week = {
+      games: weekMatches.length,
+      wins: weekMatches.filter((r) => r.win).length,
+      kills: weekMatches.reduce((a, r) => a + r.kills, 0),
+      deaths: weekMatches.reduce((a, r) => a + r.deaths, 0),
+      assists: weekMatches.reduce((a, r) => a + r.assists, 0),
+      lpDelta: weekBase && lastPoint && weekBase !== lastPoint ? lastPoint.score - weekBase.score : rankHistory.length ? 0 : null,
+      since: weekBase ? Math.max(weekBase.t, weekAgo) : null,
+      best: [...weekMatches].sort((a, b) => Number(b.win) - Number(a.win) || kdaOf(b) - kdaOf(a) || b.kills - a.kills)[0] ?? null,
+    };
 
     // Duo: partidas no mesmo time com outro jogador da INGEN
     const duoMap = new Map<number, { games: number; wins: number }>();
@@ -545,6 +561,7 @@ export async function getSiteData(): Promise<SiteData> {
       form: recent.slice(0, 10).map((r) => r.win),
       streak,
       duos,
+      week,
       matchups,
       records: {
         mostKills: [...recent].sort((a, b) => b.kills - a.kills)[0] ?? null,

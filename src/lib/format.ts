@@ -67,6 +67,15 @@ export const opggUrl = (p: { gameName: string; tagLine: string }) =>
 export const opggMultiUrl = (ps: { gameName: string; tagLine: string }[]) =>
   `https://op.gg/lol/multisearch/br?summoners=${encodeURIComponent(ps.map(riotId).join(","))}`;
 
+/**
+ * Winrate "com confiança": puxa amostras pequenas para 50% (média bayesiana com 5 jogos fictícios).
+ * 2 jogos 100% → 64%; 32 jogos 56% → 55%; 10 jogos 80% → 70%. Serve para ORDENAR, não para exibir.
+ */
+export const confidentWr = (wins: number, games: number, prior = 0.5, weight = 5) => (wins + prior * weight) / (games + weight);
+
+/** Rótulo de confiança de uma amostra de partidas. */
+export const sampleLabel = (games: number) => (games >= 8 ? "alta" : games >= 3 ? "média" : "baixa");
+
 export const pct = (n: number | null | undefined, digits = 0) =>
   n == null || Number.isNaN(n) ? "—" : `${(n * 100).toFixed(digits)}%`;
 

@@ -300,7 +300,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
           <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white">
             Campeões de {ROLE_META[p.role].label.toLowerCase()}
           </h2>
-          <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Melhores winrates na lane · Solo/Duo</p>
+          <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Mais fortes na lane · winrate ajustado ao nº de partidas · Solo/Duo</p>
           <div data-reveal="stagger" className="mt-6 grid gap-3 sm:grid-cols-2">
             {lane.slice(0, 6).map((c) => (
               <div key={c.championId} className="border-run clip-step-sm group relative flex items-center gap-4 overflow-hidden bg-bg-2 p-3 pr-5">
@@ -314,8 +314,13 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
                   </p>
                 </div>
                 {c.games > 0 && (
-                  <span className={`text-right font-display text-2xl font-black leading-none ${c.wins / c.games >= 0.5 ? "text-green" : "text-white-dim"}`}>
-                    {pct(c.wins / c.games)}
+                  <span className="text-right">
+                    <span
+                      className={`block font-display text-2xl font-black leading-none ${c.games < 3 ? "text-gray" : c.wins / c.games >= 0.5 ? "text-green" : "text-white-dim"}`}
+                    >
+                      {pct(c.wins / c.games)}
+                    </span>
+                    {c.games < 3 && <span className="font-mono text-[0.55rem] uppercase tracking-wider text-gray-dim">poucos jogos</span>}
                   </span>
                 )}
               </div>

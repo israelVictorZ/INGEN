@@ -193,7 +193,7 @@ export function Select({
         aria-expanded={open}
         aria-controls={`${id}-list`}
         onClick={() => (open ? close() : openList())}
-        className={`clip-step-sm group flex min-w-[220px] items-center gap-3 bg-bg-3 py-2.5 pl-4 pr-3 text-left text-white outline-none transition-colors hover:bg-[#232831] focus-visible:ring-1 ${
+        className={`clip-step-sm group flex w-full min-w-0 items-center gap-3 sm:min-w-[220px] bg-bg-3 py-2.5 pl-4 pr-3 text-left text-white outline-none transition-colors hover:bg-[#232831] focus-visible:ring-1 ${
           open ? "bg-[#232831]" : ""
         }`}
         style={{ ["--tw-ring-color" as string]: accent }}

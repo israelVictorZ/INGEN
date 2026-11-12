@@ -135,7 +135,7 @@ export function Hero({ blackAvg, silverAvg }: { blackAvg: string; silverAvg: str
           </div>
         </div>
 
-        <div data-hero-logo-wrap className="order-1 mx-auto w-full max-w-[300px] [perspective:900px] md:order-2 md:max-w-[520px]">
+        <div data-hero-logo-wrap className="order-1 mx-auto w-full max-w-[200px] [perspective:900px] sm:max-w-[280px] md:order-2 md:max-w-[520px]">
           <div data-hero className="relative aspect-[983/823]">
             <div data-hero-logo-glow className="absolute inset-[10%] rounded-full bg-[radial-gradient(circle,rgb(61_253_78/0.28),transparent_70%)] opacity-0 blur-2xl" />
             <div data-hero-logo className="absolute inset-0 [transform-style:preserve-3d]">

@@ -18,7 +18,7 @@
   --color-white: #fefffa;
   --color-white-dim: #e3e4dd;
   --color-gray: #8a8f98;
-  --color-gray-dim: #5a606a;
+  --color-gray-dim: #767c87; /* 4.8:1 sobre o fundo (WCAG AA para texto) */
 
   --color-silver: #c9cdd3;
   --color-loss: #ff4d5e;
@@ -56,6 +56,15 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* foco visível no teclado em tudo que é clicável (o clip-path dos botões corta outline, por isso o offset negativo) */
+:where(a, button, summary, select, input, textarea, [role="combobox"], [role="option"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+:where(.clip-step, .clip-step-sm):focus-visible {
+  outline-offset: -3px;
 }
 
 ::selection {
@@ -212,9 +221,35 @@ html.lenis body {
   }
 }
 
+/* Impressão / "Salvar PDF" (scouting): papel branco, texto escuro, sem animação nem decoração */
+@page { size: A4; margin: 12mm; }
 @media print {
-  body { background: #fff; color: #000; }
-  .no-print { display: none !important; }
+  html, body, main { background: #fff !important; color: #111 !important; }
+  *, *::before, *::after {
+    color: #111 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+  header, footer, .no-print, .fixed, .bg-lines, .bg-dots { display: none !important; }
+  [data-reveal], [data-reveal] * { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+  .clip-step, .clip-step-sm { clip-path: none !important; border: 1px solid #d4d6da !important; break-inside: avoid; }
+  section { break-inside: auto; padding-top: 0 !important; }
+  h1 { font-size: 44pt !important; line-height: 1 !important; }
+  h2 { break-after: avoid; }
+  .text-gray, .text-gray-dim, .label-mono, .text-white-dim { color: #555 !important; }
+  .text-green, .grad-text { color: #127a22 !important; }
+  .text-loss { color: #b3112a !important; }
+  /* barras: mantêm a cor no papel */
+  .bg-green, .bg-loss\/70, .bg-gray-dim, .bg-white\/35, .bg-bg-3 { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .bg-green { background: #2fae3c !important; }
+  .bg-loss\/70 { background: #d9485c !important; }
+  .bg-gray-dim, .bg-white\/35 { background: #9aa0a8 !important; }
+  .bg-bg-3 { background: #e6e7ea !important; }
+  img { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 
 /* Pin "ao vivo": brilho roxo pulsante da Twitch */

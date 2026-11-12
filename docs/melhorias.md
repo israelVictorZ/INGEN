@@ -115,6 +115,18 @@
 
 ## Já resolvido nesta rodada (referência)
 
+- **P0 #1** Scouting: "Salvar PDF" com CSS de impressão próprio (papel branco, texto escuro, barras coloridas).
+- **P0 #2b** Rodapé mostra "Dados atualizados há X" e avisa quando o sync passa de 7 h parado.
+- **P0 #3** `error.tsx` e `global-error.tsx` com mensagem amigável e "Tentar de novo".
+- **P0 #4** Mapa do Rift: rótulos dos cantos alinham para dentro no celular.
+- **P0 #6** Amostras pequenas: campeões ordenados por winrate ajustado ao nº de partidas; 1–2 jogos marcados como "poucos jogos".
+- **P0 #7** Contraste do `--gray-dim` (4,8:1) e foco visível no teclado.
+- **P1 #17 / #19** Scouting: bans sugeridos, picks com confiança, pontos fortes e fracos, confrontos difíceis, picks compartilhados, data e patch do relatório.
+- **P1 #25** Ranking: destaques da semana (maior subida, partida da semana, mais vitórias, melhor KDA, sequência, mais ativo) e gráfico de elo de todos.
+- **P2 #30** Comparar no celular: os dois jogadores lado a lado com o VS.
+- **P2 #38** SEO: sitemap, robots, canônicos, imagens de compartilhamento e dados estruturados.
+- **P2 #40** Hero no celular com logo menor.
+
 - **Animação de contagem** mostrava "0.00 / 0%" até a seção entrar na tela. Agora mostra o valor real.
 - **Gráfico de elo** só cria ponto quando o elo muda, com a data real da mudança; a linha fica parada entre mudanças.
 - **Remakes** (partidas com menos de 5 min) deixaram de contar nas estatísticas: eram 16 de 388 partidas.

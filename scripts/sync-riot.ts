@@ -134,6 +134,9 @@ function participantRow(m: MatchDto, me: Participant, playerId: number) {
   };
 }
 
+/** Mesmo critério do cadastro (scripts/manage.ts): última palavra do nick, ex.: "IGN Atlas" → "Atlas". */
+const autoDisplayName = (gameName: string) => gameName.trim().split(" ").at(-1)!;
+
 async function syncRiot() {
   const players = await db.select().from(schema.players);
   const matchCache = new Map<string, MatchDto | null>();
@@ -149,9 +152,14 @@ async function syncRiot() {
       continue;
     }
     const summ = await riot<Summoner>(PLATFORM, `/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
+    // Trocou de nick: o nome de exibição acompanha, a menos que tenha sido definido à mão (--name)
+    const renamed = acc.gameName !== p.gameName;
+    const displayName = renamed && p.displayName === autoDisplayName(p.gameName) ? autoDisplayName(acc.gameName) : p.displayName;
+    if (renamed || acc.tagLine !== p.tagLine)
+      console.log(`  Riot ID mudou: ${p.gameName}#${p.tagLine} → ${acc.gameName}#${acc.tagLine} (exibição: ${displayName}; endereço segue /jogador/${p.slug}, troque com player:rename se quiser)`);
     await db
       .update(schema.players)
-      .set({ puuid: acc.puuid, gameName: acc.gameName, tagLine: acc.tagLine, profileIconId: summ?.profileIconId ?? null, summonerLevel: summ?.summonerLevel ?? null, syncedAt: new Date() })
+      .set({ puuid: acc.puuid, gameName: acc.gameName, tagLine: acc.tagLine, displayName, profileIconId: summ?.profileIconId ?? null, summonerLevel: summ?.summonerLevel ?? null, syncedAt: new Date() })
       .where(eq(schema.players.id, p.id));
 
     // Elo: snapshot do dia + histórico quando muda
@@ -270,10 +278,12 @@ async function twitchLive(channels: string[]): Promise<string[]> {
   return data.map((d) => d.user_login.toLowerCase()).sort();
 }
 
-/** Impressão digital do estado: elo + última partida de cada jogador + quem está ao vivo. */
+/** Impressão digital do estado: Riot ID + elo + última partida de cada jogador + quem está ao vivo. */
 async function fingerprint(state: Pick<SyncState, "players" | "channels">) {
   const parts: string[] = [];
   for (const p of state.players) {
+    // troca de nick não muda elo nem partidas: sem isto a sonda só perceberia na sincronização completa (6h)
+    const acc = await riot<Account>(REGION, `/riot/account/v1/accounts/by-puuid/${p.puuid}`);
     const entries = (await riot<LeagueEntry[]>(PLATFORM, `/lol/league/v4/entries/by-puuid/${p.puuid}`)) ?? [];
     const elo = entries
       .filter((e) => e.queueType === "RANKED_SOLO_5x5" || e.queueType === "RANKED_FLEX_SR")
@@ -281,7 +291,7 @@ async function fingerprint(state: Pick<SyncState, "players" | "channels">) {
       .sort()
       .join(",");
     const [last] = (await riot<string[]>(REGION, `/lol/match/v5/matches/by-puuid/${p.puuid}/ids?queue=${SOLO_QUEUE}&count=1`)) ?? [];
-    parts.push(`${p.id}|${elo}|${last ?? ""}`);
+    parts.push(`${p.id}|${acc ? `${acc.gameName}#${acc.tagLine}` : ""}|${elo}|${last ?? ""}`);
   }
   const live = await twitchLive(state.channels).catch(() => []);
   return `${parts.join(";")}#live:${live.join(",")}`;

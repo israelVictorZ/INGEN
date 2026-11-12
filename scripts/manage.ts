@@ -4,12 +4,14 @@
  *   npx tsx scripts/manage.ts list
  *   npx tsx scripts/manage.ts player:add --riot "Nome#TAG" --team black|silver [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug] [--replace]
  *   npx tsx scripts/manage.ts player:remove --slug slug [--no-open-slot]
+ *   npx tsx scripts/manage.ts player:rename --slug atual --to novo [--name "Exibição"]   (antigo vira redirecionamento 308)
  *   npx tsx scripts/manage.ts twitch:set --slug slug --url https://www.twitch.tv/canal
  *   npx tsx scripts/manage.ts twitch:remove --slug slug
  *
  * Remover NÃO apaga o jogador: fecha a participação (left_at) e, por padrão, abre a vaga da lane.
  */
 import "dotenv/config";
+import { readFileSync, writeFileSync } from "node:fs";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import { ROLES, type Role } from "../src/db/schema";
@@ -186,10 +188,44 @@ async function twitchRemove() {
   console.log(`✔ Twitch removida de ${p.displayName}.`);
 }
 
+/**
+ * Troca o endereço (/jogador/<slug>) e, opcionalmente, o nome de exibição.
+ * Manual de propósito (SEO): o endereço antigo vira redirecionamento permanente (308)
+ * em src/lib/slug-redirects.json, aplicado no next.config — precisa de deploy.
+ */
+async function playerRename() {
+  const p = await playerBySlug(str("slug") ?? fail("Informe --slug (o atual)"));
+  const to = slugify(str("to") ?? fail("Informe --to novo-slug"));
+  const name = str("name");
+  if (!to) fail("Slug novo inválido.");
+  if (to !== p.slug) {
+    const [taken] = await db.select().from(schema.players).where(eq(schema.players.slug, to));
+    if (taken) fail(`O slug "${to}" já é de ${taken.displayName}.`);
+  }
+  await db
+    .update(schema.players)
+    .set({ slug: to, ...(name ? { displayName: name } : {}) })
+    .where(eq(schema.players.id, p.id));
+
+  const file = "src/lib/slug-redirects.json"; // npm run manage roda na raiz do projeto
+  const map = JSON.parse(readFileSync(file, "utf-8")) as Record<string, string>;
+  if (to !== p.slug) {
+    map[p.slug] = to;
+    for (const k of Object.keys(map)) if (map[k] === p.slug) map[k] = to; // sem cadeias: tudo aponta direto para o atual
+  }
+  delete map[to]; // o slug novo é uma página de verdade, não pode redirecionar
+  const sorted = Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b)));
+  writeFileSync(file, `${JSON.stringify(sorted, null, 2)}\n`);
+
+  console.log(`✔ ${name ?? p.displayName}: /jogador/${p.slug} → /jogador/${to}`);
+  console.log(`  Redirecionamento 308 gravado em src/lib/slug-redirects.json. Faça commit e deploy para valer no site.`);
+}
+
 const commands: Record<string, () => Promise<void>> = {
   list,
   "player:add": playerAdd,
   "player:remove": playerRemove,
+  "player:rename": playerRename,
   "twitch:set": twitchSet,
   "twitch:remove": twitchRemove,
 };

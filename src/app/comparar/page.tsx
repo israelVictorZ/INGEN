@@ -6,6 +6,7 @@ import { Split } from "@/components/motion/Split";
 import { CompareView, type ComparePlayer } from "@/components/compare/CompareView";
 import { riotId } from "@/lib/format";
 import { mainChamps } from "@/lib/view";
+import slugRedirects from "@/lib/slug-redirects.json";
 
 export const metadata: Metadata = {
   title: "Comparar jogadores",
@@ -46,8 +47,10 @@ async function getComparePlayers(): Promise<{ version: string; until: number | n
 
 async function CompareWithParams({ searchParams }: { searchParams: PageProps<"/comparar">["searchParams"] }) {
   const [sp, { players, version, until }] = await Promise.all([searchParams, getComparePlayers()]);
-  const a = typeof sp.a === "string" ? sp.a : undefined;
-  const b = typeof sp.b === "string" ? sp.b : undefined;
+  // links antigos (?a=bonnie) seguem funcionando depois de um player:rename
+  const slug = (v: string | string[] | undefined) => (typeof v === "string" ? ((slugRedirects as Record<string, string>)[v] ?? v) : undefined);
+  const a = slug(sp.a);
+  const b = slug(sp.b);
   return <CompareView players={players} version={version} until={until} initialA={a} initialB={b} />;
 }
 

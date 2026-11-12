@@ -46,6 +46,13 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
      - Por padrão a lane vira **vaga aberta**. Use `--no-open-slot` só se o usuário disser que a vaga não deve aparecer.
      - O jogador não é apagado: vira ex-jogador, com data de saída.
    - Trocar de time ou de lane: rode `player:add` com o mesmo Riot ID e o novo time/lane.
+   - **Trocou de nick:** o sync atualiza sozinho o Riot ID e o nome de exibição (em até ~5 min), mas **não** o endereço da página, de propósito, por causa do SEO. Para trocar o endereço, só quando o usuário pedir:
+     ```bash
+     npm run manage -- player:rename --slug <atual> --to <novo> [--name "Exibição"]
+     ```
+     - O endereço antigo vira redirecionamento 308 em `src/lib/slug-redirects.json` (lido pelo `next.config.ts`, e também usado em `/comparar?a=`).
+     - Esse arquivo muda, então o passo 5 é um **commit de verdade** com ele, não um commit vazio. Até o deploy, o endereço antigo dá 404.
+     - Na verificação, confira também: `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://ingen-three.vercel.app/jogador/<antigo>` deve dar `308` para o novo.
 
 4. **Puxar os dados da Riot** (obrigatório ao adicionar; ~1 min para jogador novo):
    ```bash

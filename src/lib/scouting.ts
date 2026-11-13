@@ -1,6 +1,7 @@
 import type { ChampStat, Player, Team } from "./data";
 import { ROLE_META, confidentWr, fixed, pct } from "./format";
 import { mainChamps } from "./view";
+import { LANE_REF } from "./lane-ref";
 
 export type Read = { text: string; detail?: string };
 
@@ -13,12 +14,8 @@ export type ScoutRead = {
   tough: { key: string; name: string; games: number; wins: number }[];
 };
 
-/** Referências por lane: o que é "alto" ou "baixo" muda muito entre suporte e atirador. */
-const REF = {
-  cs: { TOP: [6.5, 7.8], JUNGLE: [5, 6.3], MID: [6.8, 8], ADC: [7, 8.3], SUPPORT: [0, 99] },
-  vision: { TOP: [0.6, 1], JUNGLE: [0.9, 1.3], MID: [0.6, 1], ADC: [0.5, 0.9], SUPPORT: [1.8, 2.6] },
-  dmgShare: { TOP: [0.2, 0.27], JUNGLE: [0.14, 0.2], MID: [0.22, 0.3], ADC: [0.24, 0.32], SUPPORT: [0, 0.14] },
-} as const;
+/** Referências por lane (compartilhadas com o radar do Comparar). Farm e dano de suporte não são julgados abaixo. */
+const REF = LANE_REF;
 
 const split = (s: { games: number; wins: number }) => (s.games ? s.wins / s.games : 0);
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import { Big_Shoulders, Geist, Geist_Mono, Geist_Pixel } from "next/font/google";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense>
           <LivePinMount />
         </Suspense>
+        {/* Vercel Web Analytics (#48): visitas por página, sem cookies. Ativar em Vercel → projeto → Analytics. */}
+        <Analytics />
       </body>
     </html>
   );

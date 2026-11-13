@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import type { Role } from "@/db/schema";
 import { LaneIcon } from "@/components/brand/LaneIcon";
-import { ROLE_META, TIER_META, rankLabel, pct } from "@/lib/format";
+import { ROLE_META, TIER_META, rankLabel, pct, timeAgo } from "@/lib/format";
 import { championLoading } from "@/lib/ddragon-urls";
 import { LiveBadge } from "@/components/live/Live";
 
@@ -21,7 +21,52 @@ export type PlayerCardData = {
   lp: number | null;
   winrate: number | null;
   splash: { key: string; name: string }[];
+  /** fim da última Solo/Duo (ms) */
+  lastPlayed: number | null;
+  /** últimas 5, mais recente primeiro */
+  last5: boolean[];
+  lpToday: number | null;
 };
+
+const noop = () => () => {};
+let clientNow = 0;
+/** "Agora" fixo por carregamento de página (estável para o useSyncExternalStore). */
+const getNow = () => (clientNow ||= Date.now());
+
+/**
+ * Atividade recente (#22): últimas 5 (mais antiga à esquerda), "jogou há 2 h" e PDL nas últimas 24 h.
+ * Depende do relógio, então só aparece no navegador; o PDL só vale se ele jogou nas últimas 24 h.
+ */
+function Activity({ p, className = "" }: { p: PlayerCardData; className?: string }) {
+  const now = useSyncExternalStore(noop, getNow, () => 0);
+  if (!p.last5.length && !p.lastPlayed) return null;
+  const recentGame = !!now && p.lastPlayed != null && now - p.lastPlayed < 86_400_000;
+  const wins = p.last5.filter(Boolean).length;
+  return (
+    <div className={`flex items-center justify-between gap-2 ${className}`}>
+      {p.last5.length > 0 && (
+        <span className="flex shrink-0 gap-[3px]" title={`Últimas ${p.last5.length}: ${wins}V ${p.last5.length - wins}D`}>
+          <span className="sr-only">
+            Últimas {p.last5.length}: {wins} vitórias e {p.last5.length - wins} derrotas
+          </span>
+          {[...p.last5].reverse().map((w, i) => (
+            <span key={i} aria-hidden className={`size-2 ${w ? "bg-green" : "bg-loss/80"}`} />
+          ))}
+        </span>
+      )}
+      <span className="min-w-0 truncate text-right font-mono text-[0.6rem] text-gray [text-shadow:0_1px_6px_rgb(0_0_0/0.9)]">
+        {now && p.lastPlayed ? `Jogou ${timeAgo(p.lastPlayed)}` : ""}
+        {recentGame && p.lpToday != null && p.lpToday !== 0 && (
+          <span className={p.lpToday > 0 ? "text-green" : "text-loss"} title="PDL nas últimas 24 h">
+            {" "}
+            · {p.lpToday > 0 ? "+" : "−"}
+            {Math.abs(p.lpToday)} PDL
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
 
 /**
  * Card do jogador: tilt 3D + "troca de skin" (inspirado no ng.cash).
@@ -33,7 +78,11 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const tierColor = p.tier ? TIER_META[p.tier]?.color : undefined;
 
+  // "Reduzir movimento" (#37): sem tilt nem parallax da splash; a troca de skin (só esmaecer) continua.
+  const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   const onMove = (e: React.PointerEvent) => {
+    if (reduceMotion()) return;
     const r = ref.current!.getBoundingClientRect();
     const nx = (e.clientX - r.left) / r.width - 0.5;
     const ny = (e.clientY - r.top) / r.height - 0.5;
@@ -47,6 +96,7 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
   const onLeave = () => {
     if (timer.current) clearInterval(timer.current);
     setSkin(0);
+    if (reduceMotion()) return;
     gsap.to(ref.current, { rotationY: 0, rotationX: 0, duration: 0.9, ease: "elastic.out(1,0.6)" });
     gsap.to(ref.current!.querySelector("[data-splash]"), { x: 0, y: 0, duration: 0.9 });
   };
@@ -85,19 +135,20 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
           <span className="font-mono text-[0.66rem] uppercase tracking-[0.2em] text-white">{ROLE_META[p.role].short}</span>
         </div>
         <span className="absolute right-3 top-3 bg-bg-0/70 px-2 py-1.5 font-pixel text-xs text-white/60 backdrop-blur-sm">0{index + 1}</span>
-        <LiveBadge slug={p.slug} className="absolute right-3 top-10 z-10" />
-
         <div className="absolute inset-x-0 bottom-0 p-5 lg:max-xl:p-4">
-          {p.splash[skin] && (
-            <p className="mb-2 font-mono text-[0.62rem] uppercase tracking-[0.2em] text-white-dim transition-opacity">
-              {p.splash[skin].name}
-            </p>
-          )}
+          {/* campeão + selo "Ao vivo" na mesma linha, logo acima do nome (como na versão de celular) */}
+          <div className="mb-2 flex min-h-5 items-center gap-2.5 empty:hidden">
+            {p.splash[skin] && (
+              <p className="truncate font-mono text-[0.62rem] uppercase tracking-[0.2em] text-white-dim transition-opacity">{p.splash[skin].name}</p>
+            )}
+            <LiveBadge slug={p.slug} className="shrink-0" />
+          </div>
           <h3 className="truncate font-display text-3xl font-black uppercase leading-none text-white sm:text-4xl transition-colors [text-shadow:0_2px_12px_rgb(0_0_0/0.8)] group-hover:text-green">
             {p.displayName}
           </h3>
           <p className="mt-1 truncate font-mono text-[0.7rem] text-white-dim">{p.riotId}</p>
-          <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/10 pt-3">
+          <Activity p={p} className="mt-3" />
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/10 pt-3">
             <span className="flex min-w-0 items-center gap-2 font-mono text-[0.62rem] uppercase tracking-wider sm:text-[0.7rem]" style={{ color: tierColor }}>
               <span className="size-1.5 shrink-0 rotate-45" style={{ background: tierColor }} />
               <span className="truncate">
@@ -156,7 +207,8 @@ export function PlayerRow({ p, index = 0 }: { p: PlayerCardData; index?: number 
           {p.displayName}
         </h3>
         <p className="mt-1 truncate font-mono text-[0.66rem] text-white-dim">{p.riotId}</p>
-        <p className="mt-2.5 flex min-w-0 items-center gap-2 font-mono text-[0.64rem] uppercase tracking-wider" style={{ color: tierColor }}>
+        <Activity p={p} className="mt-2 justify-start gap-3" />
+        <p className="mt-2 flex min-w-0 items-center gap-2 font-mono text-[0.64rem] uppercase tracking-wider" style={{ color: tierColor }}>
           <span className="size-1.5 shrink-0 rotate-45" style={{ background: tierColor }} />
           <span className="truncate">
             {p.tier ? `${rankLabel(p.tier, p.division ?? "")} · ${p.lp} PDL` : "Sem ranqueada"}

@@ -8,12 +8,14 @@ import { Split } from "@/components/motion/Split";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ButtonLink, RankEmblem, TeamTag, WinrateBar } from "@/components/ui";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { MetricLabel } from "@/components/ui/InfoTip";
 import { championIcon, championSplash, profileIcon } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, fixed, opggUrl, pct, rankLabel, riotId } from "@/lib/format";
 import { ROLES } from "@/db/schema";
 import { mainChamps } from "@/lib/view";
-import { ChampionTable, EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos, PlayerInsights } from "@/components/player/sections";
-import { LiveBadge, TwitchButton } from "@/components/live/Live";
+import { ChampionTable } from "@/components/player/ChampionTable";
+import { EloChart, ExtraMetrics, FormAndRecords, MatchRow, MatchupsAndDuos, PlayerInsights } from "@/components/player/sections";
+import { LiveBadge, PlayerLiveEmbed, TwitchButton } from "@/components/live/Live";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ORG_LD, abs } from "@/lib/site";
 
@@ -183,6 +185,7 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
                 </ButtonLink>
               ))}
           </div>
+          {p.live && <PlayerLiveEmbed slug={p.slug} name={p.displayName} />}
         </div>
       </section>
 
@@ -225,7 +228,9 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
           <div data-reveal="stagger" className="mt-8 grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
             {metrics.map((m) => (
               <div key={m.k} className="bg-bg-1 p-5 md:p-6">
-                <p className="label-mono text-[0.6rem]">{m.k}</p>
+                <p className="label-mono text-[0.6rem]">
+                  <MetricLabel label={m.k} />
+                </p>
                 <p
                   data-reveal="count"
                   data-to={m.to}
@@ -349,7 +354,11 @@ export default async function PlayerPage({ params }: PageProps<"/jogador/[slug]"
         <div>
           <h2 data-reveal="up" className="font-display text-3xl font-extrabold uppercase text-white md:text-4xl">Todos os campeões</h2>
           <p className="mb-6 mt-1 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-gray-dim">Últimas {s?.games ?? 0} Solo/Duo</p>
-          <ChampionTable p={p} version={v} />
+          <ChampionTable
+            rows={p.champions.filter((c) => c.games > 0).map((c) => ({ ...c, inLane: p.laneChampions.some((l) => l.championId === c.championId) }))}
+            version={v}
+            laneLabel={ROLE_META[p.role].label.toLowerCase()}
+          />
         </div>
         <MatchupsAndDuos p={p} version={v} />
       </section>

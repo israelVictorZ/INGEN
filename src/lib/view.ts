@@ -19,6 +19,10 @@ export function toCard(p: Player): PlayerCardData {
     lp: p.solo?.lp ?? null,
     winrate: p.solo?.winrate ?? null,
     splash: mainChamps(p).slice(0, 3).map((c) => ({ key: c.key, name: c.name })),
+    // #22: atividade recente (fim da última Solo/Duo), últimas 5 e PDL em 24 h
+    lastPlayed: p.recent[0] ? p.recent[0].gameStart + p.recent[0].durationSec * 1000 : null,
+    last5: p.form.slice(0, 5),
+    lpToday: p.lpToday,
   };
 }
 

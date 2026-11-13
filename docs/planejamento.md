@@ -1,7 +1,7 @@
 # Planejamento INGEN
 
 > Arquivo único de pendências e prioridades. Substitui `roadmap.md`, `melhorias.md`, `fase-2-o-que-melhorar.md` e `fase-2-ingen-lives.md`.
-> Atualizado em 13/11/2026, depois de uma varredura do site no ar e do código. Site: https://ingengg.com.br
+> Atualizado em 13/11/2026 (Onda 1 homologada e no ar). Site: https://ingengg.com.br
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
@@ -30,8 +30,19 @@ Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e
 - **Domínio próprio:** https://ingengg.com.br (o `www` e as páginas do antigo `ingen-three.vercel.app` redirecionam para ele; `/api` e `/stream` seguem respondendo nos dois, para não quebrar overlays já configurados).
 - **SEO:** sitemap, robots, canônicos, imagens de compartilhamento e dados estruturados, no domínio oficial.
 - **Confiabilidade:** páginas de erro amigáveis, página 404 "Fora do mapa", rodapé com "Dados atualizados há X" e aviso quando o sync para.
-- **Acessibilidade:** contraste revisado, foco visível e animações respeitando "reduzir movimento" (menos o tilt dos cards).
+- **Acessibilidade:** contraste revisado, foco visível e animações respeitando "reduzir movimento" (inclusive o tilt dos cards).
 - **Notícias:** prontas, mas **ocultas** por decisão do time (`FEATURES.news` em `src/lib/features.ts`).
+
+### Onda 1 (no ar desde 13/11/2026, homologada pelo Israel)
+- **Radar do Comparar por lane (#5):** cada eixo é medido pela referência da lane do jogador (`src/lib/lane-ref.ts`, a mesma do scouting), com anel tracejado no "nível alto da lane", legenda e quadro com os valores de cada eixo (mouse, toque ou teclado).
+- **Vercel Web Analytics (#48):** componente no layout; **ativado no painel da Vercel** e contando desde a publicação (13/11).
+- **Dicas (i) nas métricas (#35):** glossário em `src/lib/glossary.ts`; aparece no perfil, no Comparar, na tabela de campeões e no ranking.
+- **Tilt dos cards com "reduzir movimento" (#37):** sem tilt nem parallax; a troca de skin (só esmaecer) continua.
+- **Tabela de campeões ordenável (#33):** clique no cabeçalho ordena (de novo inverte) e filtro "Só de <lane>".
+- **Live embutida no perfil (#34):** player da Twitch no topo do perfil enquanto o jogador está ao vivo; o aviso flutuante não repete a mesma live nessa página.
+- **Card do elenco mais rico (#22):** últimas 5, "Jogou há X" e PDL nas últimas 24 h (só se jogou nas últimas 24 h). O selo "Ao vivo" desceu para a linha do campeão, acima do nome.
+- **Forma recente no scouting (#18):** últimas 10 e variação de PDL em 7 dias em cada jogador; o "Copiar para Discord" também leva as últimas 10.
+- **Setas de posição no ranking (#27):** ▲▼ contra a posição de 7 dias atrás (pelo histórico de elo).
 
 ### Infraestrutura
 - **Sync automático** no GitHub Actions a cada 5 min, em modo sonda: só acorda o banco (Neon) quando algo mudou ou a cada 6h.
@@ -61,18 +72,11 @@ A ordem leva em conta: o que está errado primeiro, depois o que entrega mais co
 
 ### Onda 1 · Correções e ganhos rápidos (1 a 2 dias)
 
+Concluída e no ar em 13/11/2026 (#5, #48, #35, #37, #33, #34, #22, #18, #27); ver "Onda 1" na seção 1. Resta:
+
 | # | Item | Página | Esforço |
 |---|---|---|---|
-| 5 | **Radar por lane:** hoje usa um teto fixo para Solo/Duo, então suporte sempre parece fraco em CS e dano. Normalizar pela referência da lane e explicar a escala. | Comparar | M |
-| 48 | **Analytics** (Vercel Web Analytics, gratuito): saber quais páginas são usadas antes de investir nelas. Não há nada instalado no código hoje. | Global | P |
-| 39 | **X e YouTube no rodapé e no menu**, se o time tiver. Twitch, Discord e Instagram já estão. | Global | P |
-| 35 | **Dicas nas métricas:** ícone (i) explicando KDA, KP, CS@10 etc. | Global | P |
-| 37 | **Tilt dos cards com "reduzir movimento":** o resto do site já respeita; o tilt 3D do card do elenco ainda não. | Elenco | P |
-| 33 | **Tabela de campeões ordenável** e filtro "só da lane". | Perfil | P |
-| 34 | **Live embutida** no topo do perfil quando o jogador estiver ao vivo. | Perfil | P |
-| 22 | **Card do elenco mais rico:** "jogou há 2 h", últimas 5, PDL nas últimas 24 h. | Elenco | P |
-| 18 | **Forma recente no scouting por jogador:** últimas 10 e variação de PDL em 7 dias (hoje só existe o destaque "Em melhor fase"). | Scouting | P |
-| 27 | **Setas de posição** no ranking (▲▼ contra a semana anterior). | Ranking | P |
+| 39 | **X e YouTube no rodapé e no menu**, se o time tiver. Twitch, Discord e Instagram já estão. **Parado:** o Israel vai confirmar com o capitão; até lá, tratamos como "não tem". | Global | P |
 
 ### Onda 2 · Sistema de Draft INGEN (novo, 2 a 4 dias)
 
@@ -99,7 +103,7 @@ A coleta já começou; esta onda só mostra o que está sendo gravado.
 | 8 | **Diferença contra o adversário de lane:** ouro, XP e CS aos 10 e 15 min. É o dado mais pedido em análise de jogador. | M |
 | 9 | **Participação em objetivos:** dragões, arauto, vastilarvas, barão e torres. Essencial para JG e SUP. | M |
 | 10 | **Métricas por lane:** JG (abates antes dos 10 min, objetivos, CS de selva), SUP (visão, wards), ADC (dano/min, % do dano), TOP (abates solo, placas), MID (dano, roams). | M |
-| 11 | **Comparação com a média da lane** ao lado de cada métrica (seta e %). A posição entre os jogadores da INGEN (1º, 2º...) já existe. | P |
+| 11 | **Comparação com a média da lane** ao lado de cada métrica (seta e %). A posição entre os jogadores da INGEN (1º, 2º...) já existe, e as referências por lane já estão em `src/lib/lane-ref.ts`. | P |
 | 12 | **Builds e ordem de skills** mais usadas por campeão. A runa-chave mais usada já aparece. | M |
 | 14 | **Placar completo** da partida (os 10 jogadores) ao expandir a linha. | M |
 | 15 | **Gráfico de elo do perfil com eventos** (promoções e quedas) e filtro de período. O gráfico do ranking já tem filtro. | M |
@@ -174,7 +178,7 @@ Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. At�
 - **Logo vetorial:** o arquivo atual é WebP com fundo escuro. Precisamos de SVG com fundo transparente, ou aprovar um redesenho fiel em vetor. Confirmar também se os dois risquinhos verdes abaixo do escudo fazem parte do símbolo.
 - **Login:** usuário e senha agora, Discord depois? (Recomendado: usuário e senha, mais simples e sem depender de app no Discord.)
 - **Flex e Clash:** hoje o sync grava só Solo/Duo. Gravar também Flex (440) e Clash (700) traria os jogos do time junto, úteis para o draft, "Jogando com" e campeonatos. Custa mais chamadas à Riot; o site já filtra Solo/Duo nas estatísticas.
-- **Redes oficiais do time:** o time tem X e YouTube? (Instagram já está no site.)
+- **Redes oficiais do time:** o time tem X e YouTube? (Instagram já está no site.) O Israel vai confirmar com o capitão; até lá, o #39 fica parado.
 
 ---
 
@@ -282,6 +286,8 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 - Kit de stream fase 1.
 - Gráfico de elo em degraus; remakes fora das estatísticas; contagem animada mostrando o valor real.
 - Sync a cada 5 min em modo sonda; coleta de dados para as próximas fases (13/11/2026).
+- Kit de stream: selos do chat legíveis no tema Silver (o NOVO e o STREAMER ficavam com letra preta em fundo escuro).
+- Onda 1 (13/11/2026, homologada e no ar): radar por lane (#5), Vercel Analytics no código e ativado no painel (#48), dicas (i) nas métricas (#35), tilt com "reduzir movimento" (#37 completo), tabela de campeões ordenável (#33), live embutida no perfil (#34), card do elenco mais rico (#22), forma recente no scouting (#18), setas no ranking (#27).
 
 ---
 
@@ -304,5 +310,8 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 13/11 madrugada | Coleta de dados nova (placar dos 10, bans e objetivos, timeline, vantagem de rota, histórico de lives) e backfill das 483 partidas; planejamento único e PDF | conversa "Planejamento" |
 | 13/11 madrugada | Domínio oficial no SEO e redirecionamento do endereço antigo; teste de alerta pelo chat | conversa "Planejamento" |
 | 13/11 madrugada | Instagram oficial no site; botões do card de alertas copiam o comando de teste; PDF regenerável (`npm run docs:pdf`) e regra de manter este arquivo atualizado | conversa "Planejamento" |
+| 13/11 | **Onda 1 concluída no código:** radar por lane, Analytics, dicas nas métricas, tilt com "reduzir movimento", tabela ordenável, live no perfil, card do elenco, forma no scouting e setas no ranking. #39 parado até o time confirmar X e YouTube. Analytics ativado no painel da Vercel | branch `feat/ajustes-v1` e Vercel |
+| 13/11 | Homologação da Onda 1 pelo Israel e **publicação** (`main` → Vercel); Analytics passa a contar | git e Vercel |
+| 13/11 | Kit de stream: selos do chat (NOVO, STREAMER, VIP, MOD) voltam a ter a própria cor no tema Silver (o NOVO ficava com letra preta em fundo escuro) | git |
 
 **Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

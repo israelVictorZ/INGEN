@@ -74,6 +74,9 @@
   .chips { display: flex; flex-wrap: wrap; gap: 1.5mm; margin-top: 1mm; }
   .chip { font-size: 8.5pt; border: 1px solid var(--line); background: var(--soft); border-radius: 10mm; padding: .6mm 2.6mm; }
   .chip.p { border-color: #bfe8c3; background: var(--green-soft); }
+  .chip.ok { border-color: #bfe8c3; background: #fff; color: var(--green-ink); }
+  .chip.ok::before { content: "✓ "; font-weight: 700; }
+  .chip.wait { border-style: dashed; color: var(--muted); background: #fff; }
   .effort { font-family: "Geist Mono", monospace; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .1em; color: var(--green-ink); font-weight: 600; margin-left: 2mm; white-space: nowrap; }
 
   .wave.hl { background: var(--bg-1); color: #e8ebef; border-radius: 3mm; padding: 5mm; border: 0; margin: 2mm 0; }
@@ -221,12 +224,12 @@
   </div>
 
   <div class="wave">
-    <div class="n">1<small>PRIORIDADE MÁXIMA</small></div>
+    <div class="n">1<small>CONCLUÍDA · NO AR</small></div>
     <div>
-      <h3>Correções e ganhos rápidos <span class="effort">1 a 2 dias</span></h3>
-      <div class="why"><b>Por quê primeiro:</b> o radar do Comparar é injusto com suportes e junglers; o resto são melhorias pequenas e visíveis.</div>
+      <h3>Correções e ganhos rápidos <span class="effort">no ar desde 13/11</span></h3>
+      <div class="why"><b>Situação:</b> homologada e publicada em 13/11. O Analytics já está contando as visitas; falta só saber se o time tem X e YouTube.</div>
       <div class="chips">
-        <span class="chip p">Radar do Comparar por lane</span><span class="chip">Analytics de acesso</span><span class="chip">X e YouTube no rodapé (se houver)</span><span class="chip">Dicas nas métricas</span><span class="chip">Tabela de campeões ordenável</span><span class="chip">Live embutida no perfil</span><span class="chip">Card do elenco mais rico</span><span class="chip">Forma recente no scouting</span><span class="chip">Setas no ranking</span><span class="chip">Tilt dos cards com "reduzir movimento"</span>
+        <span class="chip ok">Radar do Comparar por lane</span><span class="chip ok">Analytics de acesso</span><span class="chip ok">Dicas nas métricas</span><span class="chip ok">Tabela de campeões ordenável</span><span class="chip ok">Live embutida no perfil</span><span class="chip ok">Card do elenco mais rico</span><span class="chip ok">Forma recente no scouting</span><span class="chip ok">Setas no ranking</span><span class="chip ok">Tilt dos cards com "reduzir movimento"</span><span class="chip wait">X e YouTube no rodapé (aguardando o time)</span>
       </div>
     </div>
   </div>
@@ -345,7 +348,7 @@
       <tr><td>Logo vetorial</td><td>Arquivo SVG com fundo transparente, ou aprovação de um redesenho fiel em vetor. Confirmar se os dois traços verdes abaixo do escudo fazem parte do símbolo.</td><td>Animação do logo (onda 10)</td></tr>
       <tr><td>Forma de login</td><td>Usuário e senha agora e Discord depois (recomendado), ou Discord desde o início.</td><td>Ondas 4, 5 e 7</td></tr>
       <tr><td>Partidas Flex e Clash</td><td>Hoje só a Solo/Duo é gravada. Gravar também Flex e Clash traria os jogos do time junto.</td><td>Draft v2, "Jogando com", campeonatos</td></tr>
-      <tr><td>Redes oficiais</td><td>O time tem X e YouTube? O Instagram (@ingen.gg) já está no site.</td><td>Rodapé (onda 1)</td></tr>
+      <tr><td>Redes oficiais</td><td>O time tem X e YouTube? O Instagram (@ingen.gg) já está no site. Israel vai confirmar com o capitão.</td><td>Rodapé (onda 1)</td></tr>
       <tr><td>Notícias</td><td>Quando reativar a seção, que já está pronta.</td><td>Onda 10</td></tr>
     </tbody>
   </table>
@@ -369,6 +372,7 @@
       <tr><td>13/11 · madrugada</td><td>Banco passa a dormir quando nada muda.</td><td>Conversa "Neon"</td></tr>
       <tr><td>13/11 · madrugada</td><td>Coleta de dados nova e histórico completo das 483 partidas; domínio oficial no Google; teste de alerta pelo chat; este planejamento.</td><td>Conversa "Planejamento"</td></tr>
       <tr><td>13/11 · madrugada</td><td>Instagram oficial no site; botões de teste do kit copiam o comando; PDF passa a ser atualizado por toda conversa.</td><td>Conversa "Planejamento"</td></tr>
+      <tr><td>13/11</td><td><b>Onda 1 no ar</b> (homologada): radar por lane, Analytics, dicas nas métricas, tabela ordenável, live no perfil, card do elenco, forma no scouting e setas no ranking. Selos do chat do kit legíveis na Silver.</td><td>Código e Vercel</td></tr>
     </tbody>
   </table>
   <div class="note">A página 404 existe desde a fase 1, mas o primeiro mapa de melhorias a listou como pendente; o domínio foi configurado fora do código. Daqui para frente, toda conversa lê <span class="mono">docs/planejamento.md</span> ao começar, marca o que concluiu e atualiza este PDF; tarefas novas só entram depois de aprovadas.</div>

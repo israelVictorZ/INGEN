@@ -7,8 +7,10 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import type { Role } from "@/db/schema";
 import type { Insights, Stats, WinSplit } from "@/lib/data";
+import { LANE_REF, type LaneRefKey } from "@/lib/lane-ref";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { Select, type SelectOption } from "@/components/ui/Select";
+import { MetricLabel } from "@/components/ui/InfoTip";
 import { championIcon, championSplash } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
 
@@ -115,17 +117,27 @@ const contextGames = (p: ComparePlayer, i: number) => {
   return [ins.sides.blue, ins.sides.red, ins.duration.short, ins.duration.mid, ins.duration.long][i].games;
 };
 
-/** Radar com 8 eixos (normalizados por um teto razoável para Solo/Duo). */
-const AXES = [
-  { label: "KDA", get: (s: Stats) => s.kda, max: 6 },
-  { label: "CS/min", get: (s: Stats) => s.csPerMin, max: 10 },
-  { label: "Dano/min", get: (s: Stats) => s.damagePerMin, max: 1100 },
-  { label: "% dano", get: (s: Stats) => s.damageShare, max: 0.35 },
-  { label: "Part. abates", get: (s: Stats) => s.kp, max: 0.8 },
-  { label: "Visão/min", get: (s: Stats) => s.visionPerMin, max: 3 },
-  { label: "Ouro/min", get: (s: Stats) => s.goldPerMin, max: 520 },
-  { label: "Winrate", get: (s: Stats) => s.winrate, max: 0.75 },
+/**
+ * Radar com 8 eixos (#5), cada um medido pela referência da LANE do jogador (`LANE_REF`):
+ * um suporte com 1,6 CS/min fica perto do "alto" da lane dele, em vez de parecer fraco ao lado do atirador.
+ * A borda vale `EDGE` × o nível alto da lane; o anel tracejado marca o nível alto.
+ */
+const AXES: { label: string; ref: LaneRefKey; get: (s: Stats) => number }[] = [
+  { label: "KDA", ref: "kda", get: (s) => s.kda },
+  { label: "CS/min", ref: "cs", get: (s) => s.csPerMin },
+  { label: "Dano/min", ref: "damagePerMin", get: (s) => s.damagePerMin },
+  { label: "% dano", ref: "dmgShare", get: (s) => s.damageShare },
+  { label: "Part. abates", ref: "kp", get: (s) => s.kp },
+  { label: "Visão/min", ref: "vision", get: (s) => s.visionPerMin },
+  { label: "Ouro/min", ref: "goldPerMin", get: (s) => s.goldPerMin },
+  { label: "Winrate", ref: "winrate", get: (s) => s.winrate },
 ];
+const EDGE = 1.25;
+/** valor do eixo de 0 a 1 (1 = borda) em relação ao nível alto da lane */
+const axisValue = (ax: (typeof AXES)[number], p: ComparePlayer) => (p.stats ? ax.get(p.stats) / (LANE_REF[ax.ref][p.role][1] * EDGE) : 0);
+const axisRaw = (ax: (typeof AXES)[number], p: ComparePlayer) => (p.stats ? ax.get(p.stats) : null);
+const fmtAxis = (ax: (typeof AXES)[number], v: number | null) =>
+  v == null ? "—" : ax.ref === "dmgShare" || ax.ref === "kp" || ax.ref === "winrate" ? pctF(v) : v < 10 ? v.toFixed(ax.ref === "vision" ? 2 : 1) : v.toFixed(0);
 
 const R = 40;
 const point = (i: number, value: number) => {
@@ -134,7 +146,7 @@ const point = (i: number, value: number) => {
   return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r];
 };
 const shape = (p: ComparePlayer | undefined) =>
-  AXES.map((ax, i) => point(i, p?.stats ? ax.get(p.stats) / ax.max : 0).map((n) => n.toFixed(2)).join(",")).join(" ");
+  AXES.map((ax, i) => point(i, p ? axisValue(ax, p) : 0).map((n) => n.toFixed(2)).join(",")).join(" ");
 
 const COLOR_A = "#3dfd4e";
 const COLOR_B = "#c9cdd3";
@@ -160,7 +172,7 @@ function MetricRow({ m, pa, pb, games }: { m: Metric; pa: ComparePlayer; pb: Com
           {games && <span className="ml-1 text-[0.58rem] text-gray-dim">({games[0]})</span>}
         </span>
         <span className="text-center text-[0.6rem] uppercase tracking-[0.14em] text-gray-dim">
-          {m.label}
+          <MetricLabel label={m.label} />
           {m.hint && <span className="block normal-case tracking-normal text-[0.55rem] text-gray-dim/70">{m.hint}</span>}
         </span>
         <span className={`text-right ${w === 1 ? "font-semibold text-silver" : "text-gray"}`}>
@@ -329,6 +341,8 @@ export function CompareView({
   const startB = valid(initialB) && initialB !== startA ? initialB! : (duels.find((d) => d.a === startA)?.b ?? players.find((p) => p.slug !== startA)!.slug);
   const [a, setA] = useState(startA);
   const [b, setB] = useState(startB);
+  /** eixo do radar em foco (hover, toque ou teclado) */
+  const [axis, setAxis] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
   const pa = players.find((p) => p.slug === a)!;
@@ -594,24 +608,49 @@ export function CompareView({
         {/* Radar */}
         <div className="clip-step bg-bg-2 p-6">
           <p className="label-mono">Perfil de jogo</p>
+          <p className="mt-1 font-mono text-[0.6rem] text-gray-dim">
+            {pa.role === pb.role
+              ? `Medido pela referência de ${ROLE_META[pa.role].label.toLowerCase()} em Solo/Duo`
+              : `Lanes diferentes: cada um medido pela referência da própria lane (${ROLE_META[pa.role].short} × ${ROLE_META[pb.role].short})`}
+          </p>
           <svg viewBox="-14 -8 128 116" className="mx-auto mt-4 w-full max-w-[440px]">
             {[0.25, 0.5, 0.75, 1].map((lv) => (
               <polygon key={lv} points={AXES.map((_, i) => point(i, lv).join(",")).join(" ")} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth=".4" />
             ))}
+            {/* nível alto da lane */}
+            <polygon points={AXES.map((_, i) => point(i, 1 / EDGE).join(",")).join(" ")} fill="none" stroke="rgb(255 255 255 / .35)" strokeWidth=".4" strokeDasharray="1.2 1.2" />
             {AXES.map((ax, i) => {
               const [x, y] = point(i, 1);
               const [lx, ly] = point(i, 1.22);
+              const on = axis === i;
               return (
                 <g key={ax.label}>
-                  <line x1="50" y1="50" x2={x} y2={y} stroke="rgb(255 255 255 / .08)" strokeWidth=".4" />
-                  <text x={lx} y={ly} fill="#8a8f98" fontSize="3.4" textAnchor="middle" dominantBaseline="middle" fontFamily="var(--font-mono)">
+                  <line x1="50" y1="50" x2={x} y2={y} stroke={on ? "rgb(255 255 255 / .45)" : "rgb(255 255 255 / .08)"} strokeWidth=".4" />
+                  <text x={lx} y={ly} fill={on ? "#fefffa" : "#8a8f98"} fontSize="3.4" textAnchor="middle" dominantBaseline="middle" fontFamily="var(--font-mono)">
                     {ax.label.toUpperCase()}
                   </text>
                 </g>
               );
             })}
-            <polygon data-poly-b points={shape(undefined)} fill={`${COLOR_B}22`} stroke={COLOR_B} strokeWidth=".8" />
-            <polygon data-poly-a points={shape(undefined)} fill={`${COLOR_A}2a`} stroke={COLOR_A} strokeWidth=".8" />
+            <polygon data-poly-b points={shape(undefined)} fill={`${COLOR_B}22`} stroke={COLOR_B} strokeWidth=".8" className="pointer-events-none" />
+            <polygon data-poly-a points={shape(undefined)} fill={`${COLOR_A}2a`} stroke={COLOR_A} strokeWidth=".8" className="pointer-events-none" />
+            {/* áreas de hover/toque: uma fatia por eixo, do centro até depois do rótulo */}
+            {AXES.map((ax, i) => (
+              <polygon
+                key={`hit-${ax.label}`}
+                points={["50,50", point(i - 0.5, 1.4).join(","), point(i, 1.4).join(","), point(i + 0.5, 1.4).join(",")].join(" ")}
+                fill="transparent"
+                tabIndex={0}
+                role="button"
+                aria-label={`${ax.label}: ${[pa, pb].map((p) => `${p.name} ${fmtAxis(ax, axisRaw(ax, p))}`).join(", ")}`}
+                className="cursor-help outline-none"
+                onPointerEnter={() => setAxis(i)}
+                onPointerLeave={() => setAxis(null)}
+                onFocus={() => setAxis(i)}
+                onBlur={() => setAxis(null)}
+                onClick={() => setAxis(i)}
+              />
+            ))}
           </svg>
           <div className="mt-2 flex justify-center gap-6 font-mono text-[0.7rem] uppercase tracking-wider">
             <span className="flex items-center gap-2" style={{ color: COLOR_A }}>
@@ -620,6 +659,38 @@ export function CompareView({
             <span className="flex items-center gap-2" style={{ color: COLOR_B }}>
               <span className="size-2" style={{ background: COLOR_B }} /> {pb.name}
             </span>
+          </div>
+          <p className="mx-auto mt-4 max-w-[440px] text-center font-mono text-[0.6rem] leading-relaxed text-gray-dim">
+            <span className="mr-1.5 inline-block w-4 border-t border-dashed border-white/50 align-middle" />
+            nível alto para a lane · centro = zero. Cada eixo compara com o esperado para a posição, então suporte não parece fraco em farm
+            e dano só por ser suporte.
+          </p>
+          {/* valores do eixo em foco (altura fixa para o layout não pular) */}
+          <div aria-live="polite" className="mx-auto mt-3 flex min-h-[3.25rem] max-w-[440px] items-center justify-center bg-bg-0 px-4 py-2 text-center font-mono text-[0.65rem]">
+            {axis == null ? (
+              <span className="text-gray-dim">Passe o mouse (ou toque) em um eixo para ver os valores.</span>
+            ) : (
+              <span className="space-y-1">
+                <span className="block uppercase tracking-[0.16em] text-white">{AXES[axis].label}</span>
+                <span className="block">
+                  {[
+                    { p: pa, color: COLOR_A },
+                    { p: pb, color: COLOR_B },
+                  ].map(({ p, color }, k) => (
+                    <span key={p.slug}>
+                      {k > 0 && <span className="text-gray-dim"> · </span>}
+                      <span style={{ color }}>
+                        {p.name} {fmtAxis(AXES[axis], axisRaw(AXES[axis], p))}
+                      </span>
+                      <span className="text-gray-dim">
+                        {" "}
+                        (alto de {ROLE_META[p.role].short}: {fmtAxis(AXES[axis], LANE_REF[AXES[axis].ref][p.role][1])})
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              </span>
+            )}
           </div>
 
           <div className="mt-8 space-y-4 border-t border-line pt-6">

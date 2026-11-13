@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import type { LiveInfo, LivePayload } from "@/lib/live";
 import { LINKS, TEAM_TWITCH_CHANNEL } from "@/lib/features";
@@ -199,9 +200,12 @@ export function LivePin({ names }: { names: Record<string, string> }) {
   const minimized = useSyncExternalStore(subscribePin, readMin, () => null);
   const [imgError, setImgError] = useState(false);
 
+  const pathname = usePathname();
   const playerLive = Object.entries(players).find(([, v]) => v.isLive);
   const info: LiveInfo | null = team.isLive ? team : playerLive ? playerLive[1] : null;
   if (!info) return null;
+  // no perfil do próprio jogador a live já está embutida no topo: o pin seria repetido
+  if (info !== team && pathname === `/jogador/${playerLive![0]}`) return null;
   const isTeam = info === team;
   const who = isTeam ? "INGEN · canal oficial" : (names[playerLive![0]] ?? playerLive![0]);
   const streamKey = `${info.channel}:${info.startedAt ?? ""}`;
@@ -303,11 +307,56 @@ export function LivePin({ names }: { names: Record<string, string> }) {
 /* Bloco do canal oficial (home)                                       */
 /* ------------------------------------------------------------------ */
 const noop = () => () => {};
+const useHost = () => useSyncExternalStore(noop, () => window.location.hostname, () => null);
+
+/**
+ * Live embutida no topo do perfil (#34): aparece só enquanto o jogador está transmitindo
+ * (mesmo /api/live dos selos, sem consulta extra ao banco). Começa sem som.
+ */
+export function PlayerLiveEmbed({ slug, name }: { slug: string; name: string }) {
+  const { players, fetchedAt } = useLive();
+  const host = useHost();
+  const live = players[slug];
+  if (!live?.isLive || !host) return null;
+  const viewers = fmtViewers(live.viewers);
+  const up = uptime(live, fetchedAt);
+  return (
+    <div className="no-print mt-10 max-w-3xl animate-[pin-in_0.6s_var(--ease-out-expo)_both]">
+      <div className="clip-step relative overflow-hidden bg-bg-0 ring-1 ring-[#9146ff]">
+        <div className="relative aspect-video bg-[#120c1c]">
+          <iframe
+            title={`${name} ao vivo na Twitch`}
+            src={`https://player.twitch.tv/?channel=${live.channel}&parent=${host}&muted=true&autoplay=true`}
+            allowFullScreen
+            className="absolute inset-0 size-full"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <p className="flex min-w-0 items-center gap-2 font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[#bf94ff]">
+            <Dot />
+            <span className="truncate">
+              Ao vivo{viewers ? ` · ${viewers} assistindo` : ""}
+              {up ? ` · ${up}` : ""}
+            </span>
+          </p>
+          <a
+            href={twitchUrl(live.channel)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-white transition-colors hover:text-[#bf94ff]"
+          >
+            Abrir na Twitch ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Canal oficial da INGEN: player embutido quando ao vivo; convite para seguir quando offline. */
 export function TeamTwitchPanel() {
   const { team, fetchedAt } = useLive();
-  const host = useSyncExternalStore(noop, () => window.location.hostname, () => null);
+  const host = useHost();
   const on = team.isLive;
   const up = uptime(team, fetchedAt);
   const viewers = fmtViewers(team.viewers);

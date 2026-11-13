@@ -41,7 +41,8 @@ function discordText(team: Team, url: string) {
     const p = s.player;
     const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
     const champs = mainChamps(p).slice(0, 3).map((c) => `${c.name}${c.games ? ` (${c.games}j, ${pct(c.wins / c.games)})` : ""}`).join(", ");
-    return `\`${lane}\` **${p.displayName}** (${riotId(p)}): ${elo} · WR ${p.solo ? pct(p.solo.winrate) : "—"} · ${champs}`;
+    const form = p.form.length ? ` · últimas ${p.form.length}: ${p.form.filter(Boolean).length}V` : "";
+    return `\`${lane}\` **${p.displayName}** (${riotId(p)}): ${elo} · WR ${p.solo ? pct(p.solo.winrate) : "—"}${form} · ${champs}`;
   });
   const reserves = team.reserves.map((p) => {
     const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
@@ -250,6 +251,37 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
   );
 }
 
+/**
+ * Forma recente (#18): últimas 10 Solo/Duo (mais antiga à esquerda) e variação de PDL nos últimos 7 dias.
+ * É o mesmo dado que o op.gg mostra, então pode ficar no relatório público.
+ */
+function RecentForm({ p }: { p: Player }) {
+  if (!p.form.length) return null;
+  const wins = p.form.filter(Boolean).length;
+  const lp = p.week.lpDelta;
+  return (
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <span className="flex gap-[3px]" aria-label={`Últimas ${p.form.length}: ${wins} vitórias e ${p.form.length - wins} derrotas`}>
+        {[...p.form].reverse().map((w, i) => (
+          <span key={i} aria-hidden className={`h-3 w-2 ${w ? "bg-green" : "bg-loss/80"}`} />
+        ))}
+      </span>
+      <span className="font-mono text-[0.62rem] text-gray">
+        {wins}V {p.form.length - wins}D
+        {lp != null && (
+          <>
+            {" · "}
+            <span className={lp > 0 ? "text-green" : lp < 0 ? "text-loss" : "text-gray"}>
+              {lp > 0 ? "+" : lp < 0 ? "−" : "±"}
+              {Math.abs(lp)} PDL em 7 dias
+            </span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
 /** Card de um jogador no relatório. Titular abre o perfil; reserva (selo próprio) abre o op.gg. */
 function ScoutCard({ p, version }: { p: Player; version: string }) {
   const color = p.solo ? TIER_META[p.solo.tier]?.color : undefined;
@@ -280,6 +312,7 @@ function ScoutCard({ p, version }: { p: Player; version: string }) {
             <a href={opggUrl(p)} {...EXTERNAL_LINK} className="block truncate font-mono text-xs text-gray hover:text-green">
               {riotId(p)} ↗
             </a>
+            <RecentForm p={p} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-xs sm:grid-cols-4">

@@ -10,6 +10,7 @@ import { championIcon, profileIcon } from "@/lib/ddragon-urls";
 import { TeamEloChart, type EloSeries } from "@/components/ranking/TeamEloChart";
 import { TIER_META, fixed, opggUrl, pct, rankLabel } from "@/lib/format";
 import { ogFor } from "@/lib/site";
+import { MetricLabel } from "@/components/ui/InfoTip";
 
 export const metadata: Metadata = {
   title: "Ranking interno",
@@ -31,6 +32,18 @@ function PlayerLink({ p, children, ...rest }: { p: Player } & Omit<React.Compone
   );
 }
 
+/** Seta de posição contra a semana anterior: ▲2, ▼1 ou "=". */
+function PositionMove({ n }: { n: number | null }) {
+  if (n == null) return null;
+  const label = n === 0 ? "Mesma posição de 7 dias atrás" : `${Math.abs(n)} ${Math.abs(n) === 1 ? "posição" : "posições"} ${n > 0 ? "acima" : "abaixo"} de 7 dias atrás`;
+  return (
+    <span title={label} className={`mt-1 font-mono text-[0.6rem] ${n > 0 ? "text-green" : n < 0 ? "text-loss" : "text-gray-dim"}`}>
+      <span className="sr-only">{label}</span>
+      <span aria-hidden>{n === 0 ? "=" : `${n > 0 ? "▲" : "▼"}${Math.abs(n)}`}</span>
+    </span>
+  );
+}
+
 /** "Silver" / "Silver · Reserva" */
 const teamLabel = (p: Player, name: string) => (p.reserve ? `${name} · Reserva` : name);
 
@@ -42,6 +55,15 @@ export default async function RankingPage() {
   const ranked = [...players].sort((a, b) => (b.solo?.score ?? -1) - (a.solo?.score ?? -1));
   const top = ranked[0]?.solo?.score ?? 1;
   const until = lastSync ? new Date(lastSync).getTime() : Math.max(0, ...players.flatMap((p) => p.rankHistory.map((h) => h.t)));
+
+  // #27: posição de 7 dias atrás (elo de cada um naquele momento, pelo histórico) × posição de agora.
+  // Mesma base da "Maior subida": último registro até 7 dias atrás ou, se o histórico é mais novo, o primeiro.
+  const weekAgo = until - 7 * 86_400_000;
+  const scoreThen = (p: Player) =>
+    p.rankHistory.length ? ([...p.rankHistory].reverse().find((h) => h.t <= weekAgo) ?? p.rankHistory[0]).score : null;
+  const before = [...players].sort((a, b) => (scoreThen(b) ?? -1) - (scoreThen(a) ?? -1));
+  /** posições ganhas (+) ou perdidas (−) na semana; null sem histórico de elo */
+  const moved = (p: Player, now: number) => (scoreThen(p) == null ? null : before.indexOf(p) - now);
 
   // cor fixa por jogador (ordem do elenco: Black antes da Silver), validada para daltonismo no fundo escuro;
   // reservas em tons neutros e linha tracejada, para não competir com os titulares
@@ -191,7 +213,9 @@ export default async function RankingPage() {
       <section className="wrap mt-16">
         <div className="hidden grid-cols-[48px_1.4fr_1fr_1.2fr_90px] gap-4 border-b border-line pb-3 md:grid">
           {["#", "Jogador", "Time", "Elo", "Winrate"].map((h) => (
-            <span key={h} className="label-mono text-[0.6rem]">{h}</span>
+            <span key={h} className="label-mono text-[0.6rem]">
+              <MetricLabel label={h} />
+            </span>
           ))}
         </div>
         <ol data-reveal="stagger">
@@ -203,7 +227,10 @@ export default async function RankingPage() {
                   p={p}
                   className="group grid grid-cols-[36px_1fr_auto] items-center gap-4 py-4 transition-colors hover:bg-bg-2 md:grid-cols-[48px_1.4fr_1fr_1.2fr_90px]"
                 >
-                  <span className="font-pixel text-lg text-gray-dim group-hover:text-green">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="flex flex-col items-start leading-none">
+                    <span className="font-pixel text-lg text-gray-dim group-hover:text-green">{String(i + 1).padStart(2, "0")}</span>
+                    <PositionMove n={moved(p, i)} />
+                  </span>
                   <span className="flex items-center gap-3">
                     {p.champions[0] && (
                       <Image src={championIcon(version, p.champions[0].key)} alt="" width={40} height={40} className="clip-step-sm" />
@@ -238,7 +265,8 @@ export default async function RankingPage() {
           })}
         </ol>
         <p className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim">
-          Ordenado por elo na ranqueada Solo/Duo · Winrate da temporada{reserves.length > 0 && " · Reservas abrem o op.gg"}
+          Ordenado por elo na ranqueada Solo/Duo · ▲▼ posições em relação a 7 dias atrás · Winrate da temporada
+          {reserves.length > 0 && " · Reservas abrem o op.gg"}
         </p>
       </section>
     </RevealScope>

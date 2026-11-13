@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PerfSnap, Player, RecentMatch, SiteData, Stats, WinSplit } from "@/lib/data";
 import { championIcon, itemIcon, runeIcon, spellIcon } from "@/lib/ddragon-urls";
-import { TIER_META, fixed, pct, rankLabel, scoreToLabel, scoreToTier } from "@/lib/format";
+import { TIER_META, pct, rankLabel, scoreToLabel, scoreToTier } from "@/lib/format";
 import { TimeAgo } from "@/components/ui/TimeAgo";
+import { MetricLabel } from "@/components/ui/InfoTip";
 
 /* ------------------------------------------------------------------ */
 /* Gráfico de elo                                                      */
@@ -171,7 +172,7 @@ function MetricLine({ m, s, peers }: { m: MetricDef; s: Stats; peers: Stats[] })
     <li className="py-3">
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-gray">
-          {m.k}
+          <MetricLabel label={m.k} />
           {m.sub && <span className="ml-1.5 normal-case tracking-normal text-gray-dim">{m.sub}</span>}
         </span>
         <span className="flex items-baseline gap-2.5">
@@ -518,63 +519,6 @@ export function FormAndRecords({ p, version }: { p: Player; version: string }) {
           </ul>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Tabela completa de campeões                                         */
-/* ------------------------------------------------------------------ */
-export function ChampionTable({ p, version }: { p: Player; version: string }) {
-  const rows = p.champions.filter((c) => c.games > 0);
-  if (!rows.length) return null;
-  return (
-    <div className="clip-step overflow-x-auto bg-bg-2">
-      <table className="w-full min-w-[560px] text-left">
-        <thead>
-          <tr className="border-b border-line">
-            {["Campeão", "Partidas", "Winrate", "KDA", "CS/min", "Maestria"].map((h) => (
-              <th key={h} className="label-mono px-4 py-3 text-[0.6rem] font-normal">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((c) => {
-            const wr = c.wins / c.games;
-            const inLane = p.laneChampions.some((l) => l.championId === c.championId);
-            return (
-              <tr key={c.championId} className="border-b border-line/60 last:border-0">
-                <td className="px-4 py-2.5">
-                  <span className="flex items-center gap-3">
-                    <Image src={championIcon(version, c.key)} alt="" width={32} height={32} />
-                    <span className="font-display text-lg font-extrabold uppercase text-white">{c.name}</span>
-                    {!inLane && <span className="font-mono text-[0.58rem] uppercase tracking-wider text-gray-dim">fora da lane</span>}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-sm text-white-dim">{c.games}</td>
-                <td className="px-4 py-2.5">
-                  <span className="flex items-center gap-2">
-                    <span className="h-1 w-16 bg-bg-3">
-                      <span className={`block h-full ${c.games < 3 ? "bg-white/25" : wr >= 0.5 ? "bg-green" : "bg-gray-dim"}`} style={{ width: `${wr * 100}%` }} />
-                    </span>
-                    <span className={`font-mono text-sm ${c.games < 3 ? "text-gray-dim" : wr >= 0.5 ? "text-green" : "text-gray"}`} title={c.games < 3 ? "Poucos jogos: ainda não diz muito" : undefined}>
-                      {pct(wr)}
-                      {c.games < 3 && <span className="ml-1 text-[0.55rem]">*</span>}
-                    </span>
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-sm text-white-dim">
-                  {fixed(c.kda, 2)} <span className="text-gray-dim">({fixed(c.kills)}/{fixed(c.deaths)}/{fixed(c.assists)})</span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-sm text-white-dim">{fixed(c.csPerMin)}</td>
-                <td className="px-4 py-2.5 font-mono text-sm text-gray">{c.masteryPoints ? `${Math.round(c.masteryPoints / 1000)}k` : "—"}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }

@@ -42,7 +42,7 @@ async function riot<T>(host: string, path: string): Promise<T | null> {
   const key = process.env.RIOT_API_KEY ?? fail("RIOT_API_KEY ausente no .env");
   const res = await fetch(`https://${host}.api.riotgames.com${path}`, { headers: { "X-Riot-Token": key } });
   if (res.status === 404) return null;
-  if (res.status === 401 || res.status === 403) fail("Chave da Riot recusada (a Development Key expira a cada 24h).");
+  if (res.status === 401 || res.status === 403) fail("Chave da Riot recusada: confira RIOT_API_KEY no .env.");
   if (!res.ok) fail(`Riot ${res.status}: ${await res.text()}`);
   return (await res.json()) as T;
 }

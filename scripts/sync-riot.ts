@@ -2,7 +2,8 @@
  * Sincroniza Riot API (+ Twitch, se configurada) para o banco.
  *
  *   npm run sync                  -> incremental: elo, maestria, partidas novas, status da Twitch
- *   SYNC_BACKFILL=1 npm run sync  -> também completa detalhes de partidas antigas
+ *   SYNC_BACKFILL=1 npm run sync  -> também regrava partidas antigas no detalhamento atual
+ *                                    (DETAIL_VERSION: placar dos 10, bans/objetivos, timeline, challenges)
  *   SYNC_STATE_FILE=.sync-state.json -> modo sonda: só acessa o banco se algo mudou
  *   SYNC_ONLY=slug1,slug2 npm run sync -> só esses jogadores (ex.: recém-cadastrado); não mexe
  *                                        em Twitch nem no "last_sync", que seguem sendo do sync completo
@@ -12,7 +13,7 @@
  */
 import "dotenv/config";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "../src/db";
 
 const KEY = process.env.RIOT_API_KEY;
@@ -76,7 +77,7 @@ async function riot<T>(host: string, path: string): Promise<T | null> {
       throw new Error(`400 ${path}
 ${body}`);
     }
-    if (res.status === 401 || res.status === 403) throw new Error(`Chave da Riot recusada (${res.status}). A Development Key expira a cada 24h.`);
+    if (res.status === 401 || res.status === 403) throw new Error(`Chave da Riot recusada (${res.status}). Confira o segredo RIOT_API_KEY.`);
     if (!res.ok) throw new Error(`${res.status} ${path}\n${await res.text()}`);
     return (await res.json()) as T;
   }
@@ -88,6 +89,7 @@ type Summoner = { profileIconId: number; summonerLevel: number };
 type LeagueEntry = { queueType: string; tier: string; rank: string; leaguePoints: number; wins: number; losses: number };
 type Mastery = { championId: number; championLevel: number; championPoints: number };
 type Participant = {
+  participantId: number; riotIdGameName?: string; riotIdTagline?: string;
   puuid: string; teamId: number; championId: number; championName: string; teamPosition: string; win: boolean;
   kills: number; deaths: number; assists: number; totalMinionsKilled: number; neutralMinionsKilled: number;
   visionScore: number; totalDamageDealtToChampions: number; goldEarned: number; champLevel: number;
@@ -95,12 +97,37 @@ type Participant = {
   summoner1Id: number; summoner2Id: number; wardsPlaced: number; wardsKilled: number; visionWardsBoughtInGame: number;
   totalDamageTaken: number; firstBloodKill: boolean; firstBloodAssist: boolean; largestMultiKill: number;
   perks?: { styles: { style: number; selections: { perk: number }[] }[] };
-  challenges?: { soloKills?: number; laneMinionsFirst10Minutes?: number; jungleCsBefore10Minutes?: number; turretPlatesTaken?: number };
+  challenges?: Record<string, number | number[] | undefined>;
+};
+type TeamDto = {
+  teamId: number; win: boolean;
+  bans: { championId: number; pickTurn: number }[];
+  objectives: Record<string, { first: boolean; kills: number }>;
 };
 type MatchDto = {
   metadata: { matchId: string };
-  info: { queueId: number; gameStartTimestamp: number; gameDuration: number; gameVersion: string; participants: Participant[] };
+  info: { queueId: number; gameStartTimestamp: number; gameDuration: number; gameVersion: string; participants: Participant[]; teams?: TeamDto[] };
 };
+type TimelineEvent = {
+  type: string; timestamp: number;
+  participantId?: number; itemId?: number; beforeId?: number; skillSlot?: number; levelUpType?: string;
+  killerId?: number; victimId?: number; assistingParticipantIds?: number[]; position?: { x: number; y: number };
+  killerTeamId?: number; teamId?: number; monsterType?: string; monsterSubType?: string;
+  buildingType?: string; towerType?: string; laneType?: string;
+};
+type TimelineDto = {
+  info: {
+    frames: {
+      timestamp: number;
+      participantFrames: Record<string, { totalGold: number; xp: number; level: number; minionsKilled: number; jungleMinionsKilled: number }>;
+      events: TimelineEvent[];
+    }[];
+  };
+};
+
+/** Versão do detalhamento gravado em match_participants.detail_version (ver schema). */
+const DETAIL_VERSION = 3;
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -138,15 +165,110 @@ function participantRow(m: MatchDto, me: Participant, playerId: number) {
     wardsPlaced: me.wardsPlaced,
     wardsKilled: me.wardsKilled,
     controlWards: me.visionWardsBoughtInGame,
-    soloKills: ch.soloKills ?? null,
-    csAt10: (ch.laneMinionsFirst10Minutes ?? 0) + (ch.jungleCsBefore10Minutes ?? 0) || null,
+    soloKills: num(ch.soloKills),
+    csAt10: (num(ch.laneMinionsFirst10Minutes) ?? 0) + (num(ch.jungleCsBefore10Minutes) ?? 0) || null,
     damageTaken: me.totalDamageTaken,
-    turretPlates: ch.turretPlatesTaken ?? null,
+    turretPlates: num(ch.turretPlatesTaken),
     firstBlood: me.firstBloodKill || me.firstBloodAssist,
     largestMultiKill: me.largestMultiKill,
     opponentChampionId: opp?.championId ?? null,
     detailed: true,
+    laneGoldXpAdv: num(ch.laningPhaseGoldExpAdvantage),
+    earlyLaneGoldXpAdv: num(ch.earlyLaningPhaseGoldExpAdvantage),
+    maxCsAdv: num(ch.maxCsAdvantageOnLaneOpponent),
+    maxLevelLead: num(ch.maxLevelLeadLaneOpponent),
+    dragonTakedowns: num(ch.dragonTakedowns),
+    baronTakedowns: num(ch.baronTakedowns),
+    heraldTakedowns: num(ch.riftHeraldTakedowns),
+    voidgrubTakedowns: num(ch.voidMonsterKill),
+    turretTakedowns: num(ch.turretTakedowns),
+    challenges: me.challenges ?? null,
+    detailVersion: DETAIL_VERSION,
   };
+}
+
+/** Placar (os 10) + lados (bans e objetivos). Uma vez por partida. */
+async function saveMatchBoard(m: MatchDto) {
+  const matchId = m.metadata.matchId;
+  const rows = m.info.participants.map((x) => ({
+    matchId,
+    participantId: x.participantId,
+    puuid: x.puuid || null,
+    riotName: x.riotIdGameName ? `${x.riotIdGameName}#${x.riotIdTagline ?? ""}` : null,
+    teamId: x.teamId,
+    championId: x.championId,
+    championName: x.championName,
+    position: x.teamPosition || null,
+    win: x.win,
+    kills: x.kills,
+    deaths: x.deaths,
+    assists: x.assists,
+    cs: x.totalMinionsKilled + x.neutralMinionsKilled,
+    gold: x.goldEarned,
+    damage: x.totalDamageDealtToChampions,
+    damageTaken: x.totalDamageTaken,
+    visionScore: x.visionScore,
+    champLevel: x.champLevel,
+    items: JSON.stringify([x.item0, x.item1, x.item2, x.item3, x.item4, x.item5, x.item6]),
+    spell1: x.summoner1Id,
+    spell2: x.summoner2Id,
+    keystone: x.perks?.styles?.[0]?.selections?.[0]?.perk ?? null,
+    primaryStyle: x.perks?.styles?.[0]?.style ?? null,
+    subStyle: x.perks?.styles?.[1]?.style ?? null,
+  }));
+  if (rows.length) await db.insert(schema.matchPlayers).values(rows).onConflictDoNothing();
+  const teams = (m.info.teams ?? []).map((t) => ({
+    matchId,
+    teamId: t.teamId,
+    win: t.win,
+    bans: [...t.bans].sort((a, b) => a.pickTurn - b.pickTurn).map((b) => b.championId),
+    objectives: t.objectives,
+  }));
+  if (teams.length) await db.insert(schema.matchTeams).values(teams).onConflictDoNothing();
+}
+
+/** Resume a timeline (ouro/XP/CS por minuto-chave, abates com posição, objetivos, ordem de itens e skills). */
+function summarizeTimeline(tl: TimelineDto) {
+  const frames: Record<string, Record<string, [number, number, number, number]>> = {};
+  for (const minute of [5, 10, 15, 20]) {
+    const f = tl.info.frames[minute];
+    if (!f) continue;
+    frames[minute] = Object.fromEntries(
+      Object.entries(f.participantFrames).map(([pid, p]) => [pid, [p.totalGold, p.xp, p.minionsKilled + p.jungleMinionsKilled, p.level]]),
+    );
+  }
+  const sec = (ms: number) => Math.round(ms / 1000);
+  const kills: { t: number; killer: number; victim: number; assists: number[]; x?: number; y?: number }[] = [];
+  const objectives: { t: number; team: number; killer?: number; type: string; sub?: string; lane?: string }[] = [];
+  const builds: Record<string, { items: [number, number][]; skills: number[] }> = {};
+  const build = (pid: number) => (builds[pid] ??= { items: [], skills: [] });
+  for (const e of tl.info.frames.flatMap((f) => f.events)) {
+    switch (e.type) {
+      case "CHAMPION_KILL":
+        kills.push({ t: sec(e.timestamp), killer: e.killerId ?? 0, victim: e.victimId ?? 0, assists: e.assistingParticipantIds ?? [], x: e.position?.x, y: e.position?.y });
+        break;
+      case "ELITE_MONSTER_KILL":
+        objectives.push({ t: sec(e.timestamp), team: e.killerTeamId ?? 0, killer: e.killerId, type: e.monsterType ?? "?", sub: e.monsterSubType });
+        break;
+      case "BUILDING_KILL":
+        // teamId da Riot = dono da estrutura destruída; aqui `team` = quem destruiu
+        objectives.push({ t: sec(e.timestamp), team: e.teamId === 100 ? 200 : 100, killer: e.killerId, type: e.buildingType ?? "?", sub: e.towerType, lane: e.laneType });
+        break;
+      case "ITEM_PURCHASED":
+        if (e.participantId && e.itemId) build(e.participantId).items.push([e.itemId, sec(e.timestamp)]);
+        break;
+      case "ITEM_UNDO": {
+        const items = e.participantId ? build(e.participantId).items : [];
+        const i = items.findLastIndex(([id]) => id === e.beforeId);
+        if (i >= 0) items.splice(i, 1);
+        break;
+      }
+      case "SKILL_LEVEL_UP":
+        if (e.participantId && e.skillSlot && e.levelUpType === "NORMAL") build(e.participantId).skills.push(e.skillSlot);
+        break;
+    }
+  }
+  return { frames, kills, objectives, builds };
 }
 
 /** Mesmo critério do cadastro (scripts/manage.ts): última palavra do nick, ex.: "IGN Atlas" → "Atlas". */
@@ -180,6 +302,9 @@ async function syncRiot() {
   const players = (await db.select().from(schema.players)).filter((p) => !ONLY.length || ONLY.includes(p.slug));
   if (ONLY.length && players.length !== ONLY.length) throw new Error(`SYNC_ONLY: slug não encontrado (${ONLY.filter((s) => !players.some((p) => p.slug === s)).join(", ")})`);
   const matchCache = new Map<string, MatchDto | null>();
+  // partidas que já têm placar/lados e timeline gravados (uma vez por partida, não por jogador)
+  const boardDone = new Set((await db.select({ id: schema.matchTeams.matchId }).from(schema.matchTeams)).map((r) => r.id));
+  const timelineDone = new Set((await db.select({ id: schema.matchTimelines.matchId }).from(schema.matchTimelines)).map((r) => r.id));
 
   for (const p of players) {
     console.log(`\n▶ ${p.gameName}#${p.tagLine}`);
@@ -247,15 +372,17 @@ async function syncRiot() {
       await db.insert(schema.championMastery).values(mastery.map((m) => ({ playerId: p.id, championId: m.championId, level: m.championLevel, points: m.championPoints })));
     }
 
-    // Partidas Solo/Duo: novas + (no backfill) antigas sem detalhes
+    // Partidas Solo/Duo: novas + (no backfill) antigas gravadas numa versão anterior do detalhamento
     const ids = (await riot<string[]>(REGION, `/lol/match/v5/matches/by-puuid/${acc.puuid}/ids?queue=${SOLO_QUEUE}&count=${MATCH_COUNT}`)) ?? [];
     const stored = await db
-      .select({ id: schema.matchParticipants.matchId, detailed: schema.matchParticipants.detailed })
+      .select({ id: schema.matchParticipants.matchId, v: schema.matchParticipants.detailVersion })
       .from(schema.matchParticipants)
       .where(eq(schema.matchParticipants.playerId, p.id));
-    const done = new Set(stored.filter((r) => r.detailed).map((r) => r.id));
-    const todo = new Set(ids.filter((id) => !done.has(id)));
-    if (BACKFILL) stored.filter((r) => !r.detailed).forEach((r) => todo.add(r.id));
+    const known = new Set(stored.map((r) => r.id));
+    const done = new Set(stored.filter((r) => r.v >= DETAIL_VERSION).map((r) => r.id));
+    // sem backfill, só as partidas novas: as antigas são atualizadas com SYNC_BACKFILL=1
+    const todo = new Set(ids.filter((id) => !known.has(id)));
+    if (BACKFILL) stored.filter((r) => !done.has(r.id)).forEach((r) => todo.add(r.id));
 
     let added = 0;
     for (const id of todo) {
@@ -267,6 +394,15 @@ async function syncRiot() {
         .insert(schema.matches)
         .values({ matchId: id, queueId: m.info.queueId, gameStart: m.info.gameStartTimestamp, durationSec: m.info.gameDuration, gameVersion: m.info.gameVersion })
         .onConflictDoNothing();
+      if (!boardDone.has(id)) {
+        await saveMatchBoard(m);
+        boardDone.add(id);
+      }
+      if (!timelineDone.has(id)) {
+        timelineDone.add(id); // uma tentativa por rodada, mesmo se a Riot não tiver a timeline
+        const tl = await riot<TimelineDto>(REGION, `/lol/match/v5/matches/${id}/timeline`);
+        if (tl) await db.insert(schema.matchTimelines).values({ matchId: id, ...summarizeTimeline(tl) }).onConflictDoNothing();
+      }
       const row = participantRow(m, me, p.id);
       const update: Partial<typeof row> = { ...row };
       delete update.matchId;
@@ -303,6 +439,28 @@ async function syncTwitch() {
     const s = live.find((x) => x.user_login.toLowerCase() === login(l.url));
     const v = { channel: login(l.url), isLive: !!s, title: s?.title ?? null, game: s?.game_name ?? null, viewers: s?.viewer_count ?? null, startedAt: s ? new Date(s.started_at) : null, updatedAt: new Date() };
     await db.insert(schema.liveStatus).values({ playerId: l.playerId, ...v }).onConflictDoUpdate({ target: schema.liveStatus.playerId, set: v });
+    // Histórico de lives. O pico de espectadores é o maior visto nas rodadas em que o sync gravou.
+    if (s) {
+      const sess = { channel: v.channel, title: v.title, game: v.game, peakViewers: s.viewer_count };
+      await db
+        .insert(schema.liveSessions)
+        .values({ playerId: l.playerId, startedAt: new Date(s.started_at), ...sess })
+        .onConflictDoUpdate({
+          target: [schema.liveSessions.playerId, schema.liveSessions.startedAt],
+          set: { title: sess.title, game: sess.game, endedAt: null, peakViewers: sql`greatest(${schema.liveSessions.peakViewers}, ${s.viewer_count})` },
+        });
+    }
+    // encerra a sessão aberta (de outra transmissão, se voltou ao vivo, ou porque saiu do ar)
+    await db
+      .update(schema.liveSessions)
+      .set({ endedAt: new Date() })
+      .where(
+        and(
+          eq(schema.liveSessions.playerId, l.playerId),
+          isNull(schema.liveSessions.endedAt),
+          s ? ne(schema.liveSessions.startedAt, new Date(s.started_at)) : undefined,
+        ),
+      );
   }
   console.log(`\nTwitch: ${live.length}/${links.length} ao vivo`);
 }

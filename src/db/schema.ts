@@ -8,6 +8,7 @@ import {
   date,
   real,
   bigint,
+  jsonb,
   uniqueIndex,
   index,
   primaryKey,
@@ -216,11 +217,116 @@ export const matchParticipants = pgTable(
     largestMultiKill: integer("largest_multi_kill"),
     opponentChampionId: integer("opponent_champion_id"),
     detailed: boolean("detailed").notNull().default(false),
+    // v3: fase de rota e objetivos (de `challenges`)
+    laneGoldXpAdv: real("lane_gold_xp_adv"), // laningPhaseGoldExpAdvantage (ouro+XP vs. oponente aos 14 min)
+    earlyLaneGoldXpAdv: real("early_lane_gold_xp_adv"), // earlyLaningPhaseGoldExpAdvantage
+    maxCsAdv: real("max_cs_adv"), // maxCsAdvantageOnLaneOpponent
+    maxLevelLead: real("max_level_lead"), // maxLevelLeadLaneOpponent
+    dragonTakedowns: integer("dragon_takedowns"),
+    baronTakedowns: integer("baron_takedowns"),
+    heraldTakedowns: integer("herald_takedowns"),
+    voidgrubTakedowns: integer("voidgrub_takedowns"),
+    turretTakedowns: integer("turret_takedowns"),
+    /**
+     * `challenges` inteiro da Riot (~120 métricas), para métricas futuras sem precisar de backfill.
+     * Pesado: o site NÃO carrega esta coluna em getSiteData().
+     */
+    challenges: jsonb("challenges"),
+    /** Versão do que foi gravado. 3 = campos acima + placar, times e timeline da partida. */
+    detailVersion: integer("detail_version").notNull().default(0),
   },
   (t) => [
     uniqueIndex("participant_uq").on(t.matchId, t.playerId),
     index("participant_player_idx").on(t.playerId),
   ],
+);
+
+/**
+ * Placar completo: os 10 participantes de cada partida gravada (aliados e adversários).
+ * Alimenta o placar expandido, builds/runas por campeão e o futuro sistema de draft.
+ * `participantId` (1–10) é o mesmo dos eventos da timeline.
+ */
+export const matchPlayers = pgTable(
+  "match_players",
+  {
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.matchId, { onDelete: "cascade" }),
+    participantId: integer("participant_id").notNull(),
+    puuid: text("puuid"),
+    riotName: text("riot_name"), // Nome#TAG no momento da partida
+    teamId: integer("team_id").notNull(), // 100 azul | 200 vermelho
+    championId: integer("champion_id").notNull(),
+    championName: text("champion_name").notNull(),
+    position: text("position"),
+    win: boolean("win").notNull(),
+    kills: integer("kills").notNull(),
+    deaths: integer("deaths").notNull(),
+    assists: integer("assists").notNull(),
+    cs: integer("cs").notNull(),
+    gold: integer("gold").notNull(),
+    damage: integer("damage").notNull(),
+    damageTaken: integer("damage_taken"),
+    visionScore: integer("vision_score"),
+    champLevel: integer("champ_level"),
+    items: text("items"), // JSON: [item0..item6]
+    spell1: integer("spell1"),
+    spell2: integer("spell2"),
+    keystone: integer("keystone"),
+    primaryStyle: integer("primary_style"),
+    subStyle: integer("sub_style"),
+  },
+  (t) => [primaryKey({ columns: [t.matchId, t.participantId] }), index("match_players_champ_idx").on(t.championId)],
+);
+
+/** Lado de cada time na partida: resultado, bans e objetivos (dragões, barão, arauto, vastilarvas, torres...). */
+export const matchTeams = pgTable(
+  "match_teams",
+  {
+    matchId: text("match_id")
+      .notNull()
+      .references(() => matches.matchId, { onDelete: "cascade" }),
+    teamId: integer("team_id").notNull(),
+    win: boolean("win").notNull(),
+    bans: jsonb("bans"), // [championId, ...] na ordem do pick
+    objectives: jsonb("objectives"), // { dragon: { first, kills }, baron: ..., tower: ... } (formato da Riot)
+  },
+  (t) => [primaryKey({ columns: [t.matchId, t.teamId] })],
+);
+
+/**
+ * Timeline resumida da partida (1 chamada extra à Riot por partida).
+ * - frames: { "5"|"10"|"15"|"20": { "<participantId>": [ouro, xp, cs, nível] } }
+ * - kills: [{ t, killer, victim, assists: [], x, y }] (t em segundos; ids = participantId)
+ * - objectives: [{ t, team, type, sub? , lane? }] dragões, barão, arauto, vastilarvas, torres, inibidores
+ * - builds: { "<participantId>": { items: [[itemId, t]], skills: [slot...] } }
+ */
+export const matchTimelines = pgTable("match_timelines", {
+  matchId: text("match_id")
+    .primaryKey()
+    .references(() => matches.matchId, { onDelete: "cascade" }),
+  frames: jsonb("frames").notNull(),
+  kills: jsonb("kills").notNull(),
+  objectives: jsonb("objectives").notNull(),
+  builds: jsonb("builds").notNull(),
+});
+
+/** Histórico de lives da Twitch (uma linha por transmissão). Alimenta destaques, feed e notificações. */
+export const liveSessions = pgTable(
+  "live_sessions",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    title: text("title"),
+    game: text("game"),
+    peakViewers: integer("peak_viewers"),
+  },
+  (t) => [uniqueIndex("live_session_uq").on(t.playerId, t.startedAt)],
 );
 
 export const NEWS_CATEGORIES = [

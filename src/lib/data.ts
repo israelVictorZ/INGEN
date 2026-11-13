@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { desc, isNull } from "drizzle-orm";
+import { desc, getTableColumns, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Role, NewsCategory } from "@/db/schema";
 import { getChampionMap, getRuneMap, getRuneNames, getSpellMap, type ChampionInfo } from "./ddragon";
@@ -277,6 +277,9 @@ function toRank(r: { tier: string; division: string; lp: number; wins: number; l
  * O volume é pequeno (dezenas de jogadores/centenas de partidas), então
  * agregamos em memória e todas as páginas derivam daqui.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { challenges: _challenges, ...participantCols } = getTableColumns(schema.matchParticipants);
+
 export async function getSiteData(): Promise<SiteData> {
   "use cache";
   // O sync avisa o site quando grava algo novo (/api/revalidate), então não é preciso reler o banco
@@ -293,7 +296,8 @@ export async function getSiteData(): Promise<SiteData> {
     db.select().from(schema.rankSnapshots).orderBy(desc(schema.rankSnapshots.capturedOn)),
     db.select().from(schema.championMastery),
     db.select().from(schema.matches),
-    db.select().from(schema.matchParticipants),
+    // sem `challenges` (jsonb pesado, ~120 métricas por partida): só o sync e análises sob demanda leem
+    db.select(participantCols).from(schema.matchParticipants),
     db.select().from(schema.news).orderBy(desc(schema.news.pinned), desc(schema.news.publishedAt)),
     db.select().from(schema.appMeta),
     db.select().from(schema.rankHistory).orderBy(schema.rankHistory.capturedAt),

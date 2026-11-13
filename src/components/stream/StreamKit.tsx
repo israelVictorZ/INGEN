@@ -109,14 +109,15 @@ const ITEMS: Item[] = [
   },
 ];
 
-const TESTS: [string, Record<string, unknown>][] = [
-  ["Follow", { type: "follow", name: "Tsuki" }],
-  ["Sub", { type: "sub", name: "Taiyou", tier: "Tier 1" }],
-  ["Resub", { type: "resub", name: "vanessa.gg", months: 14, tier: "Tier 1", message: "14 meses de INGEN!" }],
-  ["Presente", { type: "gift", name: "mod_ingen", recipient: "lucas_lol", tier: "Tier 1" }],
-  ["10 presentes", { type: "giftbomb", name: "mod_ingen", amount: 10 }],
-  ["Raid", { type: "raid", name: "OutroStreamer", amount: 128 }],
-  ["Bits", { type: "bits", name: "fenrir", amount: 500, message: "pelo penta" }],
+/** Botões do card de alertas: copiam o comando de teste para colar no chat da Twitch (ver core/alerts.js). */
+const TESTS: [label: string, command: string][] = [
+  ["Follow", "!testealerta follow"],
+  ["Sub", "!testealerta sub"],
+  ["Resub", "!testealerta resub"],
+  ["Presente", "!testealerta presente"],
+  ["10 presentes", "!testealerta presentes"],
+  ["Raid", "!testealerta raid"],
+  ["Bits", "!testealerta bits"],
 ];
 
 const SE_FILES = [
@@ -217,8 +218,50 @@ function CopyBtn({ text, label = "Copiar link", className = "" }: { text: string
   );
 }
 
+/** Copia texto; se a API da área de transferência não existir ou for recusada, usa o método antigo. */
+function copyText(text: string) {
+  const legacy = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+    } catch {}
+    ta.remove();
+  };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(legacy);
+  else legacy();
+}
+
+/** Copia um comando de teste do alerta; o botão fica verde com "Copiado ✓" por um instante. */
+function TestCommandBtn({ label, command }: { label: string; command: string }) {
+  const [done, setDone] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return (
+    <button
+      type="button"
+      title={`Copiar "${command}"`}
+      aria-label={`Copiar o comando ${command}`}
+      onClick={() => {
+        copyText(command);
+        setDone(true);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setDone(false), 1400);
+      }}
+      className={`px-2.5 py-1.5 font-mono text-[0.64rem] uppercase tracking-[0.1em] transition ${
+        done ? "bg-green text-bg-0" : "bg-bg-3 text-white hover:bg-white hover:text-bg-0"
+      }`}
+    >
+      <span aria-live="polite">{done ? "Copiado ✓" : label}</span>
+    </button>
+  );
+}
+
 /** Prévia sempre 16:9; a peça é escalada para caber inteira e centralizada. */
-function Preview({ src, w, h, frameRef }: { src: string; w: number; h: number; frameRef?: (el: HTMLIFrameElement | null) => void }) {
+function Preview({ src, w, h }: { src: string; w: number; h: number }) {
   const box = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ s: 0, x: 0, y: 0 });
   useEffect(() => {
@@ -285,7 +328,7 @@ function Preview({ src, w, h, frameRef }: { src: string; w: number; h: number; f
         frames.map((s) => (
           <iframe
             key={s}
-            ref={s === pending ? (el) => void (pendingFrame.current = el) : s === shown ? frameRef : undefined}
+            ref={s === pending ? (el) => void (pendingFrame.current = el) : undefined}
             src={s}
             width={w}
             height={h}
@@ -427,7 +470,6 @@ export function StreamKit({ players }: { players: StreamPlayer[] }) {
   const raw = useSyncExternalStore(subscribe, readSaved, () => "{}");
   const state = useMemo(() => parseState(raw), [raw]);
   const origin = useSyncExternalStore(noop, () => location.origin, () => "");
-  const alertFrame = useRef<HTMLIFrameElement | null>(null);
 
   const live = useDebounced(state, 450);
   const player = players.find((p) => p.slug === state.jogador);
@@ -502,7 +544,7 @@ export function StreamKit({ players }: { players: StreamPlayer[] }) {
             return (
               <article key={it.file} className={`clip-step flex min-w-0 flex-col bg-bg-2 ${it.wide ? "md:col-span-2 xl:col-span-3" : ""}`}>
                 <div className={it.wide ? "xl:mx-auto xl:w-full xl:max-w-[900px]" : ""}>
-                  <Preview src={src} w={it.w} h={it.h} frameRef={it.alerts ? (el) => (alertFrame.current = el) : undefined} />
+                  <Preview src={src} w={it.w} h={it.h} />
                 </div>
                 <div className="flex flex-1 flex-col gap-4 p-5 md:p-6">
                   <div>
@@ -542,19 +584,13 @@ export function StreamKit({ players }: { players: StreamPlayer[] }) {
                   {it.alerts && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="mb-1 w-full text-xs text-gray-dim">
-                        Os botões testam só a prévia. No OBS, digite <span className="font-mono text-white">!testealerta</span> no chat da sua live (ou{" "}
-                        <span className="font-mono text-white">!testealerta raid</span>): vale para você e seus mods.
+                        Testar no OBS: clique no alerta para <span className="text-white">copiar o comando</span> (ex.:{" "}
+                        <span className="font-mono text-white">!testealerta raid</span>) e cole no chat da sua live. O alerta aparece no OBS na hora.
+                        Só funciona para você e seus mods.
                       </p>
-                      <span className="mr-1 font-mono text-[0.66rem] uppercase tracking-[0.12em] text-gray-dim">Testar</span>
-                      {TESTS.map(([label, evt]) => (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => alertFrame.current?.contentWindow?.postMessage({ ingenAlert: evt }, "*")}
-                          className="bg-bg-3 px-2.5 py-1.5 font-mono text-[0.64rem] uppercase tracking-[0.1em] text-white transition hover:bg-white hover:text-bg-0"
-                        >
-                          {label}
-                        </button>
+                      <span className="mr-1 font-mono text-[0.66rem] uppercase tracking-[0.12em] text-gray-dim">Copiar</span>
+                      {TESTS.map(([label, command]) => (
+                        <TestCommandBtn key={label} label={label} command={command} />
                       ))}
                     </div>
                   )}

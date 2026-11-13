@@ -338,9 +338,9 @@ export default function StreamHelpPage() {
                   O que a Twitch <B>não</B> manda pelo chat: <B>follows</B>. Para eles, use o widget do StreamElements ao lado.
                 </p>
                 <Tip>
-                  No kit, a peça Alertas tem botões de teste (Follow, Sub, Raid…), mas eles só mostram a prévia da página. Para testar{" "}
-                  <B>dentro do OBS</B>, digite <C>!testealerta</C> no chat da sua live (ou <C>!testealerta raid</C>, <C>bits</C>, <C>resub</C>,{" "}
-                  <C>presente</C>, <C>presentes</C>, <C>follow</C>). Só vale para você e seus mods, e funciona até fora do ar.
+                  Para testar <B>dentro do OBS</B>: no kit, clique no alerta que quer ver (Follow, Sub, Raid…) para copiar o comando, e cole no
+                  chat da sua live. Ou digite direto: <C>!testealerta</C>, <C>!testealerta raid</C>, <C>bits</C>, <C>resub</C>, <C>presente</C>,{" "}
+                  <C>presentes</C>, <C>follow</C>. Só vale para você e seus mods, e funciona até fora do ar.
                 </Tip>
               </Card>
               <Card>

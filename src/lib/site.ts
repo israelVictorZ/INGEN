@@ -5,10 +5,13 @@ export const PRODUCTION_URL = "https://ingengg.com.br";
 
 /**
  * Endereço público do site (canônicos, sitemap, Open Graph, JSON-LD).
- * Ordem: NEXT_PUBLIC_SITE_URL → domínio oficial quando roda na Vercel → localhost.
- * Não usa VERCEL_PROJECT_PRODUCTION_URL: a Vercel seguiu informando o .vercel.app mesmo com o domínio próprio ligado.
+ * Produção na Vercel: sempre o domínio oficial. A variável NEXT_PUBLIC_SITE_URL da Vercel ficou com o
+ * .vercel.app antigo e, por ter prioridade, mantinha os canônicos no endereço errado.
+ * Fora da produção: NEXT_PUBLIC_SITE_URL → localhost.
  */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL ? PRODUCTION_URL : "http://localhost:3000")).replace(/\/+$/, "");
+export const SITE_URL = (
+  process.env.VERCEL_ENV === "production" ? PRODUCTION_URL : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+).replace(/\/+$/, "");
 
 export const SITE_NAME = "INGEN";
 export const SITE_DESCRIPTION =

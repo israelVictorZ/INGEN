@@ -541,6 +541,10 @@ export function StreamKit({ players }: { players: StreamPlayer[] }) {
                   )}
                   {it.alerts && (
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="mb-1 w-full text-xs text-gray-dim">
+                        Os botões testam só a prévia. No OBS, digite <span className="font-mono text-white">!testealerta</span> no chat da sua live (ou{" "}
+                        <span className="font-mono text-white">!testealerta raid</span>): vale para você e seus mods.
+                      </p>
                       <span className="mr-1 font-mono text-[0.66rem] uppercase tracking-[0.12em] text-gray-dim">Testar</span>
                       {TESTS.map(([label, evt]) => (
                         <button

@@ -10,7 +10,9 @@
 <!-- Fonte transparente 1920×1080 por cima de tudo.
      Sozinha, lê do chat da Twitch (sem login): subs, resubs, subs de presente, raids e bits.
      Follows não passam pelo chat da Twitch: para eles use a versão StreamElements (pasta streamelements/).
-     Parâmetros: canal, time, tempo (s), posicao=topo|centro|baixo, som=0, volume (0–1), bits=0, demo=1 -->
+     Parâmetros: canal, time, tempo (s), posicao=topo|centro|baixo, som=0, volume (0–1), bits=0, demo=1,
+     teste=sub|resub|presente|presentes|raid|bits|follow (um alerta ao carregar)
+     Teste no OBS: o dono do canal ou um mod digita "!testealerta" (ou "!testealerta raid") no chat da live. -->
 <body>
 <div class="stage" id="stage"></div>
 <script src="../config.js"></script>
@@ -29,6 +31,7 @@
     posicao: IG.opt("posicao", "topo"),
     bits: IG.flag("bits", true),
     demo: IG.flag("demo", false),
+    teste: IG.opt("teste", ""),
   };
   IGAlerts.connectSources(IGAlerts.init(document.getElementById("stage"), o), o);
   });

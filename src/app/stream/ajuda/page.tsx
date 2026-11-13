@@ -338,7 +338,9 @@ export default function StreamHelpPage() {
                   O que a Twitch <B>não</B> manda pelo chat: <B>follows</B>. Para eles, use o widget do StreamElements ao lado.
                 </p>
                 <Tip>
-                  No kit, a peça Alertas tem botões de teste (Follow, Sub, Raid…). Use para ver o visual antes de ir ao vivo.
+                  No kit, a peça Alertas tem botões de teste (Follow, Sub, Raid…), mas eles só mostram a prévia da página. Para testar{" "}
+                  <B>dentro do OBS</B>, digite <C>!testealerta</C> no chat da sua live (ou <C>!testealerta raid</C>, <C>bits</C>, <C>resub</C>,{" "}
+                  <C>presente</C>, <C>presentes</C>, <C>follow</C>). Só vale para você e seus mods, e funciona até fora do ar.
                 </Tip>
               </Card>
               <Card>
@@ -446,7 +448,8 @@ export default function StreamHelpPage() {
                 chat para testar. E desmarque &quot;Desligar fonte quando não estiver visível&quot;.
               </Faq>
               <Faq q="O alerta não aparece / não toca som">
-                Teste pelos botões no kit. Sem som no OBS: marque <B>Controlar áudio via OBS</B> na fonte e veja se ela não está mutada no Mixer de áudio.
+                Digite <C>!testealerta</C> no chat da sua Twitch: o alerta tem que aparecer no OBS em segundos. Se não aparecer, confira se o{" "}
+                <B>canal</B> no link é o seu e se a fonte não está com &quot;Desligar fonte quando não estiver visível&quot; marcado. Sem som no OBS: marque <B>Controlar áudio via OBS</B> na fonte e veja se ela não está mutada no Mixer de áudio.
                 Follows só aparecem pelo StreamElements.
               </Faq>
               <Faq q="Apareceu sub repetido">

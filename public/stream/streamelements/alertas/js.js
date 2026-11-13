@@ -626,6 +626,24 @@ window.INGEN_CONFIG = {};
     return { enqueue: enqueue };
   }
 
+  /** Alertas de teste: `!testealerta <tipo>` no chat ou `?teste=<tipo>` no link. */
+  var TESTS = {
+    follow: { type: "follow" },
+    sub: { type: "sub", tier: "Tier 1" },
+    resub: { type: "resub", months: 14, tier: "Tier 1", message: "14 meses de INGEN!" },
+    presente: { type: "gift", recipient: "lucas_lol", tier: "Tier 1" },
+    presentes: { type: "giftbomb", amount: 10 },
+    raid: { type: "raid", amount: 128 },
+    bits: { type: "bits", amount: 500, message: "pelo penta" },
+  };
+  function testEvent(kind, name) {
+    var base = TESTS[String(kind || "").toLowerCase()] || TESTS.sub;
+    var e = {};
+    for (var k in base) e[k] = base[k];
+    e.name = name || "Teste INGEN";
+    return e;
+  }
+
   /** Liga as fontes padrão: chat da Twitch (subs, presentes, raids, bits), postMessage e teste. */
   function connectSources(alerts, o) {
     var giftSkip = {};
@@ -633,8 +651,19 @@ window.INGEN_CONFIG = {};
     addEventListener("message", function (ev) {
       if (ev.data && ev.data.ingenAlert) alerts.enqueue(ev.data.ingenAlert);
     });
+    // ?teste=sub (ou 1): um alerta ao carregar. No OBS, "Atualizar cache da página atual" repete o teste.
+    if (o.teste && o.teste !== "0") {
+      setTimeout(function () { alerts.enqueue(testEvent(o.teste === "1" ? "sub" : o.teste)); }, 1500);
+    }
     if (o.canal && !o.demo) {
       IGTwitch.connect(o.canal, {
+        // Teste direto no OBS: o dono do canal ou um mod digita "!testealerta" (ou "!testealerta raid") no chat.
+        // Os botões "Testar" do kit só alcançam a prévia da página, não a cópia que roda dentro do OBS.
+        message: function (m) {
+          var t = /^!testealerta(?:\s+(\S+))?/i.exec(m.text || "");
+          if (!t || !(m.badges.broadcaster || m.badges.moderator)) return;
+          alerts.enqueue(testEvent(t[1], m.name));
+        },
         sub: function (e) {
           if (e.type === "giftbomb") {
             giftSkip[e.gifterLogin] = (giftSkip[e.gifterLogin] || 0) + e.amount;

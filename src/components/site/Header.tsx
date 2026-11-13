@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FEATURES, LINKS } from "@/lib/features";
 import { TeamTwitchNavLink } from "@/components/live/Live";
-import { DiscordIcon } from "@/components/brand/SocialIcons";
+import { DiscordIcon, InstagramIcon } from "@/components/brand/SocialIcons";
 
 const ALL_NAV = [
   { href: "/elenco", label: "Elenco" },
@@ -75,6 +75,15 @@ export function Header() {
           >
             <DiscordIcon className="size-[18px]" />
           </a>
+          <a
+            href={LINKS.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram da INGEN"
+            className="px-2 py-2 text-gray transition-colors hover:text-[#ff6fae]"
+          >
+            <InstagramIcon className="size-[18px]" />
+          </a>
         </nav>
 
         <div className="flex items-center gap-3 md:hidden">
@@ -120,6 +129,14 @@ export function Header() {
               className="clip-step-sm flex items-center justify-center gap-2 bg-[#5865f2] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
             >
               <DiscordIcon /> Discord ↗
+            </a>
+            <a
+              href={LINKS.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clip-step-sm col-span-2 flex items-center justify-center gap-2 bg-[linear-gradient(90deg,#f58529,#dd2a7b,#8134af)] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
+            >
+              <InstagramIcon /> Instagram ↗
             </a>
           </div>
         </nav>

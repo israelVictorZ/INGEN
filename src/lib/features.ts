@@ -11,6 +11,7 @@ export const TEAM_TWITCH_CHANNEL = "ingen_team";
 export const LINKS = {
   discord: "https://discord.gg/aArbDqdrMY",
   twitch: `https://www.twitch.tv/${TEAM_TWITCH_CHANNEL}`,
+  instagram: "https://www.instagram.com/ingen.gg/",
 } as const;
 
 /** Para onde as vagas abertas apontam: o Discord do time. */

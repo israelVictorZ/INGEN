@@ -378,10 +378,10 @@ async function syncRiot() {
       .select({ id: schema.matchParticipants.matchId, v: schema.matchParticipants.detailVersion })
       .from(schema.matchParticipants)
       .where(eq(schema.matchParticipants.playerId, p.id));
-    const known = new Set(stored.map((r) => r.id));
     const done = new Set(stored.filter((r) => r.v >= DETAIL_VERSION).map((r) => r.id));
-    // sem backfill, só as partidas novas: as antigas são atualizadas com SYNC_BACKFILL=1
-    const todo = new Set(ids.filter((id) => !known.has(id)));
+    // recentes que faltam ou estão num formato antigo (ex.: gravadas por uma versão anterior do sync);
+    // as mais antigas que as recentes só com SYNC_BACKFILL=1
+    const todo = new Set(ids.filter((id) => !done.has(id)));
     if (BACKFILL) stored.filter((r) => !done.has(r.id)).forEach((r) => todo.add(r.id));
 
     let added = 0;

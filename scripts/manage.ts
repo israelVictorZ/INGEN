@@ -9,6 +9,7 @@
  *   npx tsx scripts/manage.ts reserve:remove --slug slug [--team black|silver]   (sem --team: sai de todos os times)
  *   npx tsx scripts/manage.ts twitch:set --slug slug --url https://www.twitch.tv/canal
  *   npx tsx scripts/manage.ts twitch:remove --slug slug
+ *   npx tsx scripts/manage.ts twitch:export   (regrava src/lib/twitch-channels.json; set/remove/rename já fazem isso)
  *
  * Remover NÃO apaga o jogador: fecha a participação (left_at) e, por padrão, abre a vaga da lane.
  */
@@ -257,6 +258,7 @@ async function twitchSet() {
   await db.insert(schema.socialLinks).values({ playerId: p.id, platform: "twitch", url: `https://www.twitch.tv/${channel}` });
   await db.delete(schema.liveStatus).where(eq(schema.liveStatus.playerId, p.id));
   console.log(`✔ Twitch de ${p.displayName}: https://www.twitch.tv/${channel}`);
+  await twitchExport();
 }
 
 async function twitchRemove() {
@@ -264,6 +266,25 @@ async function twitchRemove() {
   await db.delete(schema.socialLinks).where(and(eq(schema.socialLinks.playerId, p.id), eq(schema.socialLinks.platform, "twitch")));
   await db.delete(schema.liveStatus).where(eq(schema.liveStatus.playerId, p.id));
   console.log(`✔ Twitch removida de ${p.displayName}.`);
+  await twitchExport();
+}
+
+/**
+ * Grava em src/lib/twitch-channels.json os canais que o selo "Ao vivo" vigia.
+ * O site lê esse arquivo (vai junto no deploy) em vez de perguntar ao banco a cada minuto,
+ * o que mantinha o Neon acordado enquanto houvesse visitante. Os canais só mudam por este
+ * script, então todo comando que mexe em Twitch ou no slug regrava o arquivo — precisa de deploy.
+ */
+async function twitchExport() {
+  const rows = await db
+    .select({ playerId: schema.players.id, slug: schema.players.slug, url: schema.socialLinks.url })
+    .from(schema.socialLinks)
+    .innerJoin(schema.players, eq(schema.players.id, schema.socialLinks.playerId))
+    .where(eq(schema.socialLinks.platform, "twitch"));
+  const list = rows.map((r) => ({ playerId: r.playerId, slug: r.slug, channel: channelOf(r.url) })).sort((a, b) => a.slug.localeCompare(b.slug));
+  const file = "src/lib/twitch-channels.json"; // npm run manage roda na raiz do projeto
+  writeFileSync(file, `${JSON.stringify(list, null, 2)}\n`);
+  console.log(`  ${list.length} canais gravados em ${file}. Faça commit e deploy para valer no site.`);
 }
 
 /**
@@ -297,6 +318,7 @@ async function playerRename() {
 
   console.log(`✔ ${name ?? p.displayName}: /jogador/${p.slug} → /jogador/${to}`);
   console.log(`  Redirecionamento 308 gravado em src/lib/slug-redirects.json. Faça commit e deploy para valer no site.`);
+  await twitchExport(); // o selo "Ao vivo" é indexado pelo slug
 }
 
 const commands: Record<string, () => Promise<void>> = {
@@ -308,6 +330,7 @@ const commands: Record<string, () => Promise<void>> = {
   "reserve:remove": reserveRemove,
   "twitch:set": twitchSet,
   "twitch:remove": twitchRemove,
+  "twitch:export": twitchExport,
 };
 
 (commands[cmd] ?? (async () => fail(`Comando desconhecido: ${cmd ?? "(nenhum)"}. Use: ${Object.keys(commands).join(", ")}`)))()

@@ -51,7 +51,7 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
      npm run manage -- player:rename --slug <atual> --to <novo> [--name "Exibição"]
      ```
      - O endereço antigo vira redirecionamento 308 em `src/lib/slug-redirects.json` (lido pelo `next.config.ts`, e também usado em `/comparar?a=`).
-     - Esse arquivo muda, então o passo 5 é um **commit de verdade** com ele, não um commit vazio. Até o deploy, o endereço antigo dá 404.
+     - Esse arquivo muda (e também `src/lib/twitch-channels.json`, se o jogador tiver Twitch), então o passo 5 é um **commit de verdade** com os dois, não um commit vazio. Até o deploy, o endereço antigo dá 404.
      - Na verificação, confira também: `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://ingen-three.vercel.app/jogador/<antigo>` deve dar `308` para o novo.
 
 4. **Puxar os dados da Riot** (obrigatório ao adicionar; ~1 min para jogador novo):

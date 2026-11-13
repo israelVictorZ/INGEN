@@ -5,7 +5,7 @@ description: Adiciona, troca ou remove o canal da Twitch de um jogador da INGEN 
 
 # Gerenciar canais da Twitch dos jogadores
 
-Os canais ficam na tabela `social_links` (`platform = "twitch"`). Toda alteração passa por `scripts/manage.ts`.
+Os canais ficam na tabela `social_links` (`platform = "twitch"`) e numa cópia em `src/lib/twitch-channels.json`, que é a lista que o selo "Ao vivo" vigia (o site lê o arquivo para não acordar o banco a cada minuto). Toda alteração passa por `scripts/manage.ts`, que atualiza os dois. Nunca edite o JSON à mão: se precisar regerar, use `npm run manage -- twitch:export`.
 
 ## Entradas esperadas
 
@@ -38,9 +38,9 @@ Os canais ficam na tabela `social_links` (`platform = "twitch"`). Toda alteraç�
    npm run sync
    ```
 
-4. **Publicar na Vercel.** É só mudança de dados, então um commit vazio dispara o deploy e limpa o cache:
+4. **Publicar na Vercel.** O comando regravou `src/lib/twitch-channels.json`, então é um **commit de verdade** com esse arquivo (não um commit vazio). Sem o deploy, o selo não vigia o canal novo:
    ```bash
-   git commit --allow-empty -m "twitch: <resumo, ex.: canal de Fulano (twitch.tv/fulano)>" && git push origin main
+   git add src/lib/twitch-channels.json && git commit -m "twitch: <resumo, ex.: canal de Fulano (twitch.tv/fulano)>" && git push origin HEAD:main
    ```
 
 5. **Verificar em produção** (~1–2 min após o push):
@@ -52,8 +52,8 @@ Os canais ficam na tabela `social_links` (`platform = "twitch"`). Toda alteraç�
 
 ## Como o selo funciona (para explicar se perguntarem)
 
-- O site consulta `/api/live`, com cache de 60 s.
-- **Com as variáveis da Twitch na Vercel**, a rota pergunta direto à Twitch.
+- O site consulta `/api/live`, com cache de 60 s. A lista de canais vem de `src/lib/twitch-channels.json` (sem consultar o banco).
+- **Com as variáveis da Twitch na Vercel**, a rota pergunta direto à Twitch e não toca no banco.
 - **Sem elas**, usa o status gravado pelo sync do GitHub Actions. A sonda de 5 min só passa a vigiar um canal novo depois da próxima sincronização completa (até 6 h).
 - O selo aparece nos cards do elenco, no perfil e na faixa "Ao vivo agora" da home.
 - Quando o canal oficial (ou, se ele estiver offline, algum jogador) está ao vivo, um pin fixo aparece no canto da tela em todas as páginas. O canal oficial só é verificado com as variáveis da Twitch (o sync não grava o status dele).

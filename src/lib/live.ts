@@ -1,7 +1,9 @@
 import { cacheLife } from "next/cache";
-import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { TEAM_TWITCH_CHANNEL } from "./features";
+// Canais vigiados: gravado por `npm run manage -- twitch:set|twitch:remove` e publicado no deploy.
+// Assim o selo "Ao vivo" (consultado a cada minuto) não acorda o banco.
+import twitchChannels from "./twitch-channels.json";
 
 export type LiveInfo = {
   channel: string;
@@ -17,7 +19,6 @@ export type LiveMap = Record<string, LiveInfo>; // chave: slug do jogador
 /** Resposta de /api/live: canal oficial do time + canais dos jogadores. */
 export type LivePayload = { team: LiveInfo; players: LiveMap };
 
-const channelOf = (url: string) => url.replace(/\/+$/, "").split("/").pop()!.toLowerCase();
 const offline = (channel: string): LiveInfo => ({ channel, isLive: false, title: null, viewers: null, game: null, thumbnail: null, startedAt: null });
 
 type HelixStream = { user_login: string; title: string; viewer_count: number; game_name: string; thumbnail_url: string; started_at: string };
@@ -49,21 +50,17 @@ export async function getLive(): Promise<LivePayload> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 60, expire: 600 });
 
-  const links = await db
-    .select({ slug: schema.players.slug, playerId: schema.players.id, url: schema.socialLinks.url })
-    .from(schema.socialLinks)
-    .innerJoin(schema.players, eq(schema.players.id, schema.socialLinks.playerId))
-    .where(eq(schema.socialLinks.platform, "twitch"));
+  const links = twitchChannels;
 
   const out: LivePayload = { team: offline(TEAM_TWITCH_CHANNEL), players: {} };
-  for (const l of links) out.players[l.slug] = offline(channelOf(l.url));
+  for (const l of links) out.players[l.slug] = offline(l.channel);
 
   const id = process.env.TWITCH_CLIENT_ID;
   const secret = process.env.TWITCH_CLIENT_SECRET;
   try {
     if (id && secret) {
       const token = await getTwitchToken(id, secret);
-      const logins = [TEAM_TWITCH_CHANNEL, ...links.map((l) => channelOf(l.url))];
+      const logins = [TEAM_TWITCH_CHANNEL, ...links.map((l) => l.channel)];
       const qs = [...new Set(logins)].map((c) => `user_login=${c}`).join("&");
       const res = await fetch(`https://api.twitch.tv/helix/streams?${qs}`, { headers: { "Client-Id": id, Authorization: `Bearer ${token}` } });
       const data = ((await res.json()) as { data?: HelixStream[] }).data ?? [];
@@ -71,8 +68,8 @@ export async function getLive(): Promise<LivePayload> {
       const team = find(TEAM_TWITCH_CHANNEL);
       if (team) out.team = fromHelix(TEAM_TWITCH_CHANNEL, team);
       for (const l of links) {
-        const s = find(channelOf(l.url));
-        if (s) out.players[l.slug] = fromHelix(channelOf(l.url), s);
+        const s = find(l.channel);
+        if (s) out.players[l.slug] = fromHelix(l.channel, s);
       }
       return out;
     }

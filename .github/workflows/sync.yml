@@ -17,6 +17,10 @@ on:
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch: {}
+  # mudou este arquivo na main? começa (ou recomeça) a corrente na hora
+  push:
+    branches: [main]
+    paths: [.github/workflows/sync.yml]
 
 permissions:
   contents: read
@@ -80,7 +84,11 @@ jobs:
       # (cancelar a execução manualmente quebra a corrente; o cron religa depois)
       - name: Dispara a próxima execução
         if: ${{ !cancelled() && github.ref_name == 'main' }}
-        run: gh workflow run sync.yml --ref main
+        # "enable" mantém o workflow ativo: em repositório público o GitHub desliga
+        # agendamentos após 60 dias sem commits
+        run: |
+          gh workflow enable sync.yml || true
+          gh workflow run sync.yml --ref main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

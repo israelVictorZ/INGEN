@@ -5,6 +5,12 @@
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
+### Como manter este arquivo (vale para toda conversa)
+1. **Ler no início** de cada sessão, antes de qualquer trabalho.
+2. **Tarefa concluída:** marcar aqui (tirar da onda, registrar no Apêndice D e na linha do tempo, Apêndice E), inclusive o que for feito fora do código (Vercel, Registro.br, OBS...).
+3. **Tarefa nova ou mudança de prioridade:** apresentar ao Israel primeiro; só entra aqui depois de aprovada.
+4. **PDF de acompanhamento:** atualizar `docs/pdf/planejamento.html` com as mesmas mudanças e rodar `npm run docs:pdf`. O PDF sai em `docs/INGEN-planejamento.pdf` da pasta principal (fora do git), mesmo rodando de uma sessão isolada.
+
 **Esforço:** **P** = até 1 h · **M** = algumas horas · **G** = 1 dia ou mais.
 Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e foram mantidos para referência.
 
@@ -14,12 +20,13 @@ Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e
 
 ### No ar
 - **Home** animada, com faixa "Ao vivo agora".
+- **Redes oficiais** no menu e no rodapé: Twitch, Discord e Instagram ([@ingen.gg](https://www.instagram.com/ingen.gg/)), sempre em nova aba.
 - **Elenco** com o Mapa do Rift, os dois times (INGEN Black e INGEN Silver), reservas e vagas abertas apontando para o Discord.
 - **Perfil do jogador:** gráfico de elo, métricas com a posição entre os jogadores da INGEN, vitórias × derrotas, tendência, contexto (lado do mapa e duração), runa-chave mais usada, mapa de calor "Quando joga", forma, recordes, campeões, confrontos de lane, duo, partidas detalhadas, selo e botão da Twitch, imagem de compartilhamento.
 - **Comparar** jogadores (inclusive entre times), com layout próprio no celular.
 - **Scouting** por time: op.gg multi, Discord, PDF legível, bans sugeridos, picks com confiança, pontos fortes, confrontos difíceis, data e patch do relatório.
 - **Ranking** interno, com destaques da semana e gráfico de elo de todos (com filtro de período).
-- **Kit de stream** interno (`/stream` e `/stream/ajuda`): 8 overlays animados alimentados pelo banco e um guia para leigos. **Testado no OBS e funcionando.** Teste de alerta direto no OBS pelo chat: `!testealerta` (dono do canal e mods) ou `?teste=raid` no link.
+- **Kit de stream** interno (`/stream` e `/stream/ajuda`): 8 overlays animados alimentados pelo banco e um guia para leigos. **Testado no OBS e funcionando.** Teste de alerta direto no OBS pelo chat: `!testealerta` (dono do canal e mods) ou `?teste=raid` no link; no card de alertas do kit, cada botão copia o comando do seu alerta.
 - **Domínio próprio:** https://ingengg.com.br (o `www` e as páginas do antigo `ingen-three.vercel.app` redirecionam para ele; `/api` e `/stream` seguem respondendo nos dois, para não quebrar overlays já configurados).
 - **SEO:** sitemap, robots, canônicos, imagens de compartilhamento e dados estruturados, no domínio oficial.
 - **Confiabilidade:** páginas de erro amigáveis, página 404 "Fora do mapa", rodapé com "Dados atualizados há X" e aviso quando o sync para.
@@ -58,7 +65,7 @@ A ordem leva em conta: o que está errado primeiro, depois o que entrega mais co
 |---|---|---|---|
 | 5 | **Radar por lane:** hoje usa um teto fixo para Solo/Duo, então suporte sempre parece fraco em CS e dano. Normalizar pela referência da lane e explicar a escala. | Comparar | M |
 | 48 | **Analytics** (Vercel Web Analytics, gratuito): saber quais páginas são usadas antes de investir nelas. Não há nada instalado no código hoje. | Global | P |
-| 39 | **Rodapé com as redes do time:** Twitch e Discord já estão; faltam Instagram, X e YouTube. | Global | P |
+| 39 | **X e YouTube no rodapé e no menu**, se o time tiver. Twitch, Discord e Instagram já estão. | Global | P |
 | 35 | **Dicas nas métricas:** ícone (i) explicando KDA, KP, CS@10 etc. | Global | P |
 | 37 | **Tilt dos cards com "reduzir movimento":** o resto do site já respeita; o tilt 3D do card do elenco ainda não. | Elenco | P |
 | 33 | **Tabela de campeões ordenável** e filtro "só da lane". | Perfil | P |
@@ -116,7 +123,7 @@ Fraquezas, recomendações e metas por jogador, só para a staff. Plano completo
 
 ### Onda 6 · Kit de stream, fase 2
 
-Plano completo no Apêndice B. A fase 1 já foi testada no OBS e funciona; o defeito dos botões de teste dos alertas está na Onda 1. Ordem:
+Plano completo no Apêndice B. A fase 1 já foi testada no OBS e funciona, e o teste de alerta pelo chat já está pronto. Ordem:
 1. **Coleção de cenas do OBS** para importar: instalação cai de ~15 min para ~1 min.
 2. **Placar do dia** (vitórias/derrotas, PDL e sequência; dados prontos).
 3. Câmera cheia e transição (stinger).
@@ -167,7 +174,7 @@ Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. At�
 - **Logo vetorial:** o arquivo atual é WebP com fundo escuro. Precisamos de SVG com fundo transparente, ou aprovar um redesenho fiel em vetor. Confirmar também se os dois risquinhos verdes abaixo do escudo fazem parte do símbolo.
 - **Login:** usuário e senha agora, Discord depois? (Recomendado: usuário e senha, mais simples e sem depender de app no Discord.)
 - **Flex e Clash:** hoje o sync grava só Solo/Duo. Gravar também Flex (440) e Clash (700) traria os jogos do time junto, úteis para o draft, "Jogando com" e campeonatos. Custa mais chamadas à Riot; o site já filtra Solo/Duo nas estatísticas.
-- **Redes oficiais do time** (Instagram, X, YouTube) para o rodapé.
+- **Redes oficiais do time:** o time tem X e YouTube? (Instagram já está no site.)
 
 ---
 
@@ -265,8 +272,16 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 - Mapa de calor "Quando joga" no perfil (#13); posição entre os jogadores da INGEN em cada métrica (parte do #11); runa-chave mais usada (parte do #12).
 - Animações respeitando "reduzir movimento": letreiro, transição de pixels, hero e Mapa do Rift (#37, menos o tilt).
 - Domínio próprio `ingengg.com.br` (#47), com SEO e redirecionamento do endereço antigo.
-- Kit de stream testado no OBS; teste de alerta direto no OBS pelo chat (`!testealerta`).
+- Kit de stream testado no OBS; teste de alerta direto no OBS pelo chat (`!testealerta`), com os botões do kit copiando o comando.
+- Instagram oficial (@ingen.gg) no menu, no rodapé e nos dados estruturados (parte do #39).
+- PDF de acompanhamento regenerável por qualquer sessão (`npm run docs:pdf`).
 - Banco Neon dormindo quando nada muda (aviso do sync, canais em arquivo, overlays com dados guardados).
+- Twitch: selo "Ao vivo", botão no perfil, faixa na home, canais cadastrados.
+- Links de recrutamento apontando para o Discord.
+- Reservas dos times no elenco; links externos em nova aba.
+- Kit de stream fase 1.
+- Gráfico de elo em degraus; remakes fora das estatísticas; contagem animada mostrando o valor real.
+- Sync a cada 5 min em modo sonda; coleta de dados para as próximas fases (13/11/2026).
 
 ---
 
@@ -288,11 +303,6 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 13/11 madrugada | Banco dorme quando nada muda: canais em arquivo, site relê só com aviso do sync, overlays com dados guardados | conversa "Neon como banco de dados" |
 | 13/11 madrugada | Coleta de dados nova (placar dos 10, bans e objetivos, timeline, vantagem de rota, histórico de lives) e backfill das 483 partidas; planejamento único e PDF | conversa "Planejamento" |
 | 13/11 madrugada | Domínio oficial no SEO e redirecionamento do endereço antigo; teste de alerta pelo chat | conversa "Planejamento" |
+| 13/11 madrugada | Instagram oficial no site; botões do card de alertas copiam o comando de teste; PDF regenerável (`npm run docs:pdf`) e regra de manter este arquivo atualizado | conversa "Planejamento" |
 
-**Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única: cada conversa que fizer algo deve atualizá-lo.
-- Twitch: selo "Ao vivo", botão no perfil, faixa na home, canais cadastrados.
-- Links de recrutamento apontando para o Discord.
-- Reservas dos times no elenco; links externos em nova aba.
-- Kit de stream fase 1.
-- Gráfico de elo em degraus; remakes fora das estatísticas; contagem animada mostrando o valor real.
-- Sync a cada 5 min em modo sonda; coleta de dados para as próximas fases (13/11/2026).
+**Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

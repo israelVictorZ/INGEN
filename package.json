@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
     "sync": "tsx scripts/sync-riot.ts",
-    "manage": "tsx scripts/manage.ts"
+    "manage": "tsx scripts/manage.ts",
+    "docs:pdf": "node scripts/build-pdf.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

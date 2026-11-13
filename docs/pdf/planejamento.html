@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>INGEN · Funcionalidades e planejamento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+  @page :first { margin: 0; }
+  :root {
+    --green: #3DFD4E; --green-lime: #7CF94F; --green-mint: #00F07F; --green-ink: #0f7a2a; --green-soft: #e9fbe9;
+    --bg-0: #04060A; --bg-1: #0A0D13; --ink: #12151b; --muted: #5b6370; --line: #dfe3e8; --soft: #f5f7f9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Geist", system-ui, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; background: #fff;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+  .display { font-family: "Big Shoulders Display", "Geist", sans-serif; }
+
+  /* ---------- capa ---------- */
+  .cover { width: 210mm; height: 297mm; background: var(--bg-1); color: #fff; position: relative; overflow: hidden;
+           page-break-after: always; break-after: page; padding: 26mm 20mm; display: flex; flex-direction: column; }
+  .cover::before { content: ""; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 10mm 10mm; }
+  .cover::after { content: ""; position: absolute; right: -40mm; top: 40mm; width: 160mm; height: 160mm; border-radius: 50%;
+    background: radial-gradient(circle, rgba(61,253,78,.22), transparent 65%); }
+  .cover > * { position: relative; z-index: 1; }
+  .cover .tag { font-family: "Geist Mono", monospace; font-size: 9pt; letter-spacing: .18em; text-transform: uppercase; color: var(--green); }
+  .cover img { width: 62mm; margin: 22mm 0 14mm; filter: drop-shadow(0 0 18px rgba(61,253,78,.35)); }
+  .cover h1 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 54pt; line-height: .92; margin: 0; text-transform: uppercase; letter-spacing: .01em; }
+  .cover h1 span { display: block; background: linear-gradient(180deg, var(--green-lime), var(--green) 45%, var(--green-mint)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cover p.lead { color: #aab1bc; font-size: 12pt; max-width: 135mm; margin: 9mm 0 0; }
+  .cover .meta { margin-top: auto; display: flex; gap: 14mm; font-family: "Geist Mono", monospace; font-size: 8.5pt; color: #8a919c; border-top: 1px solid rgba(255,255,255,.12); padding-top: 6mm; }
+  .cover .meta b { display: block; color: #fff; font-weight: 500; font-size: 9.5pt; margin-top: 1mm; }
+
+  /* ---------- miolo ---------- */
+  .label { font-family: "Geist Mono", monospace; font-size: 8pt; letter-spacing: .16em; text-transform: uppercase; color: var(--green-ink); font-weight: 600; }
+  .label::before { content: "▶ "; color: var(--green); }
+  h2 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 26pt; line-height: 1; text-transform: uppercase; margin: 2mm 0 5mm; }
+  h2 .num { color: #c9ced6; margin-right: 3mm; }
+  h3 { font-family: "Big Shoulders Display", sans-serif; font-weight: 800; font-size: 14.5pt; text-transform: uppercase; margin: 0 0 2mm; letter-spacing: .01em; }
+  p { margin: 0 0 3mm; }
+  .section { page-break-before: always; break-before: page; }
+  .intro { color: var(--muted); font-size: 10pt; max-width: 170mm; margin-bottom: 5mm; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 0 0 3.5mm; }
+  .stat { background: var(--bg-1); color: #fff; border-radius: 3mm; padding: 3mm 4mm; }
+  .stat b { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 19pt; line-height: 1; color: var(--green); display: block; margin-bottom: 1mm; }
+  .stat span { font-family: "Geist Mono", monospace; font-size: 7.5pt; color: #aab1bc; text-transform: uppercase; letter-spacing: .08em; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.6mm; }
+  .card { border: 1px solid var(--line); border-radius: 3mm; padding: 3mm 4.5mm; font-size: 9.1pt; line-height: 1.38; break-inside: avoid; page-break-inside: avoid; background: #fff; }
+  .card h3 { display: flex; align-items: center; gap: 2.5mm; }
+  .card h3 i { width: 2.4mm; height: 2.4mm; background: var(--green); display: inline-block; border-radius: .5mm; }
+  .card ul { margin: 0; padding-left: 4.5mm; }
+  .card li { margin: 0 0 .5mm; }
+  .card li::marker { color: var(--green-ink); }
+  .card.dark { background: var(--bg-1); color: #e8ebef; border-color: var(--bg-1); }
+  .card.dark h3 { color: #fff; }
+  .card.dark li::marker { color: var(--green); }
+  .card .sub { color: var(--muted); font-size: 8.5pt; margin-bottom: 1mm; }
+  .card.dark .sub { color: #9aa2ad; }
+
+  /* ondas */
+  .wave { display: grid; grid-template-columns: 17mm 1fr; gap: 0 5mm; border-top: 1px solid var(--line); padding: 4.5mm 0; break-inside: avoid; page-break-inside: avoid; }
+  .wave .n { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 30pt; line-height: .9; color: var(--green-ink); }
+  .wave .n small { display: block; font-family: "Geist Mono", monospace; font-weight: 500; font-size: 6.5pt; letter-spacing: .14em; color: var(--muted); margin-top: 1.5mm; }
+  .wave h3 { margin-bottom: 1mm; }
+  .wave .why { color: var(--muted); font-size: 9pt; margin-bottom: 2mm; }
+  .wave .why b { color: var(--ink); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 1.5mm; margin-top: 1mm; }
+  .chip { font-size: 8.5pt; border: 1px solid var(--line); background: var(--soft); border-radius: 10mm; padding: .6mm 2.6mm; }
+  .chip.p { border-color: #bfe8c3; background: var(--green-soft); }
+  .effort { font-family: "Geist Mono", monospace; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .1em; color: var(--green-ink); font-weight: 600; margin-left: 2mm; white-space: nowrap; }
+
+  .wave.hl { background: var(--bg-1); color: #e8ebef; border-radius: 3mm; padding: 5mm; border: 0; margin: 2mm 0; }
+  .wave.hl .n { color: var(--green); }
+  .wave.hl .n small, .wave.hl .why { color: #9aa2ad; }
+  .wave.hl .why b, .wave.hl h3 { color: #fff; }
+  .wave.hl .effort { color: var(--green); }
+  .draft { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 2.5mm; }
+  .draft div { border: 1px solid rgba(255,255,255,.12); border-radius: 2mm; padding: 3mm 3.5mm; }
+  .draft h4 { margin: 0 0 1.5mm; font-family: "Geist Mono", monospace; font-size: 7.5pt; letter-spacing: .14em; text-transform: uppercase; color: var(--green); }
+  .draft ul { margin: 0; padding-left: 4mm; font-size: 9pt; }
+  .draft li { margin-bottom: .8mm; }
+  .draft li::marker { color: var(--green); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { text-align: left; font-family: "Geist Mono", monospace; font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 500; border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm 1.5mm 0; }
+  td { border-bottom: 1px solid var(--line); padding: 2mm 2mm 2mm 0; vertical-align: top; }
+  tr { break-inside: avoid; }
+  td:first-child { font-weight: 600; width: 44mm; }
+  table.tl td:first-child { width: 34mm; white-space: nowrap; }
+  table.tl td:last-child { width: 42mm; color: var(--muted); }
+  .note { margin-top: 6mm; font-size: 8.5pt; color: var(--muted); border-left: 2px solid var(--green); padding-left: 3mm; }
+  .timeline { display: flex; gap: 0; margin: 2mm 0 7mm; }
+  .timeline div { flex: 1; padding: 2.5mm 2mm; border-top: 3px solid var(--line); font-size: 8pt; }
+  .timeline div b { display: block; font-family: "Geist Mono", monospace; font-size: 7pt; letter-spacing: .1em; color: var(--muted); font-weight: 500; }
+  .timeline div.on { border-top-color: var(--green); }
+  .foot { margin-top: 8mm; font-family: "Geist Mono", monospace; font-size: 7.5pt; color: var(--muted); display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 3mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ CAPA ============ -->
+<section class="cover">
+  <div class="tag">INGEN Esports · Plataforma</div>
+  <img src="../../public/brand/ingen-logo.png" alt="INGEN">
+  <h1>Funcionalidades<span>e planejamento</span></h1>
+  <p class="lead">O que o site da INGEN já entrega hoje e a ordem recomendada para as próximas entregas, da mais prioritária para a menos prioritária.</p>
+  <div class="meta">
+    <div>Data<b>13/11/2026</b></div>
+    <div>Site<b>ingengg.com.br</b></div>
+    <div>Versão<b>Plano consolidado v2</b></div>
+  </div>
+</section>
+
+<!-- ============ 01 FUNCIONALIDADES ============ -->
+<section>
+  <div class="label">Onde estamos</div>
+  <h2><span class="num">01</span>Funcionalidades existentes</h2>
+  <p class="intro">A plataforma lê os dados da Riot Games e da Twitch automaticamente e transforma em páginas públicas para o time, os adversários e a comunidade, além de ferramentas internas para a staff e os streamers.</p>
+
+  <div class="stats">
+    <div class="stat"><b>2</b><span>times no ar</span></div>
+    <div class="stat"><b>5 min</b><span>entre atualizações</span></div>
+    <div class="stat"><b>8</b><span>overlays de stream</span></div>
+    <div class="stat"><b>~480</b><span>partidas lidas</span></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><i></i>Home e elenco</h3>
+      <ul>
+        <li>Home animada com a identidade da INGEN e faixa "Ao vivo agora".</li>
+        <li>Elenco no Mapa do Rift, com INGEN Black e INGEN Silver, reservas e vagas abertas ligadas ao Discord.</li>
+        <li>Selo "Ao vivo"; Twitch, Discord e Instagram oficiais no site.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i></i>Perfil do jogador</h3>
+      <ul>
+        <li>Elo atual e gráfico de evolução.</li>
+        <li>Métricas com a posição na INGEN, forma e recordes.</li>
+        <li>Mapa de calor de horário e runa mais usada.</li>
+        <li>Campeões, confrontos de rota e melhores duplas.</li>
+        <li>Partidas detalhadas, botão da Twitch e imagem para compartilhar.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i></i>Scouting por time</h3>
+      <ul>
+        <li>Relatório público para mandar aos adversários no lugar do op.gg.</li>
+        <li>Picks com nível de confiança, pontos fortes, confrontos difíceis e bans sugeridos.</li>
+        <li>Data e patch do relatório; atalhos para op.gg, Discord e PDF.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i></i>Comparar e ranking</h3>
+      <ul>
+        <li>Comparação lado a lado entre quaisquer dois jogadores, inclusive de times diferentes.</li>
+        <li>Ranking interno com destaques da semana: maior subida, partida da semana, sequências.</li>
+        <li>Gráfico de elo com todos os jogadores.</li>
+      </ul>
+    </div>
+    <div class="card dark">
+      <h3><i></i>Kit de stream (interno)</h3>
+      <div class="sub">Área oculta em /stream, com guia para leigos.</div>
+      <ul>
+        <li>8 peças animadas: cliente, minimapa, webcam, chat, alertas e telas de início, pausa e fim.</li>
+        <li>Nick, time, lane e elo puxados do banco e atualizados sozinhos.</li>
+        <li>Aprovado no OBS; teste de alerta pelo chat (!testealerta).</li>
+      </ul>
+    </div>
+    <div class="card dark">
+      <h3><i></i>Dados e automação</h3>
+      <div class="sub">Tudo roda sozinho, sem custo de servidor.</div>
+      <ul>
+        <li>Sincronização com a Riot e a Twitch a cada 5 minutos.</li>
+        <li>Chave definitiva da Riot (não expira mais).</li>
+        <li>Banco dorme quando nada muda: cabe na cota gratuita.</li>
+        <li>Cadastro de jogadores, reservas e canais pelo chat com o Claude.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i></i>Qualidade</h3>
+      <ul>
+        <li>Domínio próprio: ingengg.com.br.</li>
+        <li>Pensado para celular em todas as páginas.</li>
+        <li>SEO completo: sitemap, imagens de compartilhamento e dados estruturados.</li>
+        <li>Página 404 temática e aviso quando os dados param de atualizar.</li>
+        <li>Contraste e navegação por teclado revisados.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><i></i>Novo: coleta para as próximas fases</h3>
+      <ul>
+        <li>Placar completo das partidas (os 10 jogadores), com bans e objetivos.</li>
+        <li>Linha do tempo de cada partida: ouro, XP e CS por minuto, abates e builds.</li>
+        <li>Vantagem contra o oponente de rota e participação em objetivos.</li>
+        <li>Histórico de lives da Twitch.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 PLANEJAMENTO ============ -->
+<section class="section">
+  <div class="label">Para onde vamos</div>
+  <h2><span class="num">02</span>Planejamento por prioridade</h2>
+  <p class="intro">A ordem segue quatro critérios: primeiro o que está errado, depois o que entrega mais com menos esforço, em seguida o que aproveita dados que já estão sendo coletados, e por fim o que depende de decisões ou de terceiros.</p>
+
+  <div class="timeline">
+    <div class="on"><b>ONDAS 1–3</b>Correções, Draft e perfil</div>
+    <div><b>ONDAS 4–5</b>Login e área interna</div>
+    <div><b>ONDAS 6–7</b>Stream e admin</div>
+    <div><b>ONDAS 8–10</b>Engajamento e longo prazo</div>
+  </div>
+
+  <div class="wave">
+    <div class="n">1<small>PRIORIDADE MÁXIMA</small></div>
+    <div>
+      <h3>Correções e ganhos rápidos <span class="effort">1 a 2 dias</span></h3>
+      <div class="why"><b>Por quê primeiro:</b> o radar do Comparar é injusto com suportes e junglers; o resto são melhorias pequenas e visíveis.</div>
+      <div class="chips">
+        <span class="chip p">Radar do Comparar por lane</span><span class="chip">Analytics de acesso</span><span class="chip">X e YouTube no rodapé (se houver)</span><span class="chip">Dicas nas métricas</span><span class="chip">Tabela de campeões ordenável</span><span class="chip">Live embutida no perfil</span><span class="chip">Card do elenco mais rico</span><span class="chip">Forma recente no scouting</span><span class="chip">Setas no ranking</span><span class="chip">Tilt dos cards com "reduzir movimento"</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wave hl">
+    <div class="n">2<small>NOVO</small></div>
+    <div>
+      <h3>Sistema de Draft INGEN <span class="effort">2 a 4 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> não depende de nada, tem alto impacto visual e serve ao mesmo tempo para treino, scrims e transmissão.</div>
+      <p style="margin:0 0 1mm;font-size:9.5pt">Tela de picks e bans no estilo do drafter.lol, com a cara da INGEN: o adversário sobe o próprio logo e escolhe a cor do time, e a tela inteira se adapta.</p>
+      <div class="draft">
+        <div>
+          <h4>v1 · no navegador</h4>
+          <ul>
+            <li>Fases oficiais de ban e pick, com cronômetro.</li>
+            <li>Logo e cor do time adversário personalizáveis.</li>
+            <li>Busca por campeão e filtro por lane, com splash arts.</li>
+            <li>Modo transmissão para usar direto no OBS.</li>
+          </ul>
+        </div>
+        <div>
+          <h4>v2 · com dados da INGEN</h4>
+          <ul>
+            <li>Sugestões: pool de cada jogador, comfort picks, o que costumam banir.</li>
+            <li>Salvar drafts das scrims e exportar imagem.</li>
+            <li>Sala compartilhada em tempo real entre os dois capitães.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">3</div>
+    <div>
+      <h3>Perfil com os dados novos <span class="effort">2 a 3 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> os dados começaram a ser coletados agora; esta onda só mostra o que já está no banco, então o esforço é baixo para o ganho.</div>
+      <div class="chips">
+        <span class="chip p">Vantagem contra o oponente de rota aos 10 e 15 min</span><span class="chip p">Participação em objetivos</span><span class="chip">Métricas por lane</span><span class="chip">Comparação com a média da lane</span><span class="chip">Builds e ordem de skills</span><span class="chip">Placar completo da partida</span><span class="chip">Elo do perfil com eventos e filtro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">4</div>
+    <div>
+      <h3>Login único e área interna <span class="effort">1 a 2 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> um só login destrava três coisas: a senha do kit de stream, a área "O que melhorar" e o painel admin.</div>
+      <div class="chips"><span class="chip">Usuário e senha criados pela staff</span><span class="chip">Sessão segura</span><span class="chip">Senha no kit de stream</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">5</div>
+    <div>
+      <h3>Área interna "O que melhorar" <span class="effort">3 a 5 dias, em etapas</span></h3>
+      <div class="why"><b>Por quê aqui:</b> é o que mais ajuda o time a evoluir, mas precisa do login e fica melhor com os dados novos já acumulados.</div>
+      <div class="chips"><span class="chip">Como nos banem</span><span class="chip">Lanes vulneráveis</span><span class="chip">Fraqueza → o que treinar → meta</span><span class="chip">Partidas para revisar</span><span class="chip">Metas e notas da staff</span><span class="chip">Antes × depois</span><span class="chip p">Análise de rota e mortes cedo (timeline)</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">6</div>
+    <div>
+      <h3>Kit de stream, fase 2 <span class="effort">2 a 4 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> o kit já foi testado e funciona no OBS; agora o foco é reduzir a instalação de ~15 min para ~1 min e ganhar peças novas.</div>
+      <div class="chips"><span class="chip p">Coleção de cenas para importar</span><span class="chip">Placar do dia</span><span class="chip">Câmera cheia</span><span class="chip">Transição animada</span><span class="chip">"Jogando com"</span><span class="chip">Painéis e tela offline</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">7</div>
+    <div>
+      <h3>Painel admin <span class="effort">2 a 3 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> hoje o cadastro pelo chat resolve; o painel dá autonomia ao time quando houver mais pessoas mexendo.</div>
+      <div class="chips"><span class="chip">Jogadores pelo Riot ID</span><span class="chip">Foto, bio e redes</span><span class="chip">Troca de time e lane</span><span class="chip">Vagas</span><span class="chip">"Atualizar dados agora"</span><span class="chip">Log de alterações</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">8</div>
+    <div>
+      <h3>Engajamento automático <span class="effort">2 a 3 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> mantém o site vivo sem trabalho manual, usando o histórico que está sendo acumulado.</div>
+      <div class="chips"><span class="chip">Destaques automáticos na home</span><span class="chip">Feed de atividades</span><span class="chip">Avisos no Discord (promoções, pentas, lives)</span><span class="chip">Ranking Solo/Flex</span><span class="chip">Clipes da Twitch</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">9</div>
+    <div>
+      <h3>Elenco, scouting e comparar <span class="effort">2 a 3 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> melhorias boas, mas de menor impacto que as anteriores.</div>
+      <div class="chips"><span class="chip">Foto e bio no perfil</span><span class="chip">Ex-jogadores</span><span class="chip">Staff do time</span><span class="chip">Imagem do scouting</span><span class="chip">Scouting em inglês</span><span class="chip">Confronto direto</span><span class="chip">Imagem do duelo</span></div>
+    </div>
+  </div>
+
+  <div class="wave">
+    <div class="n">10</div>
+    <div>
+      <h3>Longo prazo</h3>
+      <div class="why"><b>Por quê por último:</b> dependem de decisões, de custo ou de material de terceiros.</div>
+      <div class="chips"><span class="chip">Campeonatos e agenda</span><span class="chip">Formulário de recrutamento</span><span class="chip">Desempenho (Lighthouse 90+)</span><span class="chip">Testes automáticos</span><span class="chip">Logo em SVG animado</span><span class="chip">Reativar notícias</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 DECISÕES ============ -->
+<section style="margin-top:8mm">
+  <div class="label">O que depende do time</div>
+  <h2><span class="num">03</span>Decisões pendentes</h2>
+  <p class="intro">Itens que precisam de uma resposta ou de material do time antes de serem feitos.</p>
+  <table>
+    <thead><tr><th>Assunto</th><th>O que precisamos</th><th>Destrava</th></tr></thead>
+    <tbody>
+      <tr><td>Logo vetorial</td><td>Arquivo SVG com fundo transparente, ou aprovação de um redesenho fiel em vetor. Confirmar se os dois traços verdes abaixo do escudo fazem parte do símbolo.</td><td>Animação do logo (onda 10)</td></tr>
+      <tr><td>Forma de login</td><td>Usuário e senha agora e Discord depois (recomendado), ou Discord desde o início.</td><td>Ondas 4, 5 e 7</td></tr>
+      <tr><td>Partidas Flex e Clash</td><td>Hoje só a Solo/Duo é gravada. Gravar também Flex e Clash traria os jogos do time junto.</td><td>Draft v2, "Jogando com", campeonatos</td></tr>
+      <tr><td>Redes oficiais</td><td>O time tem X e YouTube? O Instagram (@ingen.gg) já está no site.</td><td>Rodapé (onda 1)</td></tr>
+      <tr><td>Notícias</td><td>Quando reativar a seção, que já está pronta.</td><td>Onda 10</td></tr>
+    </tbody>
+  </table>
+
+
+  <div style="break-before:page;page-break-before:always" class="label">Como chegamos aqui</div>
+  <h2><span class="num">04</span>Linha do tempo</h2>
+  <p class="intro">Montada a partir do histórico do código e das conversas com o Claude, incluindo o que foi feito fora do repositório. Horários de Brasília.</p>
+  <table class="tl">
+    <thead><tr><th>Quando</th><th>O quê</th><th>Onde</th></tr></thead>
+    <tbody>
+      <tr><td>10/11</td><td>Estrutura do projeto, direção visual e arquitetura.</td><td>Código</td></tr>
+      <tr><td>11/11 · madrugada</td><td><b>Fase 1 no ar:</b> home, elenco com Mapa do Rift, perfil, comparar, scouting, ranking e página 404 "Fora do mapa".</td><td>Código</td></tr>
+      <tr><td>11/11 · tarde</td><td>Sync automático, perfil completo, selo "Ao vivo" da Twitch, atualização a cada 5 minutos, cadastro pelo chat.</td><td>Código</td></tr>
+      <tr><td>11/11 · noite</td><td>Twitch e Discord do time, SEO completo, ranking com destaques, scouting com leitura automática.</td><td>Código</td></tr>
+      <tr><td>12/11 · tarde</td><td>Reservas no elenco e <b>kit de stream</b> com 8 overlays e guia.</td><td>Código</td></tr>
+      <tr><td>12/11 · noite</td><td>Entra Hero (MID, Silver); canal da Twitch de Nacht.</td><td>Código</td></tr>
+      <tr><td>12/11 · noite</td><td><b>Compra e ligação do domínio ingengg.com.br</b> (Registro.br e Vercel).</td><td>Conversa "Compra do domínio"</td></tr>
+      <tr><td>12 e 13/11</td><td>Kit de stream testado e aprovado no OBS.</td><td>Teste do time</td></tr>
+      <tr><td>13/11 · madrugada</td><td>Chave definitiva da Riot.</td><td>GitHub e Riot</td></tr>
+      <tr><td>13/11 · madrugada</td><td>Banco passa a dormir quando nada muda.</td><td>Conversa "Neon"</td></tr>
+      <tr><td>13/11 · madrugada</td><td>Coleta de dados nova e histórico completo das 483 partidas; domínio oficial no Google; teste de alerta pelo chat; este planejamento.</td><td>Conversa "Planejamento"</td></tr>
+      <tr><td>13/11 · madrugada</td><td>Instagram oficial no site; botões de teste do kit copiam o comando; PDF passa a ser atualizado por toda conversa.</td><td>Conversa "Planejamento"</td></tr>
+    </tbody>
+  </table>
+  <div class="note">A página 404 existe desde a fase 1, mas o primeiro mapa de melhorias a listou como pendente; o domínio foi configurado fora do código. Daqui para frente, toda conversa lê <span class="mono">docs/planejamento.md</span> ao começar, marca o que concluiu e atualiza este PDF; tarefas novas só entram depois de aprovadas.</div>
+  <div class="note">O planejamento detalhado, com os números de cada item e os apêndices técnicos, está em <span class="mono">docs/planejamento.md</span> no repositório.</div>
+  <div class="foot"><span>INGEN Esports · Funcionalidades e planejamento</span><span>13/11/2026</span></div>
+</section>
+
+</body>
+</html>

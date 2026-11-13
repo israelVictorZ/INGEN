@@ -1,14 +1,14 @@
 import { LINKS } from "./features";
 
+/** Domínio oficial. O antigo (ingen-three.vercel.app) redireciona para cá (next.config.ts). */
+export const PRODUCTION_URL = "https://ingengg.com.br";
+
 /**
  * Endereço público do site (canônicos, sitemap, Open Graph, JSON-LD).
- * Ordem: NEXT_PUBLIC_SITE_URL → domínio de produção que a Vercel informa → localhost.
- * Ao ligar um domínio próprio na Vercel, VERCEL_PROJECT_PRODUCTION_URL passa a apontar para ele sozinho.
+ * Ordem: NEXT_PUBLIC_SITE_URL → domínio oficial quando roda na Vercel → localhost.
+ * Não usa VERCEL_PROJECT_PRODUCTION_URL: a Vercel seguiu informando o .vercel.app mesmo com o domínio próprio ligado.
  */
-export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")
-).replace(/\/+$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL ? PRODUCTION_URL : "http://localhost:3000")).replace(/\/+$/, "");
 
 export const SITE_NAME = "INGEN";
 export const SITE_DESCRIPTION =

@@ -45,7 +45,7 @@ Os canais ficam na tabela `social_links` (`platform = "twitch"`) e numa cópia e
 
 5. **Verificar em produção** (~1–2 min após o push):
    ```bash
-   curl -s https://ingen-three.vercel.app/api/live
+   curl -s https://ingengg.com.br/api/live
    ```
    - A resposta é `{ team, players }`: o slug do jogador deve aparecer em `players` com o `channel` certo (ou sumir, na remoção). `team` é o canal oficial (twitch.tv/ingen_team, fixo em `src/lib/features.ts`).
    - `isLive: true` só se ele estiver transmitindo naquele momento.

@@ -23,7 +23,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
    ```bash
    K=$(grep '^RIOT_API_KEY=' .env | cut -d= -f2 | tr -d '\r"'); curl -s -o /dev/null -w "%{http_code}" -H "X-Riot-Token: $K" https://br1.api.riotgames.com/lol/status/v4/platform-data
    ```
-   - `200` = ok. `401`/`403` = a Development Key expirou: peça ao usuário para gerar outra em developer.riotgames.com, atualizar o `.env` e o segredo `RIOT_API_KEY` no GitHub. Pare até isso ser feito.
+   - `200` = ok. `401`/`403` = a chave da Riot foi recusada (a Personal Key não expira; provavelmente foi revogada ou o `.env` está errado): peça ao usuário para conferir o `.env` e o segredo `RIOT_API_KEY` no GitHub. Pare até isso ser feito.
 
 2. **Ver o elenco atual** (titulares, vagas e linhas `RESERVA`):
    ```bash
@@ -61,8 +61,8 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 
 6. **Verificar em produção** (o deploy leva ~1–2 min):
    ```bash
-   curl -s https://ingen-three.vercel.app/elenco | grep -o "Reservas" | head -1
-   curl -s https://ingen-three.vercel.app/elenco | grep -c "<Nome#TAG>"
+   curl -s https://ingengg.com.br/elenco | grep -o "Reservas" | head -1
+   curl -s https://ingengg.com.br/elenco | grep -c "<Nome#TAG>"
    ```
    - Ao adicionar: "Reservas" aparece e a contagem do Riot ID é maior que 0.
    - Ao remover o último reserva de todos os times: "Reservas" não aparece mais.
@@ -72,7 +72,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 Em português, curto:
 - quem entrou ou saiu da reserva, e de qual time;
 - a lane (cadastrada ou "a mais jogada nas Solo/Duo") e o elo puxado da Riot;
-- o link `https://ingen-three.vercel.app/elenco#<black|silver>` e o resultado da verificação.
+- o link `https://ingengg.com.br/elenco#<black|silver>` e o resultado da verificação.
 
 ## Regras do site a respeitar
 

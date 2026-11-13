@@ -23,7 +23,7 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
    K=$(grep '^RIOT_API_KEY=' .env | cut -d= -f2); curl -s -o /dev/null -w "%{http_code}" -H "X-Riot-Token: $K" https://br1.api.riotgames.com/lol/status/v4/platform-data
    ```
    - `200` = ok.
-   - `401`/`403` = a Development Key expirou. Peça ao usuário para gerar outra em developer.riotgames.com (tem captcha), atualizar o `.env` e o segredo `RIOT_API_KEY` no GitHub. Pare até isso ser feito.
+   - `401`/`403` = a chave da Riot foi recusada (a Personal Key não expira; provavelmente foi revogada ou o `.env` está errado). Peça ao usuário para conferir o `.env` e o segredo `RIOT_API_KEY` no GitHub. Pare até isso ser feito.
 
 2. **Ver o elenco atual** (slugs, lanes ocupadas e vagas):
    ```bash
@@ -52,7 +52,7 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
      ```
      - O endereço antigo vira redirecionamento 308 em `src/lib/slug-redirects.json` (lido pelo `next.config.ts`, e também usado em `/comparar?a=`).
      - Esse arquivo muda (e também `src/lib/twitch-channels.json`, se o jogador tiver Twitch), então o passo 5 é um **commit de verdade** com os dois, não um commit vazio. Até o deploy, o endereço antigo dá 404.
-     - Na verificação, confira também: `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://ingen-three.vercel.app/jogador/<antigo>` deve dar `308` para o novo.
+     - Na verificação, confira também: `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://ingengg.com.br/jogador/<antigo>` deve dar `308` para o novo.
 
 4. **Puxar os dados da Riot** (obrigatório ao adicionar; ~1 min para jogador novo):
    ```bash
@@ -66,8 +66,8 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
 
 6. **Verificar em produção** (o deploy leva ~1–2 min):
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" https://ingen-three.vercel.app/jogador/<slug>
-   curl -s https://ingen-three.vercel.app/elenco | grep -c "<Nome de exibição>"
+   curl -s -o /dev/null -w "%{http_code}" https://ingengg.com.br/jogador/<slug>
+   curl -s https://ingengg.com.br/elenco | grep -c "<Nome de exibição>"
    ```
    - Ao adicionar: espere `200` e a contagem maior que 0.
    - Ao remover: a página `/elenco` não deve mais ter o nome; a página do jogador continua existindo.
@@ -78,7 +78,7 @@ Em português, curto:
 - quem entrou ou saiu, com time e lane (dizendo se a lane foi inferida);
 - o elo puxado da Riot;
 - se a vaga foi aberta ou fechada;
-- o link `https://ingen-three.vercel.app/jogador/<slug>` e o resultado da verificação.
+- o link `https://ingengg.com.br/jogador/<slug>` e o resultado da verificação.
 
 ## Regras do site a respeitar
 

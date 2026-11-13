@@ -4,11 +4,22 @@ import slugRedirects from "./src/lib/slug-redirects.json";
 const nextConfig: NextConfig = {
   // jogadores que trocaram de endereço (npm run manage -- player:rename): 308 permanente, bom para SEO
   async redirects() {
-    return Object.entries(slugRedirects as Record<string, string>).map(([from, to]) => ({
-      source: `/jogador/${from}`,
-      destination: `/jogador/${to}`,
-      permanent: true,
-    }));
+    return [
+      // endereço antigo → domínio oficial (evita duas cópias do site no Google).
+      // /api e /stream ficam de fora: o sync avisa o site com token (um redirecionamento descartaria
+      // o cabeçalho) e overlays já configurados no OBS/StreamElements podem ter o endereço antigo gravado.
+      {
+        source: "/:path((?!api(?:/|$)|stream(?:/|$)|_next/).*)",
+        has: [{ type: "host" as const, value: "ingen-three.vercel.app" }],
+        destination: "https://ingengg.com.br/:path",
+        permanent: true,
+      },
+      ...Object.entries(slugRedirects as Record<string, string>).map(([from, to]) => ({
+        source: `/jogador/${from}`,
+        destination: `/jogador/${to}`,
+        permanent: true,
+      })),
+    ];
   },
   // overlays chamam /api/stream?jogador=<slug>: servido pela resposta guardada de /api/stream/<slug>
   // (não consulta o banco a cada pergunta do overlay; o link dos streamers não muda)

@@ -55,10 +55,12 @@
   box-shadow: inset 0 0 0 1px rgba(61, 253, 78, 0.35);
 }
 .team-silver .ic-b { background: rgba(38, 43, 51, 0.95); box-shadow: inset 0 0 0 1px rgba(201, 205, 211, 0.35); }
-.ic-b--streamer { background: var(--grad-x); color: var(--bg0); box-shadow: none; }
-.ic-b--mod { color: var(--white); background: #1e2a22; }
-.ic-b--vip { color: #ffd4f5; background: #2a1830; box-shadow: inset 0 0 0 1px rgba(255, 120, 230, 0.35); }
-.ic-b--new { color: var(--bg0); background: var(--white); box-shadow: none; }
+/* selos com cor própria: `.ic-b.ic-b--x` tem o mesmo peso de `.team-silver .ic-b` e vem depois,
+   então vale nos dois temas (antes, na Silver, NOVO e STREAMER ficavam com letra preta em fundo escuro) */
+.ic-b.ic-b--streamer { background: var(--grad-x); color: var(--bg0); box-shadow: none; }
+.ic-b.ic-b--mod { color: var(--white); background: #1e2a22; }
+.ic-b.ic-b--vip { color: #ffd4f5; background: #2a1830; box-shadow: inset 0 0 0 1px rgba(255, 120, 230, 0.35); }
+.ic-b.ic-b--new { color: var(--bg0); background: var(--white); box-shadow: none; }
 .ic-name {
   font-family: var(--f-display);
   font-weight: 800;

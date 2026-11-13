@@ -167,8 +167,8 @@ IG.ready(function () {
     document.getElementById("meta").innerHTML = chips.join("");
   }
   renderChips();
-  // com ?jogador=slug o elo vem do site e se atualiza sozinho a cada 5 min
-  IG.watchPlayer(renderChips, 300000);
+  // com ?jogador=slug o elo vem do site e se atualiza sozinho a cada 2 min
+  IG.watchPlayer(renderChips, 120000);
 
   document.getElementById("socials").innerHTML = IG.socials().map(function (s) {
     return '<div class="social">' + s.icon + "<span>" + IG.esc(s.label) + "</span></div>";

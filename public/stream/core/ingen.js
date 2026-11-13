@@ -56,7 +56,7 @@
   }
   /** Atualiza os dados do jogador de tempos em tempos (elo sobe e desce durante a live). */
   function watchPlayer(fn, ms) {
-    setInterval(function () { loadPlayer().then(function (d) { if (d) fn(d); }); }, ms || 300000);
+    setInterval(function () { loadPlayer().then(function (d) { if (d) fn(d); }); }, ms || 120000);
   }
   function flag(name, def) {
     var v = opt(name, def);

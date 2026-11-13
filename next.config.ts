@@ -10,12 +10,23 @@ const nextConfig: NextConfig = {
       permanent: true,
     }));
   },
+  // overlays chamam /api/stream?jogador=<slug>: servido pela resposta guardada de /api/stream/<slug>
+  // (não consulta o banco a cada pergunta do overlay; o link dos streamers não muda)
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: "/api/stream", has: [{ type: "query", key: "jogador", value: "(?<jogador>.+)" }], destination: "/api/stream/:jogador" }],
+    };
+  },
   // kit de stream (página /stream e overlays em public/stream): uso interno, fora do Google
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+    // overlays também rodam no StreamElements e em arquivo local, então o CORS é aberto
+    const cors = [{ key: "Access-Control-Allow-Origin", value: "*" }];
     return [
       { source: "/stream", headers: noindex },
       { source: "/stream/:path*", headers: noindex },
+      { source: "/api/stream", headers: cors },
+      { source: "/api/stream/:path*", headers: cors },
     ];
   },
   cacheComponents: true,

@@ -6,7 +6,7 @@ Overlays animados da INGEN para OBS / Streamlabs / qualquer programa com **Fonte
   O bloqueio por senha do futuro ADM entra nesse layout. No kit, o jogador escolhe o nome, liga/desliga opções por botões (que viram parâmetros no link) e copia cada link.
 - **Molduras sobre vídeo:** borda reta + degraus sólidos para dentro (`stairs: "in"`); sob capturas (cliente/câmera no fundo), blocos de pixel por fora (`stairs: "out"`). Nunca recortar o canto: deixaria ponta preta ou a quina do vídeo aparecendo.
 - **Overlays (estáticos):** `public/stream/overlays/*.html`, servidos em `/stream/overlays/...`.
-- **Dados do jogador:** `GET /api/stream?jogador=<slug>` (CORS aberto). Com `?jogador=<slug>` no link, os overlays puxam nick, time, lane, elo e canal do banco; o fundo do cliente atualiza o elo a cada 5 min.
+- **Dados do jogador:** `GET /api/stream?jogador=<slug>` (CORS aberto). Com `?jogador=<slug>` no link, os overlays puxam nick, time, lane, elo e canal do banco; o fundo do cliente atualiza o elo a cada 2 min. A resposta fica guardada por jogador e só é renovada quando o sync avisa o site (`/api/revalidate`), então essas perguntas não acordam o banco.
 
 ## Peças
 

@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
 import { getPlayer } from "@/lib/data";
 import { championSplash } from "@/lib/ddragon-urls";
-import { ROLE_META, TIER_META, emblemUrl, fixed, pct, rankLabel, riotId } from "@/lib/format";
-import { OG_COLORS as C, OG_SIZE, displayFont, logoDataUrl } from "@/lib/og";
+import { ROLE_META, TIER_META, fixed, pct, rankLabel, riotId } from "@/lib/format";
+import { OG_COLORS as C, OG_SIZE, displayFont, emblemDataUrl, logoDataUrl } from "@/lib/og";
 import { mainChamps } from "@/lib/view";
 
 export const alt = "Perfil do jogador da INGEN: elo, campeões e estatísticas";
@@ -29,8 +29,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         { k: "PARTIDAS", v: String(s.games) },
       ]
     : [];
-  const [logo, fonts] = await Promise.all([
+  const [logo, emblem, fonts] = await Promise.all([
     logoDataUrl(),
+    p.solo ? emblemDataUrl(p.solo.tier).catch((e) => (console.warn("OG: emblema indisponível", e), null)) : null,
     displayFont(`${name}${riotId(p)}${elo.toUpperCase()}${role}${team}0123456789.,%·WINRATEKDAPARTIDAS`),
   ]);
 
@@ -87,9 +88,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             <div style={{ display: "flex", fontSize: name.length > 9 ? 150 : 190, lineHeight: 0.85, color: C.white }}>{name}</div>
             <div style={{ display: "flex", marginTop: 16, fontSize: 34, letterSpacing: 2, color: C.gray }}>{riotId(p)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 28 }}>
-              {p.solo && (
+              {emblem && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={emblemUrl(p.solo.tier)} width={300} height={300} alt="" style={{ objectFit: "contain", margin: "-110px -90px -110px -110px" }} />
+                <img src={emblem} width={300} height={300} alt="" style={{ objectFit: "contain", margin: "-110px -90px -110px -110px" }} />
               )}
               <span style={{ fontSize: 56, color: tier?.color ?? C.gray }}>{elo.toUpperCase()}</span>
             </div>

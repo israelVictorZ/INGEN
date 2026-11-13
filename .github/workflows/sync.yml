@@ -4,14 +4,25 @@ name: Sync Riot + Twitch
 # Só grava no Neon quando algo mudou (partida nova, PDL, live) ou a cada 6h,
 # para não estourar a cota de horas de computação do plano gratuito.
 #
+# Por que um laço e não só o cron: o GitHub trata o "schedule" como melhor esforço e,
+# na prática, disparava o "*/5" só de 4 em 4 horas. Então cada execução fica rodando
+# por ~5h30, sincronizando de 5 em 5 minutos, e no fim dispara a próxima sozinha
+# (workflow_dispatch). O cron fica só como rede de segurança para religar a corrente
+# se ela cair. Repositório público: minutos de Actions não são cobrados.
+#
 # Segredos (Settings → Secrets and variables → Actions):
 #   DATABASE_URL, RIOT_API_KEY  (obrigatórios)
 #   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET  (opcionais)
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  actions: write # para disparar a próxima execução
+
+# uma execução por vez; disparos que chegam durante o laço ficam na fila (no máximo um)
 concurrency:
   group: sync
   cancel-in-progress: false
@@ -19,7 +30,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,14 +46,24 @@ jobs:
           path: .sync-state.json
           key: sync-state-${{ github.run_id }}
           restore-keys: sync-state-
-      - name: Sync
-        id: sync
+      - name: Sync a cada 5 minutos (~5h30)
         run: |
           if [ -z "$DATABASE_URL" ] || [ -z "$RIOT_API_KEY" ]; then
             echo "::notice::Segredos DATABASE_URL/RIOT_API_KEY ainda não configurados, pulando."
             exit 0
           fi
-          npx tsx scripts/sync-riot.ts
+          end=$(( $(date +%s) + 330 * 60 ))
+          while true; do
+            start=$(date +%s)
+            echo "::group::Rodada $(date -u +%H:%M) UTC"
+            # uma rodada que falha (Riot/Neon fora do ar) não derruba o laço
+            npx tsx scripts/sync-riot.ts || echo "::warning::Sync falhou às $(date -u +%H:%M) UTC; nova tentativa em 5 min."
+            echo "::endgroup::"
+            now=$(date +%s)
+            if [ $(( now + 300 )) -ge "$end" ]; then break; fi
+            wait=$(( 300 - (now - start) ))
+            if [ "$wait" -gt 0 ]; then sleep "$wait"; fi
+          done
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
@@ -50,9 +71,16 @@ jobs:
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           SYNC_MATCH_COUNT: "20"
           SYNC_STATE_FILE: .sync-state.json
-      # só salva um novo estado quando houve sincronização completa
-      - if: steps.sync.outputs.full == 'true'
+      - if: always() && hashFiles('.sync-state.json') != ''
         uses: actions/cache/save@v6
         with:
           path: .sync-state.json
           key: sync-state-${{ github.run_id }}
+      # emenda a próxima execução, sem depender do cron
+      # (cancelar a execução manualmente quebra a corrente; o cron religa depois)
+      - name: Dispara a próxima execução
+        if: ${{ !cancelled() && github.ref_name == 'main' }}
+        run: gh workflow run sync.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

@@ -56,8 +56,11 @@ export function scoreToTier(score: number) {
   return TIERS[Math.min(Math.floor(score / 400), 7)];
 }
 
-export const emblemUrl = (tier: string) =>
-  `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`;
+/**
+ * Emblemas de elo servidos pelo próprio site (public/emblems). Antes vinham do CommunityDragon,
+ * que passou a travar no navegador e deixava os emblemas em branco.
+ */
+export const emblemUrl = (tier: string) => `/emblems/${tier.toLowerCase()}.png`;
 
 export const riotId = (p: { gameName: string; tagLine: string }) => `${p.gameName}#${p.tagLine}`;
 

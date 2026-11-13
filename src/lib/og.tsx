@@ -24,6 +24,12 @@ export async function displayFont(text: string) {
   }
 }
 
+/** Emblema de elo de public/emblems embutido na imagem (o gerador de OG não resolve caminhos relativos). */
+export async function emblemDataUrl(tier: string) {
+  const buf = await readFile(join(process.cwd(), "public/emblems", `${tier.toLowerCase()}.png`));
+  return `data:image/png;base64,${buf.toString("base64")}`;
+}
+
 export async function logoDataUrl() {
   const buf = await readFile(join(process.cwd(), "public/brand/ingen-logo.png"));
   return `data:image/png;base64,${buf.toString("base64")}`;

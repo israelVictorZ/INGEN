@@ -3,7 +3,7 @@
 Site da organização de League of Legends **INGEN** (INGEN Black e INGEN Silver).
 
 Stack: Next.js 16 · Tailwind CSS v4 · GSAP + Lenis · Neon Postgres + Drizzle · Riot Games API.
-Direção visual em [`docs/design.md`](docs/design.md) · arquitetura em [`docs/arquitetura.md`](docs/arquitetura.md) · próximos passos em [`docs/roadmap.md`](docs/roadmap.md).
+Direção visual em [`docs/design.md`](docs/design.md) · arquitetura em [`docs/arquitetura.md`](docs/arquitetura.md) · planejamento e pendências em [`docs/planejamento.md`](docs/planejamento.md).
 
 ## Rodando localmente
 

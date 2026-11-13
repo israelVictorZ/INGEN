@@ -45,3 +45,6 @@ next-env.d.ts
 
 # estado do sync (modo sonda)
 .sync-state.json
+
+# PDFs gerados para download local (não vão para o site)
+docs/*.pdf

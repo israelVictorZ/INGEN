@@ -20,35 +20,37 @@
 ## Fluxo de dados da Riot
 
 ```
-Cron (Vercel, a cada ~15 min) ──> /api/cron/sync-riot ──> Riot API (br1 / americas)
-                                          │
+GitHub Actions (a cada 5 min) ──> scripts/sync-riot.ts ──> Riot API (br1 / americas) + Twitch
+                                          │  (modo sonda: só grava se algo mudou ou a cada 6h)
                                           ▼
                                    Neon Postgres  <── site lê SEMPRE daqui
 ```
 
 - O site **nunca** chama a Riot durante uma visita.
-- Chave de API só no servidor: variável `RIOT_API_KEY`.
-- Controle de rate limit: fila com limite de 20 req/s e 100 req/2min.
-- **Snapshot diário de elo** em `rank_snapshots` para o gráfico de evolução.
+- Depois de gravar, o sync avisa o site (`/api/revalidate`, com `REVALIDATE_SECRET`) e só então o site relê o banco. Sem novidade, o Neon fica desligado.
+- Chave de API só no GitHub Actions e no `.env` local: variável `RIOT_API_KEY`. Nunca vai para a Vercel.
+- **Chave:** Personal API Key (definitiva, não expira). Limite: 20 req/s e 100 req/2min; o sync usa 18/s e 95/2min.
 - Ícones de campeões, elos e lanes: **Data Dragon / CommunityDragon** (CDN).
-- **Importante:** a Development Key é proibida em produto público (aviso da própria Riot). Desenvolvemos localmente com ela; **antes de publicar** o site, precisamos da **Personal Key** (conta do capitão).
 
-## Modelo de dados (inicial)
+## Modelo de dados
 
 | Tabela | Campos principais |
 |---|---|
 | `teams` | `slug` (`black`, `silver`), nome, ordem de exibição (Black = 1), acento |
 | `players` | `puuid` (chave real), `game_name`, `tag_line`, nome de exibição, foto, bio |
 | `team_memberships` | jogador, time, lane (`TOP`/`JUNGLE`/`MID`/`ADC`/`SUPPORT`), `joined_at`, `left_at` |
+| `team_reserves` | reservas por time (fora de ranking, comparação e scouting) |
 | `open_slots` | time + lane com vaga aberta ("Recrutando") |
 | `social_links` | jogador, plataforma (twitch, youtube, instagram, x, tiktok…), URL |
-| `rank_snapshots` | jogador, fila, tier, divisão, LP, vitórias/derrotas, data |
-| `matches` / `match_participants` | cache das partidas e estatísticas por jogador |
-| `champion_stats` | agregado por jogador × campeão (jogos, winrate, KDA) |
-| `news` / `news_tags` | notícia, categoria, capa, corpo, fixada, times/jogadores marcados |
-| `tournaments` | campeonato, time, fase, resultado, link do chaveamento |
-| `recruitment_applications` | candidaturas às vagas |
-| `users` / `sessions` | admins do painel (Better Auth) |
+| `rank_snapshots` / `rank_history` | elo do dia e cada mudança de elo (gráfico, "PDL hoje", subidas) |
+| `champion_mastery` | top 10 campeões por maestria |
+| `matches` / `match_participants` | partidas Solo/Duo e as estatísticas de cada jogador da INGEN, incluindo vantagem de rota, objetivos e o `challenges` completo da Riot |
+| `match_players` | placar completo: os 10 participantes de cada partida (campeão, KDA, itens, runas) |
+| `match_teams` | cada lado da partida: resultado, bans e objetivos |
+| `match_timelines` | ouro/XP/CS aos 5/10/15/20 min, abates com posição, objetivos com tempo, ordem de itens e skills |
+| `live_status` / `live_sessions` | status atual da Twitch e histórico de transmissões |
+| `news` | notícias (ocultas por enquanto) |
+| `app_meta` | versão do Data Dragon e horário do último sync |
 
 ## Rotas (rascunho)
 

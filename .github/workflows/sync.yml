@@ -3,6 +3,8 @@ name: Sync Riot + Twitch
 # A cada 5 minutos: "sonda" Riot e Twitch sem acessar o banco.
 # Só grava no Neon quando algo mudou (partida nova, PDL, live) ou a cada 6h,
 # para não estourar a cota de horas de computação do plano gratuito.
+# Depois de gravar, avisa o site (/api/revalidate) para ele reler o banco; sem
+# novidade, o site não relê e o Neon pode desligar.
 #
 # Por que um laço e não só o cron: o GitHub trata o "schedule" como melhor esforço e,
 # na prática, disparava o "*/5" só de 4 em 4 horas. Então cada execução fica rodando
@@ -12,6 +14,7 @@ name: Sync Riot + Twitch
 #
 # Segredos (Settings → Secrets and variables → Actions):
 #   DATABASE_URL, RIOT_API_KEY  (obrigatórios)
+#   REVALIDATE_SECRET  (o mesmo valor da variável na Vercel; sem ele o site relê só de hora em hora)
 #   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET  (opcionais)
 on:
   schedule:
@@ -73,6 +76,8 @@ jobs:
           RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          SITE_URL: https://ingen-three.vercel.app
           SYNC_MATCH_COUNT: "20"
           SYNC_STATE_FILE: .sync-state.json
       - if: always() && hashFiles('.sync-state.json') != ''

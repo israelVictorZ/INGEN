@@ -279,8 +279,9 @@ function toRank(r: { tier: string; division: string; lp: number; wins: number; l
  */
 export async function getSiteData(): Promise<SiteData> {
   "use cache";
-  // revalida a cada 5 min (o sync roda a cada 30 min no GitHub Actions)
-  cacheLife({ stale: 60, revalidate: 300, expire: 86_400 });
+  // O sync avisa o site quando grava algo novo (/api/revalidate), então não é preciso reler o banco
+  // toda hora: reler a cada 5 min mantinha o Neon sempre ligado. A 1 h é só rede de segurança.
+  cacheLife({ stale: 60, revalidate: 3600, expire: 86_400 });
   cacheTag("site");
 
   const [teams, players, memberships, slots, socials, ranks, mastery, matches, parts, news, meta, history, lives, reserveRows] = await Promise.all([

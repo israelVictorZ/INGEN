@@ -357,6 +357,29 @@ async function fingerprint(state: Pick<SyncState, "players" | "channels">) {
   return `${parts.join(";")}#live:${live.join(",")}`;
 }
 
+/**
+ * Avisa o site (POST /api/revalidate) que há dado novo no banco, para ele reler na próxima visita.
+ * Sem o aviso o site só relê de hora em hora (rede de segurança), então uma falha aqui só atrasa.
+ * Precisa de SITE_URL e REVALIDATE_SECRET (o mesmo valor configurado na Vercel).
+ */
+async function notifySite() {
+  const site = process.env.SITE_URL?.replace(/\/+$/, "");
+  const secret = process.env.REVALIDATE_SECRET;
+  if (!site || !secret) {
+    console.log("Site não avisado (SITE_URL/REVALIDATE_SECRET ausentes): ele relê o banco em até 1 h.");
+    return;
+  }
+  try {
+    const res = await fetch(`${site}/api/revalidate`, { method: "POST", headers: { Authorization: `Bearer ${secret}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // visita a home para a releitura começar já, e não só quando chegar o próximo visitante
+    await fetch(site).catch(() => {});
+    console.log("Site avisado: vai reler o banco.");
+  } catch (e) {
+    console.warn(`::warning::Aviso ao site falhou (${(e as Error).message}); ele relê o banco em até 1 h.`);
+  }
+}
+
 function setOutput(key: string, value: string) {
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 }
@@ -384,6 +407,7 @@ async function main() {
 
   await syncRiot();
   if (ONLY.length) {
+    await notifySite();
     console.log(`
 ✔ Sync parcial (${ONLY.join(", ")}): ${calls} chamadas à Riot em ${Math.round((Date.now() - t0) / 1000)}s`);
     return;
@@ -394,6 +418,7 @@ async function main() {
   for (const [key, value] of [["ddragon_version", versions[0]], ["last_sync", new Date().toISOString()]]) {
     await db.insert(schema.appMeta).values({ key, value }).onConflictDoUpdate({ target: schema.appMeta.key, set: { value } });
   }
+  await notifySite();
 
   if (STATE_FILE) {
     const players = (await db.select({ id: schema.players.id, puuid: schema.players.puuid }).from(schema.players)).filter(

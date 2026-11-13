@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FEATURES, LINKS } from "@/lib/features";
 import { TeamTwitchNavLink } from "@/components/live/Live";
-import { DiscordIcon, InstagramIcon } from "@/components/brand/SocialIcons";
+import { DiscordIcon, InstagramIcon, XIcon, YouTubeIcon } from "@/components/brand/SocialIcons";
 
 const ALL_NAV = [
   { href: "/elenco", label: "Elenco" },
@@ -84,6 +84,24 @@ export function Header() {
           >
             <InstagramIcon className="size-[18px]" />
           </a>
+          <a
+            href={LINKS.youtube}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="YouTube da INGEN"
+            className="px-2 py-2 text-gray transition-colors hover:text-[#ff4e45]"
+          >
+            <YouTubeIcon className="size-[18px]" />
+          </a>
+          <a
+            href={LINKS.x}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="X da INGEN"
+            className="px-2 py-2 text-gray transition-colors hover:text-white"
+          >
+            <XIcon className="size-4" />
+          </a>
         </nav>
 
         <div className="flex items-center gap-3 md:hidden">
@@ -129,6 +147,22 @@ export function Header() {
               className="clip-step-sm flex items-center justify-center gap-2 bg-[#5865f2] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
             >
               <DiscordIcon /> Discord ↗
+            </a>
+            <a
+              href={LINKS.youtube}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clip-step-sm flex items-center justify-center gap-2 bg-[#ff0033] py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
+            >
+              <YouTubeIcon /> YouTube ↗
+            </a>
+            <a
+              href={LINKS.x}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clip-step-sm flex items-center justify-center gap-2 border border-line bg-black py-3 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white"
+            >
+              <XIcon /> X ↗
             </a>
             <a
               href={LINKS.instagram}

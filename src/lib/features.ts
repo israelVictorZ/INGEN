@@ -12,6 +12,8 @@ export const LINKS = {
   discord: "https://discord.gg/aArbDqdrMY",
   twitch: `https://www.twitch.tv/${TEAM_TWITCH_CHANNEL}`,
   instagram: "https://www.instagram.com/ingen.gg/",
+  youtube: "https://www.youtube.com/@ingengg",
+  x: "https://x.com/ingen_gg",
 } as const;
 
 /** Para onde as vagas abertas apontam: o Discord do time. */

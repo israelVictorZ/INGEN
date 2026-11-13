@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FEATURES, LINKS } from "@/lib/features";
 import { Suspense } from "react";
-import { DiscordIcon, InstagramIcon, TwitchIcon } from "@/components/brand/SocialIcons";
+import { DiscordIcon, InstagramIcon, TwitchIcon, XIcon, YouTubeIcon } from "@/components/brand/SocialIcons";
 import { getSiteData } from "@/lib/data";
 import { SyncStatus } from "./SyncStatus";
 
@@ -59,6 +59,16 @@ export function Footer() {
             <li>
               <a className="inline-flex items-center gap-2 text-white-dim hover:text-[#ff6fae]" href={LINKS.instagram} target="_blank" rel="noopener noreferrer">
                 <InstagramIcon /> @ingen.gg
+              </a>
+            </li>
+            <li>
+              <a className="inline-flex items-center gap-2 text-white-dim hover:text-[#ff4e45]" href={LINKS.youtube} target="_blank" rel="noopener noreferrer">
+                <YouTubeIcon /> youtube.com/@ingengg
+              </a>
+            </li>
+            <li>
+              <a className="inline-flex items-center gap-2 text-white-dim hover:text-white" href={LINKS.x} target="_blank" rel="noopener noreferrer">
+                <XIcon /> @ingen_gg
               </a>
             </li>
           </ul>

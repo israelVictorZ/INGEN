@@ -27,7 +27,7 @@ export const ORG_LD = {
   url: SITE_URL,
   logo: abs("/brand/ingen-logo.png"),
   sport: "League of Legends",
-  sameAs: [LINKS.twitch, LINKS.discord, LINKS.instagram],
+  sameAs: [LINKS.twitch, LINKS.discord, LINKS.instagram, LINKS.youtube, LINKS.x],
 } as const;
 
 /**

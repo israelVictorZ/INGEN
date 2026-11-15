@@ -90,7 +90,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
     .filter((p) => p.end != null)
     .map((p) => ({ slug: p.s.slug, name: p.s.name, color: p.s.color, target: (y(p.end!) / H) * 100, y: 0 }))
     .sort((a, b) => a.target - b.target);
-  const gap = 4.6; // % da altura (~15px em 320px)
+  const gap = 3.5; // % da altura (~15px nos 440px do desktop)
   const place = (g: typeof labels) => {
     const mean = g.reduce((acc, l) => acc + l.target, 0) / g.length;
     return Math.min(Math.max(mean - ((g.length - 1) * gap) / 2, 0), 100 - (g.length - 1) * gap);
@@ -168,7 +168,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
       </ul>
 
       {/* à direita: espaço para os nomes no fim das linhas (nomes longos, ex.: "Galo Soviético") */}
-      <div className="relative mt-5 pl-[62px] md:pl-[86px] md:pr-[136px]">
+      <div className="relative mt-5 pl-[62px] md:pl-[86px] md:pr-[148px]">
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[56px] md:w-[80px]">
           {ticks.map((v) => (
             <span key={v} className="absolute right-0 -translate-y-1/2 text-right font-mono text-[0.5rem] uppercase leading-tight tracking-wider text-gray-dim md:text-[0.56rem]" style={{ top: `${(y(v) / H) * 100}%` }}>
@@ -177,7 +177,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
           ))}
         </div>
         <div ref={box} className="relative" onPointerMove={onMove} onPointerLeave={() => setHoverT(null)}>
-          <svg viewBox={`0 0 ${W} ${H}`} className="h-[260px] w-full overflow-visible md:h-[320px]" preserveAspectRatio="none" role="img" aria-label="Evolução de elo dos jogadores da INGEN">
+          <svg viewBox={`0 0 ${W} ${H}`} className="h-[260px] w-full overflow-visible md:h-[440px]" preserveAspectRatio="none" role="img" aria-label="Evolução de elo dos jogadores da INGEN">
             {ticks.map((v) => (
               <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / .06)" vectorEffect="non-scaling-stroke" />
             ))}
@@ -209,12 +209,34 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
               />
             ) : null,
           )}
-          {/* nomes no fim das linhas */}
+          {/* fios ligando o fim de cada linha ao seu nome (quando os nomes se afastam das linhas) */}
+          <svg
+            aria-hidden
+            viewBox="0 0 12 100"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute left-full top-0 hidden h-full w-3 overflow-visible md:block"
+          >
+            {labels.map((l) => {
+              const ly = focus === l.slug ? l.target : l.y;
+              return Math.abs(ly - l.target) > 0.3 ? (
+                <polyline
+                  key={l.slug}
+                  points={`0,${l.target} 4,${l.target} 12,${ly}`}
+                  fill="none"
+                  stroke={l.color}
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ opacity: focus && focus !== l.slug ? 0.15 : 0.6 }}
+                />
+              ) : null;
+            })}
+          </svg>
+          {/* nomes no fim das linhas; o destacado vai exatamente para a altura da sua linha */}
           {labels.map((l) => (
             <span
               key={l.slug}
-              className={`pointer-events-none absolute left-full ml-2 hidden -translate-y-1/2 whitespace-nowrap md:block font-mono text-[0.6rem] uppercase tracking-wider transition-opacity ${focus && focus !== l.slug ? "opacity-25" : ""}`}
-              style={{ top: `${l.y}%` }}
+              className={`pointer-events-none absolute left-full ml-3.5 hidden -translate-y-1/2 whitespace-nowrap md:block font-mono text-[0.6rem] uppercase tracking-wider transition-[opacity,top] duration-200 ${focus && focus !== l.slug ? "opacity-25" : ""} ${focus === l.slug ? "z-10 bg-bg-2 pr-1" : ""}`}
+              style={{ top: `${focus === l.slug ? l.target : l.y}%` }}
             >
               <span className="mr-1 inline-block size-1.5 rounded-full align-middle" style={{ background: l.color }} />
               <span className="text-white-dim">{l.name}</span>

@@ -1,7 +1,7 @@
 # Planejamento INGEN
 
 > Arquivo único de pendências e prioridades. Substitui `roadmap.md`, `melhorias.md`, `fase-2-o-que-melhorar.md` e `fase-2-ingen-lives.md`.
-> Atualizado em 15/11/2026 (chamada da Copa Rift Masters na home, item 3 da Onda 2; categoria "Em teste" no elenco, item 2; times renomeados para INGEN Aces e INGEN Jokers, item 1; Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
+> Atualizado em 15/11/2026 (ajustes de uso no celular: aviso de live fechado por padrão; chamada da Copa Rift Masters na home, item 3 da Onda 2; categoria "Em teste" no elenco, item 2; times renomeados para INGEN Aces e INGEN Jokers, item 1; Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
@@ -299,6 +299,7 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 - Novos nomes dos times (I16, item 1 da Onda 2, 15/11/2026): INGEN Black → INGEN Aces e INGEN Silver → INGEN Jokers no site, SEO, imagem de compartilhamento, overlays, widget do StreamElements, skills e docs. Mapa único em `src/lib/teams.ts` (cópia em `public/stream/core/ingen.js`); endereços novos com redirecionamento temporário (307) dos antigos; `npm run manage` aceita `--team aces|jokers`.
 - Categoria "Em teste" (item 2 da Onda 2, 15/11/2026): um tipo de reserva (coluna `kind` em `team_reserves`, migração 0004) com o rótulo "Em teste" no elenco, scouting, ranking, Comparar e texto do Discord; `npm run manage -- trial:add|trial:remove`. Primeiros em teste: Blackzera (Blackzera#BLK) e Galo Soviético (Galo Soviético#Ronin), TOP da INGEN Aces.
 - CTA do Rift Masters na home (I05, item 3 da Onda 2, 15/11/2026): faixa da Copa Rift Masters 2026 logo após o letreiro, com logo, estreia e links para a Twitch e o site do campeonato; desliga com `enabled: false` em `src/lib/rift-masters.ts`.
+- Ajustes de uso no celular (15/11/2026, pedido do capitão): o aviso flutuante da live começa fechado (só a pílula "Ao vivo") e o "–" virou o botão "Fechar"; ícone da Twitch do topo e dicas (i) com área de toque maior. Varredura rápida no celular sem rolagem lateral em nenhuma página.
 
 ---
 
@@ -330,5 +331,6 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 15/11 | **Times renomeados:** INGEN Black vira **INGEN Aces** e INGEN Silver vira **INGEN Jokers** (site, overlays, StreamElements, skills e docs), com endereços novos e os antigos redirecionando; publicado (`main` → Vercel) | branch `feat/times-aces-jokers` e Vercel |
 | 15/11 | **Categoria "Em teste"** no elenco (mesma funcionalidade das reservas, rótulo próprio); migração no banco (Neon); entram em teste Blackzera e Galo Soviético, TOP da INGEN Aces; publicado (`main` → Vercel) | branch `feat/em-teste`, Neon e Vercel |
 | 15/11 | **Chamada da Copa Rift Masters 2026** na home (estreia seg. 16/11, 20h; Twitch e site do campeonato); publicado (`main` → Vercel) | branch `feat/cta-rift-masters` e Vercel |
+| 15/11 | **Ajustes de uso no celular:** aviso da live fechado por padrão (cobria a tela no celular do capitão), botão "Fechar" e áreas de toque maiores; publicado (`main` → Vercel) | branch `fix/ux-live-celular` e Vercel |
 
 **Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

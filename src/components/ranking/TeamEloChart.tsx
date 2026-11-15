@@ -107,7 +107,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
               type="button"
               aria-pressed={range === x.k}
               onClick={() => setRange(x.k)}
-              className={`px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.14em] transition-colors ${range === x.k ? "bg-green text-bg-0" : "bg-bg-3 text-white hover:bg-[#232831]"}`}
+              className={`min-h-9 px-3 py-1.5 font-mono text-[0.62rem] uppercase md:min-h-0 tracking-[0.14em] transition-colors ${range === x.k ? "bg-green text-bg-0" : "bg-bg-3 text-white hover:bg-[#232831]"}`}
             >
               {x.label}
             </button>
@@ -115,17 +115,22 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
         </div>
       </div>
 
-      {/* legenda: clicar/passar o mouse destaca */}
-      <ul className="mt-5 flex flex-wrap gap-x-4 gap-y-2">
+      {/* legenda: passar o mouse destaca; no toque, tocar liga e desliga o destaque */}
+      <ul className="mt-4 flex flex-wrap gap-x-4 md:mt-5 md:gap-y-2">
         {series.map((s) => (
           <li key={s.slug}>
             <button
               type="button"
-              onPointerEnter={() => setFocus(s.slug)}
-              onPointerLeave={() => setFocus(null)}
-              onFocus={() => setFocus(s.slug)}
+              aria-pressed={focus === s.slug}
+              onPointerEnter={(e) => e.pointerType === "mouse" && setFocus(s.slug)}
+              onPointerLeave={(e) => e.pointerType === "mouse" && setFocus(null)}
+              onClick={(e) => {
+                const t = (e.nativeEvent as PointerEvent).pointerType;
+                if (t === "touch" || t === "pen") setFocus((f) => (f === s.slug ? null : s.slug));
+              }}
+              onFocus={(e) => e.currentTarget.matches(":focus-visible") && setFocus(s.slug)}
               onBlur={() => setFocus(null)}
-              className={`flex items-center gap-2 font-mono text-[0.68rem] transition-opacity ${focus && focus !== s.slug ? "opacity-40" : ""} ${s.pts.length ? "text-white-dim" : "text-gray-dim"}`}
+              className={`flex min-h-9 items-center gap-2 font-mono text-[0.68rem] transition-opacity md:min-h-0 ${focus && focus !== s.slug ? "opacity-40" : ""} ${s.pts.length ? "text-white-dim" : "text-gray-dim"}`}
             >
               <span className="h-0 w-4 border-t-2" style={{ borderColor: s.color, borderStyle: s.dashed ? "dashed" : "solid" }} />
               {s.name}

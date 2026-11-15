@@ -27,6 +27,7 @@ async function getComparePlayers(): Promise<{ version: string; until: number | n
     players: [...players, ...reserves].map((p) => ({
       slug: p.slug,
       reserve: p.reserve,
+      trial: p.trial,
       href: p.reserve ? opggUrl(p) : `/jogador/${p.slug}`,
       name: p.displayName,
       riotId: riotId(p),

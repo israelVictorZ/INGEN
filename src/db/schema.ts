@@ -64,7 +64,11 @@ export const teamMemberships = pgTable(
  * scouting, médias do time nem têm página própria; só aparecem discretos no /elenco.
  * Cada time tem os seus (uma linha por time; a mesma conta pode estar nos dois).
  * `role` é opcional: sem ela, o site mostra a lane mais jogada nas Solo/Duo recentes.
+ * `kind`: "reserve" (reserva) ou "trial" (em teste). Os dois funcionam igual; só muda o rótulo no site.
  */
+/** Tipo de não titular: reserva ou em teste (mesma funcionalidade, rótulo diferente). */
+export type BenchKind = "reserve" | "trial";
+
 export const teamReserves = pgTable(
   "team_reserves",
   {
@@ -76,6 +80,7 @@ export const teamReserves = pgTable(
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
     role: text("role").$type<Role>(),
+    kind: text("kind").$type<BenchKind>().notNull().default("reserve"),
     joinedAt: date("joined_at").notNull().defaultNow(),
     leftAt: date("left_at"),
   },

@@ -1,30 +1,30 @@
 import Image from "next/image";
 import type { Player } from "@/lib/data";
 import { LaneIcon } from "@/components/brand/LaneIcon";
-import { ROLE_META, TIER_META, opggUrl, pct, rankLabel } from "@/lib/format";
+import { ROLE_META, TIER_META, benchGroups, opggUrl, pct, rankLabel } from "@/lib/format";
 import { championIcon } from "@/lib/ddragon-urls";
 
 /**
- * Reservas do time: bloco discreto abaixo dos titulares (sem splash, sem tilt, tons apagados).
- * Reserva não tem página própria, então o card leva ao op.gg.
- * Sem reservas, o componente não renderiza nada (nem título nem espaçamento).
+ * Reservas e jogadores em teste do time: blocos discretos abaixo dos titulares (sem splash, sem tilt,
+ * tons apagados), um para "Reservas" e outro para "Em teste", com o mesmo card.
+ * Não têm página própria, então o card leva ao op.gg.
+ * Grupo vazio não renderiza nada (nem título nem espaçamento).
  */
 export function ReserveList({ reserves, version }: { reserves: Player[]; version: string }) {
-  if (!reserves.length) return null;
-  return (
-    <div data-reveal="up" className="mt-10 border-t border-line pt-6 md:mt-12">
+  return benchGroups(reserves).map((g) => (
+    <div key={g.label} data-reveal="up" className="mt-10 border-t border-line pt-6 md:mt-12">
       <p className="label-mono flex items-center gap-3 text-[0.62rem]">
-        Reservas <span className="font-pixel text-xs text-white/25">{String(reserves.length).padStart(2, "0")}</span>
+        {g.label} <span className="font-pixel text-xs text-white/25">{String(g.players.length).padStart(2, "0")}</span>
       </p>
       <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {reserves.map((r) => (
+        {g.players.map((r) => (
           <li key={r.slug}>
             <ReserveCard r={r} version={version} />
           </li>
         ))}
       </ul>
     </div>
-  );
+  ));
 }
 
 function ReserveCard({ r, version }: { r: Player; version: string }) {

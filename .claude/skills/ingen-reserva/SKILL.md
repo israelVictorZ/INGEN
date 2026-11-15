@@ -1,9 +1,11 @@
 ---
 name: ingen-reserva
-description: Adiciona ou remove jogadores RESERVA de um time da INGEN (INGEN Aces / INGEN Jokers, antigas Black / Silver) e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) dizendo que é reserva/suplente/sub de uma line ou time, ou pedir para tirar alguém da reserva.
+description: Adiciona ou remove jogadores RESERVA ou EM TESTE de um time da INGEN (INGEN Aces / INGEN Jokers, antigas Black / Silver) e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) dizendo que é reserva/suplente/sub ou que está em teste/teste/trial/peneira numa line ou time, ou pedir para tirar alguém da reserva ou do teste.
 ---
 
-# Gerenciar reservas da INGEN
+# Gerenciar reservas e jogadores em teste da INGEN
+
+**Em teste** é um tipo de reserva: mesma funcionalidade e mesmos cards, só que o site mostra "Em teste" em vez de "Reserva" (bloco "Em teste" no `/elenco` e no scouting, rótulo "Em teste" no ranking e no Comparar). Tudo abaixo vale para os dois; troque `reserve:` por `trial:` nos comandos quando for em teste.
 
 Reserva **não é titular**: fica na tabela `team_reserves` (fora de `team_memberships`), então não ocupa lane, não fecha vaga aberta e não entra em ranking, comparação, scouting, médias do time nem tem página própria. No site, aparece só no `/elenco`, num bloco discreto **"Reservas"** abaixo dos cards dos titulares, com um card simples (lane, nome, Riot ID, 3 campeões mais jogados, elo, winrate) que leva ao op.gg. Time sem reservas não mostra nada desse bloco.
 
@@ -34,7 +36,10 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
    - Adicionar:
      ```bash
      npm run manage -- reserve:add --riot "Nome#TAG" --team aces [--role MID] [--name "Exibição"]
+     # em teste:
+     npm run manage -- trial:add --riot "Nome#TAG" --team aces [--role TOP] [--name "Exibição"]
      ```
+     - Se a pessoa já for do outro tipo nesse time (ex.: em teste e agora vira reserva), o script só troca o tipo.
      - Valida a conta na Riot e reaproveita o jogador se ele já existe no banco (ex.: ex-titular), senão cria.
      - Recusa se a pessoa já for **titular** do mesmo time. Pergunte ao usuário se é para rebaixar; se sim, primeiro `player:remove --slug <slug>` (skill `ingen-jogador`) e depois o `reserve:add`.
      - Se já for reserva desse time, só atualiza a lane (quando `--role` é passado).
@@ -42,6 +47,8 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
    - Remover:
      ```bash
      npm run manage -- reserve:remove --slug <slug> [--team aces|jokers]
+     # em teste:
+     npm run manage -- trial:remove --slug <slug> [--team aces|jokers]
      ```
      - Sem `--team`, tira da reserva de todos os times. O jogador continua no banco (histórico com data de saída).
    - **Promover reserva a titular:** use a skill `ingen-jogador` (`player:add` com o mesmo Riot ID, o time e a lane). O script já tira a pessoa da reserva daquele time.
@@ -55,13 +62,13 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 
 5. **Publicar na Vercel.** Mudança só de dados: um commit vazio dispara o deploy e limpa o cache. Trabalhe na `main` (ou faça fast-forward da branch atual para a `main`):
    ```bash
-   git commit --allow-empty -m "elenco: <resumo, ex.: Fulano entra como reserva da INGEN Aces>" && git push origin main
+   git commit --allow-empty -m "elenco: <resumo, ex.: Fulano entra como reserva da INGEN Aces / Fulano entra em teste na INGEN Aces>" && git push origin main
    ```
-   - Pré-requisito: o suporte a reservas (`src/components/roster/ReserveList.tsx`) precisa estar na `main`. Confira com `git show origin/main:src/components/roster/ReserveList.tsx > /dev/null`; se falhar, avise o usuário que o código ainda não foi publicado e não faça o commit vazio.
+   - Pré-requisito: o suporte a reservas (`src/components/roster/ReserveList.tsx`) precisa estar na `main` (para em teste, também `benchGroups` em `src/lib/format.ts`). Confira com `git show origin/main:src/components/roster/ReserveList.tsx > /dev/null`; se falhar, avise o usuário que o código ainda não foi publicado e não faça o commit vazio.
 
 6. **Verificar em produção** (o deploy leva ~1–2 min):
    ```bash
-   curl -s https://ingengg.com.br/elenco | grep -o "Reservas" | head -1
+   curl -s https://ingengg.com.br/elenco | grep -o "Reservas" | head -1   # em teste: grep -o "Em teste"
    curl -s https://ingengg.com.br/elenco | grep -c "<Nome#TAG>"
    ```
    - Ao adicionar: "Reservas" aparece e a contagem do Riot ID é maior que 0.
@@ -70,7 +77,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 ## Relatório ao usuário
 
 Em português, curto:
-- quem entrou ou saiu da reserva, e de qual time;
+- quem entrou ou saiu da reserva ou do teste, e de qual time;
 - a lane (cadastrada ou "a mais jogada nas Solo/Duo") e o elo puxado da Riot;
 - o link `https://ingengg.com.br/elenco#<aces|jokers>` e o resultado da verificação.
 

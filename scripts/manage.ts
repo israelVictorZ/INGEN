@@ -7,6 +7,7 @@
  *   npx tsx scripts/manage.ts player:rename --slug atual --to novo [--name "Exibição"]   (antigo vira redirecionamento 308)
  *   npx tsx scripts/manage.ts reserve:add --riot "Nome#TAG" --team aces|jokers [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug]
  *   npx tsx scripts/manage.ts reserve:remove --slug slug [--team aces|jokers]   (sem --team: sai de todos os times)
+ *   npx tsx scripts/manage.ts trial:add / trial:remove   (mesmos parâmetros: jogador "Em teste", um tipo de reserva)
  *   npx tsx scripts/manage.ts twitch:set --slug slug --url https://www.twitch.tv/canal
  *   npx tsx scripts/manage.ts twitch:remove --slug slug
  *   npx tsx scripts/manage.ts twitch:export   (regrava src/lib/twitch-channels.json; set/remove/rename já fazem isso)
@@ -19,7 +20,7 @@ import "dotenv/config";
 import { readFileSync, writeFileSync } from "node:fs";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "../src/db";
-import { ROLES, type Role } from "../src/db/schema";
+import { ROLES, type BenchKind, type Role } from "../src/db/schema";
 import { teamDisplay, teamIdFrom } from "../src/lib/teams";
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -88,7 +89,7 @@ async function list() {
     }
     for (const rv of reserves.filter((x) => x.teamId === t.id)) {
       const p = players.find((x) => x.id === rv.playerId)!;
-      console.log(`  RESERVA ${p.displayName} [${p.slug}] ${p.gameName}#${p.tagLine}${rv.role ? ` (${rv.role})` : ""}`);
+      console.log(`  ${rv.kind === "trial" ? "EM TESTE" : "RESERVA "} ${p.displayName} [${p.slug}] ${p.gameName}#${p.tagLine}${rv.role ? ` (${rv.role})` : ""}`);
     }
   }
   const out = players.filter((p) => !ms.some((m) => m.playerId === p.id) && !reserves.some((r) => r.playerId === p.id));
@@ -158,7 +159,7 @@ async function playerAdd() {
     .set({ leftAt: today() })
     .where(and(eq(schema.teamReserves.playerId, player.id), eq(schema.teamReserves.teamId, team.id), isNull(schema.teamReserves.leftAt)))
     .returning();
-  if (promoted.length) console.log("↑ Era reserva deste time: saiu da reserva.");
+  if (promoted.length) console.log(`↑ Era ${benchWord(promoted[0].kind)} deste time: saiu de ${benchWord(promoted[0].kind)}.`);
 
   console.log(`✔ ${displayName} [${slug}] entrou na ${team.name} como ${role}.`);
   console.log(`  Próximo passo: SYNC_MATCH_COUNT=50 npm run sync (puxa elo, maestria e partidas).`);
@@ -180,11 +181,15 @@ async function playerRemove() {
   await db.delete(schema.liveStatus).where(eq(schema.liveStatus.playerId, p.id));
 }
 
+/** Rótulo do tipo de não titular nas mensagens: "reserva" ou "em teste". */
+const benchWord = (kind: BenchKind) => (kind === "trial" ? "em teste" : "reserva");
+
 /**
- * Reserva: entra em team_reserves (não em team_memberships), então não ocupa lane,
- * não fecha vaga e não aparece em ranking/comparação/scouting. Um registro por time.
+ * Reserva ou em teste: entra em team_reserves (não em team_memberships), então não ocupa lane
+ * nem fecha vaga. Um registro por time. Os dois tipos funcionam igual; só muda o rótulo no site.
+ * Se a pessoa já for do outro tipo nesse time, só troca o tipo (ex.: de "em teste" para reserva).
  */
-async function reserveAdd() {
+async function benchAdd(kind: BenchKind) {
   const riotId = str("riot") ?? fail('Informe --riot "Nome#TAG"');
   const [gameName, tagLine] = riotId.split("#");
   if (!gameName || !tagLine) fail('Riot ID inválido. Formato: "Nome#TAG"');
@@ -215,33 +220,41 @@ async function reserveAdd() {
     .select()
     .from(schema.teamMemberships)
     .where(and(eq(schema.teamMemberships.playerId, player.id), eq(schema.teamMemberships.teamId, team.id), isNull(schema.teamMemberships.leftAt)));
-  if (starter) fail(`${player.displayName} já é titular da ${team.name} (${starter.role}). Para virar reserva, remova-o primeiro com player:remove.`);
+  if (starter) fail(`${player.displayName} já é titular da ${team.name} (${starter.role}). Para virar ${benchWord(kind)}, remova-o primeiro com player:remove.`);
 
   const [already] = await db
     .select()
     .from(schema.teamReserves)
     .where(and(eq(schema.teamReserves.playerId, player.id), eq(schema.teamReserves.teamId, team.id), isNull(schema.teamReserves.leftAt)));
   if (already) {
-    await db.update(schema.teamReserves).set({ role: role ?? already.role }).where(eq(schema.teamReserves.id, already.id));
-    console.log(`ℹ ${player.displayName} já era reserva da ${team.name}${role ? `; lane atualizada para ${role}` : ""}.`);
+    await db.update(schema.teamReserves).set({ role: role ?? already.role, kind }).where(eq(schema.teamReserves.id, already.id));
+    const changed = already.kind !== kind ? `; passou de ${benchWord(already.kind)} para ${benchWord(kind)}` : "";
+    console.log(`ℹ ${player.displayName} já era ${benchWord(already.kind)} da ${team.name}${changed}${role ? `; lane atualizada para ${role}` : ""}.`);
     return;
   }
-  await db.insert(schema.teamReserves).values({ playerId: player.id, teamId: team.id, role: role ?? null });
-  console.log(`✔ ${player.displayName} [${player.slug}] entrou como reserva da ${team.name}${role ? ` (${role})` : " (lane: a mais jogada nas Solo/Duo)"}.`);
+  await db.insert(schema.teamReserves).values({ playerId: player.id, teamId: team.id, role: role ?? null, kind });
+  console.log(`✔ ${player.displayName} [${player.slug}] entrou como ${benchWord(kind)} da ${team.name}${role ? ` (${role})` : " (lane: a mais jogada nas Solo/Duo)"}.`);
   console.log(`  Próximo passo: SYNC_MATCH_COUNT=50 npm run sync (puxa elo, maestria e partidas).`);
 }
 
-async function reserveRemove() {
+async function benchRemove(kind: BenchKind) {
   const p = await playerBySlug(str("slug") ?? fail("Informe --slug"));
   const teamSlug = str("team");
   const team = teamSlug ? await teamBySlug(teamSlug) : null;
   const closed = await db
     .update(schema.teamReserves)
     .set({ leftAt: today() })
-    .where(and(eq(schema.teamReserves.playerId, p.id), isNull(schema.teamReserves.leftAt), ...(team ? [eq(schema.teamReserves.teamId, team.id)] : [])))
+    .where(
+      and(
+        eq(schema.teamReserves.playerId, p.id),
+        eq(schema.teamReserves.kind, kind),
+        isNull(schema.teamReserves.leftAt),
+        ...(team ? [eq(schema.teamReserves.teamId, team.id)] : []),
+      ),
+    )
     .returning();
-  if (!closed.length) fail(`${p.displayName} não é reserva${team ? ` da ${team.name}` : " de nenhum time"}.`);
-  console.log(`✔ ${p.displayName} saiu da reserva (${closed.length} time${closed.length > 1 ? "s" : ""}).`);
+  if (!closed.length) fail(`${p.displayName} não está como ${benchWord(kind)}${team ? ` na ${team.name}` : " em nenhum time"}.`);
+  console.log(`✔ ${p.displayName} saiu de ${benchWord(kind)} (${closed.length} time${closed.length > 1 ? "s" : ""}).`);
 }
 
 const channelOf = (url: string) => url.replace(/\/+$/, "").split("/").pop()!.toLowerCase();
@@ -331,8 +344,10 @@ const commands: Record<string, () => Promise<void>> = {
   "player:add": playerAdd,
   "player:remove": playerRemove,
   "player:rename": playerRename,
-  "reserve:add": reserveAdd,
-  "reserve:remove": reserveRemove,
+  "reserve:add": () => benchAdd("reserve"),
+  "reserve:remove": () => benchRemove("reserve"),
+  "trial:add": () => benchAdd("trial"),
+  "trial:remove": () => benchRemove("trial"),
   "twitch:set": twitchSet,
   "twitch:remove": twitchRemove,
   "twitch:export": twitchExport,

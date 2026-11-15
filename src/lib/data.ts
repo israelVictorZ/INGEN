@@ -173,13 +173,15 @@ export type Player = {
   live: { channel: string; isLive: boolean; title: string | null; viewers: number | null } | null;
   /** reserva: fora do elenco titular (sem página própria; aparece no /elenco e no /ranking) */
   reserve: boolean;
+  /** em teste: um tipo de reserva (mesma funcionalidade), exibido como "Em teste" (ver benchLabel) */
+  trial: boolean;
 };
 
 export type Team = TeamRef & {
   tagline: string | null;
   slots: ({ kind: "player"; role: Role; player: Player } | { kind: "open"; role: Role })[];
   players: Player[];
-  /** reservas do time (vazio = a seção some do /elenco) */
+  /** reservas e jogadores em teste do time (vazio = a seção some do /elenco) */
   reserves: Player[];
   avgScore: number | null;
   stats: { games: number; winrate: number } | null;
@@ -589,6 +591,7 @@ export async function getSiteData(): Promise<SiteData> {
       insights,
       live: live ? { channel: live.channel, isLive: live.isLive, title: live.title, viewers: live.viewers } : null,
       reserve,
+      trial: false,
     };
   };
 
@@ -605,9 +608,12 @@ export async function getSiteData(): Promise<SiteData> {
   for (const r of reserveRows) {
     const p = players.find((x) => x.id === r.playerId);
     const built = p && buildPlayer(p, r.teamId, r.role, true);
-    if (built) builtReserves.push(built);
+    if (built) builtReserves.push({ ...built, trial: r.kind === "trial" });
   }
-  builtReserves.sort((a, b) => a.team.sortOrder - b.team.sortOrder || ROLE_META[a.role].order - ROLE_META[b.role].order);
+  // por time; dentro do time, reservas antes dos jogadores em teste; depois por lane
+  builtReserves.sort(
+    (a, b) => a.team.sortOrder - b.team.sortOrder || Number(a.trial) - Number(b.trial) || ROLE_META[a.role].order - ROLE_META[b.role].order,
+  );
 
   const builtTeams: Team[] = teams
     .sort((a, b) => a.sortOrder - b.sortOrder)

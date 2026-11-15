@@ -105,3 +105,14 @@ export const NEWS_CATEGORY_LABEL: Record<string, string> = {
   comunicado: "Comunicado",
   resultado: "Resultado",
 };
+
+/** Rótulo de quem não é titular: "Em teste" ou "Reserva" (mesma funcionalidade, só muda o nome). */
+export const benchLabel = (p: { trial?: boolean }) => (p.trial ? "Em teste" : "Reserva");
+/** Título do grupo: "Em teste" ou "Reservas". */
+export const benchGroupLabel = (trial: boolean) => (trial ? "Em teste" : "Reservas");
+/** Separa os não titulares em grupos (reservas primeiro), só os que têm alguém. */
+export function benchGroups<T extends { trial?: boolean }>(list: T[]): { trial: boolean; label: string; players: T[] }[] {
+  return [false, true]
+    .map((trial) => ({ trial, label: benchGroupLabel(trial), players: list.filter((p) => !!p.trial === trial) }))
+    .filter((g) => g.players.length > 0);
+}

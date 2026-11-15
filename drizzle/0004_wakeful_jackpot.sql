@@ -1,0 +1,1 @@
+ALTER TABLE "team_reserves" ADD COLUMN "kind" text DEFAULT 'reserve' NOT NULL;

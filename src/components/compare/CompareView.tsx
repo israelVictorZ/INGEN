@@ -12,13 +12,15 @@ import { LaneIcon } from "@/components/brand/LaneIcon";
 import { Select, type SelectOption } from "@/components/ui/Select";
 import { MetricLabel } from "@/components/ui/InfoTip";
 import { championIcon, championSplash } from "@/lib/ddragon-urls";
-import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
+import { ROLE_META, TIER_META, rankLabel, scoreToLabel, benchLabel, benchGroupLabel } from "@/lib/format";
 import { TEAM_DISPLAY } from "@/lib/teams";
 
 export type ComparePlayer = {
   slug: string;
   /** reserva: grupo próprio no select, fora dos duelos de lane padrão */
   reserve: boolean;
+  /** em teste: tipo de reserva, com rótulo próprio */
+  trial: boolean;
   /** perfil do titular ou op.gg do reserva */
   href: string;
   name: string;
@@ -390,7 +392,7 @@ export function CompareView({
   const options: SelectOption[] = players.map((m) => ({
     value: m.slug,
     label: m.name,
-    group: m.reserve ? "Reservas" : m.team.name,
+    group: m.reserve ? benchGroupLabel(m.trial) : m.team.name,
     keywords: `${ROLE_META[m.role].label} ${ROLE_META[m.role].short} ${m.tier ? rankLabel(m.tier, m.division ?? "") : ""}`,
   }));
   const bySlug = (slug: string | undefined) => players.find((p) => p.slug === slug);
@@ -453,7 +455,7 @@ export function CompareView({
             <span className="label-mono min-w-0 truncate text-[0.58rem] sm:text-[0.68rem]">
               <span className="hidden sm:inline">{ROLE_META[p.role].label} · </span>
               <span className={p.team.accent === "silver" ? "text-silver" : "text-green"}>{p.team.name}</span>
-              {p.reserve && <span className="text-gray-dim"> · Reserva</span>}
+              {p.reserve && <span className="text-gray-dim"> · {benchLabel(p)}</span>}
             </span>
           </div>
           <div className="overflow-hidden">

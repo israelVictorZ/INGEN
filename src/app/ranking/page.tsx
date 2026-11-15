@@ -8,7 +8,7 @@ import { LaneIcon } from "@/components/brand/LaneIcon";
 import { RankEmblem, TeamTag } from "@/components/ui";
 import { championIcon, profileIcon } from "@/lib/ddragon-urls";
 import { TeamEloChart, type EloSeries } from "@/components/ranking/TeamEloChart";
-import { TIER_META, fixed, opggUrl, pct, rankLabel } from "@/lib/format";
+import { TIER_META, fixed, opggUrl, pct, rankLabel, benchLabel, benchGroups } from "@/lib/format";
 import { ogFor } from "@/lib/site";
 import { MetricLabel } from "@/components/ui/InfoTip";
 import { TEAM_DISPLAY } from "@/lib/teams";
@@ -45,8 +45,8 @@ function PositionMove({ n }: { n: number | null }) {
   );
 }
 
-/** "Jokers" / "Jokers · Reserva" */
-const teamLabel = (p: Player, name: string) => (p.reserve ? `${name} · Reserva` : name);
+/** "Jokers" / "Jokers · Reserva" / "Jokers · Em teste" */
+const teamLabel = (p: Player, name: string) => (p.reserve ? `${name} · ${benchLabel(p)}` : name);
 
 export default async function RankingPage() {
   const { players: starters, reserves, version, lastSync } = await getSiteData();
@@ -76,7 +76,7 @@ export default async function RankingPage() {
   ].map(({ p, color }) => ({
     slug: p.slug,
     name: p.displayName,
-    team: p.reserve ? "Reserva" : p.team.shortName,
+    team: p.reserve ? benchLabel(p) : p.team.shortName,
     color,
     dashed: p.reserve,
     pts: p.rankHistory.map((h) => ({ t: h.t, score: h.score })),
@@ -194,7 +194,7 @@ export default async function RankingPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-green">
                       {h.k}
-                      {h.p.reserve && <span className="text-gray-dim"> · Reserva</span>}
+                      {h.p.reserve && <span className="text-gray-dim"> · {benchLabel(h.p)}</span>}
                     </p>
                     <p className="mt-1 truncate font-display text-2xl font-black uppercase leading-none text-white group-hover:text-green">{h.p.displayName}</p>
                     <p className="mt-1 truncate font-mono text-[0.65rem] text-gray">{h.sub}</p>
@@ -267,7 +267,7 @@ export default async function RankingPage() {
         </ol>
         <p className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim">
           Ordenado por elo na ranqueada Solo/Duo · ▲▼ posições em relação a 7 dias atrás · Winrate da temporada
-          {reserves.length > 0 && " · Reservas abrem o op.gg"}
+          {reserves.length > 0 && ` · ${benchGroups(reserves).map((g) => g.label).join(" e ")} abrem o op.gg`}
         </p>
       </section>
     </RevealScope>

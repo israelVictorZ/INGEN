@@ -11,7 +11,7 @@ import { EXTERNAL_LINK } from "@/lib/links";
 import { CopyButton, PrintButton } from "@/components/ui/CopyButton";
 import { championIcon } from "@/lib/ddragon-urls";
 import { mainChamps } from "@/lib/view";
-import { ROLE_META, TIER_META, sampleLabel, fixed, opggMultiUrl, opggUrl, pct, rankLabel, riotId, scoreToLabel } from "@/lib/format";
+import { ROLE_META, TIER_META, sampleLabel, fixed, opggMultiUrl, opggUrl, pct, rankLabel, riotId, scoreToLabel, benchGroups, benchLabel } from "@/lib/format";
 import { SITE_URL, ogFor } from "@/lib/site";
 import { scoutRead, teamPool, teamSummary } from "@/lib/scouting";
 
@@ -44,16 +44,21 @@ function discordText(team: Team, url: string) {
     const form = p.form.length ? ` · últimas ${p.form.length}: ${p.form.filter(Boolean).length}V` : "";
     return `\`${lane}\` **${p.displayName}** (${riotId(p)}): ${elo} · WR ${p.solo ? pct(p.solo.winrate) : "—"}${form} · ${champs}`;
   });
-  const reserves = team.reserves.map((p) => {
-    const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
-    return `\`RES\` ${p.displayName} (${riotId(p)}, ${ROLE_META[p.role].short}): ${elo}`;
-  });
+  // reservas e jogadores em teste, cada grupo com o seu título
+  const bench = benchGroups(team.reserves).flatMap((g) => [
+    "",
+    `**${g.label}**`,
+    ...g.players.map((p) => {
+      const elo = p.solo ? `${rankLabel(p.solo.tier, p.solo.division)} ${p.solo.lp} PDL` : "Sem ranqueada";
+      return `\`${g.trial ? "TST" : "RES"}\` ${p.displayName} (${riotId(p)}, ${ROLE_META[p.role].short}): ${elo}`;
+    }),
+  ]);
   return [
     `**${team.name}: Relatório de scouting**`,
     `Elo médio: ${team.avgScore != null ? scoreToLabel(team.avgScore) : "—"} · Winrate recente: ${team.stats ? pct(team.stats.winrate) : "—"}`,
     "",
     ...lines,
-    ...(reserves.length ? ["", "**Reservas**", ...reserves] : []),
+    ...bench,
     "",
     `op.gg: <${opggMultiUrl([...team.players, ...team.reserves])}>`,
     `Relatório completo: <${url}>`,
@@ -82,7 +87,12 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
     summary.open.length
       ? { k: "Vaga aberta", v: summary.open.join(", "), sub: "Escalação incompleta", tone: "text-gray" }
       : team.reserves.length
-        ? { k: "Reservas", v: String(team.reserves.length), sub: team.reserves.map((r) => r.displayName).join(", "), tone: "text-gray" }
+        ? {
+            k: benchGroups(team.reserves).map((g, i) => (i ? g.label.toLowerCase() : g.label)).join(" e "),
+            v: String(team.reserves.length),
+            sub: team.reserves.map((r) => r.displayName).join(", "),
+            tone: "text-gray",
+          }
         : null,
   ].filter((x): x is { k: string; v: string; sub: string; tone: string } => !!x);
   const generatedAt = data.lastSync
@@ -176,23 +186,23 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
           })}
         </div>
 
-        {/* Reservas em bloco próprio, depois da escalação, para ninguém confundir com titular */}
-        {team.reserves.length > 0 && (
-          <div className="mt-12">
+        {/* Reservas e jogadores em teste em blocos próprios, depois da escalação, para ninguém confundir com titular */}
+        {benchGroups(team.reserves).map((g) => (
+          <div key={g.label} className="mt-12">
             <div data-reveal="up" className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-t border-dashed border-[#e2a33a]/30 pt-6">
               <h3 className="flex items-center gap-3 font-display text-2xl font-extrabold uppercase text-white md:text-3xl">
-                Reservas
-                <span className="bg-[#e2a33a] px-2 py-0.5 font-mono text-xs font-semibold text-bg-0">{team.reserves.length}</span>
+                {g.label}
+                <span className="bg-[#e2a33a] px-2 py-0.5 font-mono text-xs font-semibold text-bg-0">{g.players.length}</span>
               </h3>
               <p className="font-mono text-[0.62rem] uppercase tracking-[0.16em] text-gray">Fora da escalação titular · nome abre o op.gg</p>
             </div>
             <div data-reveal="stagger" className="mt-5 space-y-3">
-              {team.reserves.map((p) => (
-                <ScoutCard key={`reserva-${p.slug}`} p={p} version={version} />
+              {g.players.map((p) => (
+                <ScoutCard key={`${g.trial ? "teste" : "reserva"}-${p.slug}`} p={p} version={version} />
               ))}
             </div>
           </div>
-        )}
+        ))}
       </section>
 
       {pool.top.length > 0 && (
@@ -297,7 +307,7 @@ function ScoutCard({ p, version }: { p: Player; version: string }) {
           <div className="min-w-0">
             {p.reserve && (
               <span className="mb-2 inline-flex items-center gap-1.5 bg-[#e2a33a] px-2.5 py-1 font-mono text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-bg-0">
-                <span className="size-1.5 bg-bg-0" /> Reserva
+                <span className="size-1.5 bg-bg-0" /> {benchLabel(p)}
               </span>
             )}
             {p.reserve ? (

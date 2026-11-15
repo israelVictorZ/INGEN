@@ -69,11 +69,15 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
     const start = valueAt(s.pts, t0);
     const inRange = s.pts.filter((p) => p.t > t0);
     const seq = start != null ? [{ t: t0, score: start }, ...inRange] : inRange;
-    if (!seq.length) return { s, d: "", end: null as number | null };
+    if (!seq.length) return { s, d: "", end: null as number | null, begin: null as { x: number; y: number } | null };
+    // quem começou a ser acompanhado dentro do período (ex.: jogador novo) ganha um ponto no início
+    // da linha; sem ele, uma linha que começou há pouco vira só um risquinho no canto direito
+    const bx = (x(s.pts[0].t) / W) * 100;
+    const begin = bx > 3 ? { x: bx, y: (y(s.pts[0].score) / H) * 100 } : null;
     let d = `M${x(seq[0].t).toFixed(1)},${y(seq[0].score).toFixed(1)}`;
     for (let i = 1; i < seq.length; i++) d += ` H${x(seq[i].t).toFixed(1)} V${y(seq[i].score).toFixed(1)}`;
     d += ` H${W}`;
-    return { s, d, end: seq.at(-1)!.score };
+    return { s, d, end: seq.at(-1)!.score, begin };
   });
 
   // rótulos no fim das linhas sem sobreposição (mínimo de 14px de distância em 320px)
@@ -140,7 +144,8 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
         ))}
       </ul>
 
-      <div className="relative mt-5 pl-[62px] md:pl-[86px] md:pr-[84px]">
+      {/* à direita: espaço para os nomes no fim das linhas (nomes longos, ex.: "Galo Soviético") */}
+      <div className="relative mt-5 pl-[62px] md:pl-[86px] md:pr-[136px]">
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[56px] md:w-[80px]">
           {ticks.map((v) => (
             <span key={v} className="absolute right-0 -translate-y-1/2 text-right font-mono text-[0.5rem] uppercase leading-tight tracking-wider text-gray-dim md:text-[0.56rem]" style={{ top: `${(y(v) / H) * 100}%` }}>
@@ -170,6 +175,17 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
             )}
             {hoverT != null && <line x1={x(hoverT)} x2={x(hoverT)} y1="0" y2={H} stroke="rgb(255 255 255 / .35)" vectorEffect="non-scaling-stroke" />}
           </svg>
+          {/* início das linhas que começaram dentro do período */}
+          {paths.map(({ s, begin }) =>
+            begin ? (
+              <span
+                key={`ini-${s.slug}`}
+                aria-hidden
+                className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-bg-2 transition-opacity"
+                style={{ left: `${begin.x}%`, top: `${begin.y}%`, borderColor: s.color, opacity: focus && focus !== s.slug ? 0.15 : 1 }}
+              />
+            ) : null,
+          )}
           {/* nomes no fim das linhas */}
           {labels.map((l) => (
             <span

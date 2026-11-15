@@ -324,6 +324,17 @@ function TeamCard({
             <div>
               <span className="label-mono">Cor principal (opcional)</span>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {/* sem cor: tela preta com cinza (mesmo formato das cores, para ficar claro que é uma opção) */}
+                <button
+                  type="button"
+                  aria-label="Sem cor"
+                  aria-pressed={!form.color}
+                  title="Sem cor (tela preta com cinza)"
+                  onClick={() => setTeam(i, { color: null })}
+                  className={`size-6 border bg-[#16181c] bg-[linear-gradient(135deg,transparent_46%,#9aa3ad_46%,#9aa3ad_54%,transparent_54%)] ${
+                    !form.color ? "border-white" : "border-line hover:border-white/60"
+                  }`}
+                />
                 {SWATCHES.map((c) => (
                   <button
                     key={c}
@@ -334,10 +345,8 @@ function TeamCard({
                     style={{ background: c }}
                   />
                 ))}
-                <button type="button" onClick={() => setTeam(i, { color: null })} className={`px-1.5 text-xs ${form.color ? "text-gray hover:text-white" : "text-white"}`}>
-                  Sem cor
-                </button>
               </div>
+              <p className="mt-1.5 text-[0.7rem] text-gray-dim">{form.color ? `Cor: ${form.color.toUpperCase()}` : "Sem cor: a tela fica preta com cinza"}</p>
               {/* cor personalizada: seletor do sistema + código hexadecimal */}
               <div className="mt-2 flex items-center gap-2">
                 <label

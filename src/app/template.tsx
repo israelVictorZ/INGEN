@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
@@ -13,9 +14,12 @@ const ROWS = 7;
  */
 export default function Template({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // na sala do draft não há transição: ela pesava e, com a aba em segundo plano, ficava parada cobrindo a tela
+  const skip = /^\/draft\/[^/]+/.test(usePathname() ?? "");
 
   useGSAP(
     () => {
+      if (skip) return;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         gsap.set(ref.current, { display: "none" });
         return;
@@ -30,8 +34,10 @@ export default function Template({ children }: { children: React.ReactNode }) {
           stagger: { grid: [ROWS, COLS], from: "end", amount: 0.45 },
         });
     },
-    { scope: ref },
+    { scope: ref, dependencies: [skip] },
   );
+
+  if (skip) return <>{children}</>;
 
   return (
     <>

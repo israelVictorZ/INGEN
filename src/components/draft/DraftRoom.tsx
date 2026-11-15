@@ -28,7 +28,7 @@ import {
 import { SIDE_COLOR, teamColor, teamLogo, teamLogoTone, themeFor, themeVars } from "@/lib/draft/theme";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { DRAFT_LANES } from "@/lib/draft/lanes";
-import { ChampionPicker, LANE_LABEL, LogoPlate, type ChampStatus } from "./shared";
+import { BAN_SLASH, ChampionPicker, LANE_LABEL, LogoPlate, type ChampStatus } from "./shared";
 import { useDraftSync, type Me } from "./useDraftSync";
 
 // ---------------------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ export function DraftRoom({ code, data }: { code: string; data: DraftChampionDat
   // jogo exibido: o da URL ou, na primeira carga, o mais recente (depois só muda pelas abas/botões)
   const n = Math.min(gameParam ?? latest, latest);
   const me = roles[n] ?? null;
-  const sync = useDraftSync(code, n, me);
+  const sync = useDraftSync(code, n, me?.neutral ? null : me);
   const view = sync.view;
   const seen = view?.games.length ?? 1;
   if (view && seen !== latest) setLatest(seen);
@@ -182,7 +182,8 @@ function Room({
   const acting = actingTeam(g);
   const myTurn = myT !== null && acting === myT;
 
-  const themeTeam = me?.team ?? lastTeam;
+  const neutral = !!me?.neutral;
+  const themeTeam = neutral ? null : (me?.team ?? lastTeam);
   const theme = themeFor(code, themeTeam !== null ? cfg.teams[themeTeam] : null, themeTeam ?? 0);
 
   // seleção local (antes de confirmar) e modo de correção
@@ -190,35 +191,31 @@ function Room({
   const [correcting, setCorrecting] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [selStep, setSelStep] = useState(g.step);
-  if (selStep !== g.step || (!myTurn && sel !== null && correcting === null)) {
+  if (selStep !== g.step) {
     setSelStep(g.step);
+    if (correcting === null) setSel(null);
+  } else if (!myTurn && sel !== null && correcting === null) setSel(null);
+  // chegou a minha vez no meio de uma correção: a vez tem prioridade (o pedido pode ser feito depois)
+  if (myTurn && correcting !== null) {
+    setCorrecting(null);
     setSel(null);
+    setToast("Sua vez! O pedido de troca ficou para depois.");
   }
 
+  const { send: syncSend, refresh } = sync;
   const send = useCallback(
     async (a: DraftAction) => {
-      const err = await sync.send(a);
+      const err = await syncSend(a);
       if (err) setToast(err);
       return err;
     },
-    [sync],
+    [syncSend],
   );
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(null), 3500);
     return () => clearTimeout(id);
   }, [toast]);
-
-  // relógio
-  const now = useServerNow(sync.offset, g.status === "drafting" && g.deadline !== null);
-  const remaining = g.deadline !== null ? Math.min(cfg.timer, Math.max(0, Math.ceil((g.deadline - now) / 1000))) : null;
-  const kicked = useRef(-1);
-  useEffect(() => {
-    if (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS + 250 && kicked.current !== g.step) {
-      kicked.current = g.step;
-      sync.refresh();
-    }
-  }, [now, g.status, g.deadline, g.step, sync]);
 
   // disponibilidade
   const disabledSet = useMemo(() => new Set(cfg.disabled), [cfg.disabled]);
@@ -231,15 +228,20 @@ function Room({
   );
 
   const canPickNow = myTurn || correcting !== null;
-  const onPick = (id: string | null) => {
-    if (correcting !== null) {
+  const gStep = g.step;
+  const onPick = useCallback(
+    (id: string | null) => {
+      if (correcting !== null) {
+        setSel(id ?? "");
+        return;
+      }
+      if (!myTurn) return;
       setSel(id ?? "");
-      return;
-    }
-    if (!myTurn) return;
-    setSel(id ?? "");
-    send({ type: "hover", champ: id, step: g.step });
-  };
+      send({ type: "hover", champ: id, step: gStep });
+    },
+    [correcting, myTurn, send, gStep],
+  );
+  const isSelected = useCallback((id: string) => sel === id, [sel]);
   const lock = async () => {
     if (sel === null || !step) return;
     await send({ type: "lock", champ: sel || null, step: g.step });
@@ -255,13 +257,19 @@ function Room({
   };
 
   // preview do slot ativo: a minha seleção local ou o que o drafter da vez selecionou
-  const preview = myTurn ? sel || null : g.hover;
+  const preview = myTurn && correcting === null ? sel || null : g.hover;
   const result = seriesResult(view);
   const [a, b] = score(view);
   const showJoin = isLatest && g.winner === null && (!me || lostSeat);
   const [flashing, setFlashing] = useState(false);
   const [sawOpen, setSawOpen] = useState(g.winner === null);
   if (g.winner === null && !sawOpen) setSawOpen(true);
+  // o vencedor acabou de chegar: segura a tela de campeão já neste render (a animação libera no momento combinado)
+  const [flashFor, setFlashFor] = useState<number | null>(null);
+  if (sawOpen && g.winner !== null && g.wonAt && flashFor !== g.wonAt) {
+    setFlashFor(g.wonAt);
+    setFlashing(true);
+  }
   const [editNames, setEditNames] = useState(false);
 
   const blueT = teamOnSide(g, "blue");
@@ -271,7 +279,7 @@ function Room({
     setCorrecting(s);
     setSel(null);
   };
-  const common = { code, cfg, g, byId, version: data.version, preview, myT, correcting, setCorrecting: startCorrection };
+  const common = { code, cfg, g, byId, version: data.version, preview, myT, myTurn, correcting, setCorrecting: startCorrection };
 
   return (
     <div
@@ -281,7 +289,7 @@ function Room({
         background: `radial-gradient(ellipse 80% 55% at 50% -5%, color-mix(in srgb, var(--d-accent) 10%, transparent), transparent 70%), var(--d-bg)`,
       }}
     >
-      <DraftBackdrop blue={teamColor(cfg.teams[blueT])} red={teamColor(cfg.teams[redT])} />
+      <DraftBackdrop blue={teamColor(cfg.teams[blueT])} red={teamColor(cfg.teams[redT])} neutral={neutral} />
       {theme.logo && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={theme.logo} alt="" aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 w-[38vmin] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.045]" />
@@ -292,7 +300,7 @@ function Room({
         <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} ready={g.ready[blueT]} onEditNames={myT === blueT ? () => setEditNames(true) : undefined} />
         <div className="order-first col-span-2 flex flex-col items-center gap-1.5 lg:order-none lg:col-span-1">
           <GameTabs total={cfg.games} available={view.games} n={n} setGame={setGame} />
-          <PhaseLine g={g} remaining={remaining} timer={cfg.timer} cfg={cfg} />
+          <PhaseLine g={g} timer={cfg.timer} cfg={cfg} offset={sync.offset} onTimeout={refresh} />
         </div>
         <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} ready={g.ready[redT]} onEditNames={myT === redT ? () => setEditNames(true) : undefined} />
       </header>
@@ -302,7 +310,7 @@ function Room({
         <PickColumn side="blue" {...common} send={send} />
         <div className="order-3 col-span-2 flex min-h-[70vh] flex-col lg:order-none lg:col-span-1 lg:min-h-0">
           <Requests g={g} cfg={cfg} myT={myT} send={send} byId={byId} />
-          <div className="relative flex min-h-0 flex-1 flex-col border border-[var(--d-line)] bg-black/30 p-3 backdrop-blur-sm">
+          <div className="relative flex min-h-0 flex-1 flex-col border border-[var(--d-line)] bg-black/60 p-3">
             {g.status === "done" && correcting === null ? (
               <DonePanel g={g} cfg={cfg} code={code} view={view} n={n} myT={myT} send={send} setGame={setGame} byId={byId} version={data.version} />
             ) : (
@@ -310,7 +318,7 @@ function Room({
                 champions={data.champions}
                 version={data.version}
                 statusOf={statusOf}
-                selected={(id) => sel === id}
+                selected={isSelected}
                 onPick={onPick}
                 canPick={canPickNow}
                 noneTile={(correcting !== null ? STEPS[correcting].type : step?.type) === "ban" && canPickNow ? "Sem ban" : undefined}
@@ -341,7 +349,7 @@ function Room({
             cancelCorrection={() => startCorrection(null)}
             isLatest={isLatest}
           />
-          <RoleLine code={code} me={me} cfg={cfg} canChange={isLatest && g.winner === null && !!me} onChange={() => setMe(null)} />
+          <RoleLine code={code} me={me} cfg={cfg} canChange={isLatest && (g.winner === null || neutral) && !!me} onChange={() => setMe(null)} />
         </div>
         <BanRow side="red" {...common} />
       </footer>
@@ -358,7 +366,7 @@ function Room({
         // qualquer toque na tela já volta a atualizar (useDraftSync); o botão só deixa isso claro
         <button
           type="button"
-          className="fixed left-1/2 top-2 z-50 flex -translate-x-1/2 items-center gap-2 border border-[var(--d-line)] bg-black/85 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-white-dim shadow-xl backdrop-blur-sm hover:text-white"
+          className="fixed left-1/2 top-2 z-50 flex -translate-x-1/2 items-center gap-2 border border-[var(--d-line)] bg-black/85 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-white-dim shadow-xl hover:text-white"
         >
           <span className="size-1.5 rounded-full bg-gray" aria-hidden />
           Sala em pausa · toque para atualizar
@@ -376,6 +384,7 @@ function Room({
           score={[a, b]}
           offset={sync.offset}
           setBusy={setFlashing}
+          silent={result.clinched || result.over}
           // todas as telas seguem juntas para o próximo jogo (se a série já está decidida, fica a tela de campeão)
           onDone={() => {
             if (view.games[n] && !result.clinched) setGame(n + 1);
@@ -488,7 +497,22 @@ function GameTabs({ total, available, n, setGame }: { total: number; available: 
   );
 }
 
-function PhaseLine({ g, remaining, timer, cfg }: { g: GameView; remaining: number | null; timer: number; cfg: RoomView["config"] }) {
+function PhaseLine({ g, timer, cfg, offset, onTimeout }: { g: GameView; timer: number; cfg: RoomView["config"]; offset: number; onTimeout: () => void }) {
+  // o relógio bate aqui dentro (5 vezes por segundo) sem re-renderizar a sala inteira
+  const now = useServerNow(offset, g.status === "drafting" && g.deadline !== null);
+  const remaining = g.deadline !== null ? Math.min(timer, Math.max(0, Math.ceil((g.deadline - now) / 1000))) : null;
+  const kicked = useRef(-1);
+  const timeout = useRef(onTimeout);
+  useEffect(() => {
+    timeout.current = onTimeout;
+  });
+  useEffect(() => {
+    // o prazo passou: pede ao servidor para fechar a ação (sem esperar a próxima consulta)
+    if (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS + 250 && kicked.current !== g.step) {
+      kicked.current = g.step;
+      timeout.current();
+    }
+  }, [now, g.status, g.deadline, g.step]);
   const step = currentStep(g);
   if (!step) {
     const text = g.status === "lobby" ? "Aguardando os drafters" : g.winner !== null ? `Vitória de ${cfg.teams[g.winner].name}` : "Draft encerrado";
@@ -505,11 +529,11 @@ function PhaseLine({ g, remaining, timer, cfg }: { g: GameView; remaining: numbe
       <p key={g.step} className="animate-[draft-rise_.45s_var(--ease-out-expo)] font-mono text-[0.68rem] uppercase tracking-[0.16em]" style={{ color }}>
         {step.type === "ban" ? `Bans fase ${step.phase}` : `Picks fase ${step.phase}`} · {step.side === "blue" ? "Azul" : "Vermelho"} {step.type === "ban" ? "bane" : "escolhe"}
       </p>
-      <p className={`font-display text-4xl font-black tabular-nums leading-none ${remaining !== null && remaining <= 5 ? "animate-pulse text-loss" : "text-white"}`}>
+      <p className={`font-display text-4xl font-black tabular-nums leading-none ${remaining !== null && remaining <= 5 ? "text-loss" : "text-white"}`}>
         {remaining ?? "∞"}
       </p>
-      <span className={`h-1 w-full overflow-hidden bg-white/10 ${remaining !== null && remaining <= 5 ? "animate-[draft-urgent_1s_ease-in-out_infinite]" : ""}`}>
-        <span className="block h-full transition-[width] duration-200 ease-linear" style={{ width: `${pct}%`, background: remaining !== null && remaining <= 5 ? "#ff4d5e" : color, boxShadow: `0 0 10px ${color}` }} />
+      <span className="h-1 w-full overflow-hidden bg-white/10">
+        <span className="block h-full transition-[width] duration-200 ease-linear" style={{ width: `${pct}%`, background: remaining !== null && remaining <= 5 ? "#ff4d5e" : color }} />
       </span>
     </div>
   );
@@ -520,7 +544,7 @@ function PhaseLine({ g, remaining, timer, cfg }: { g: GameView; remaining: numbe
 // ---------------------------------------------------------------------------------------------
 
 /** Fundo com as cores dos dois times (lado azul à esquerda, vermelho à direita), no estilo do kit de stream. */
-function DraftBackdrop({ blue, red }: { blue: string; red: string }) {
+function DraftBackdrop({ blue, red, neutral }: { blue: string; red: string; neutral?: boolean }) {
   return (
     <div className="draft-backdrop" aria-hidden>
       <div className="draft-half draft-half--blue" style={{ "--team": blue } as React.CSSProperties} />
@@ -528,7 +552,8 @@ function DraftBackdrop({ blue, red }: { blue: string; red: string }) {
       <div className="draft-seam" />
       <div className="draft-dots" />
       <div className="draft-vignette" />
-      <div className="draft-grain" />
+      {/* neutro por cima da vinheta: as cores dos dois times chegam fortes até o meio */}
+      {neutral && <div className="draft-neutral" style={{ "--blue": blue, "--red": red } as React.CSSProperties} />}
     </div>
   );
 }
@@ -589,15 +614,16 @@ type SlotProps = {
   version: string;
   preview: string | null;
   myT: TeamIdx | null;
+  myTurn: boolean;
   correcting: number | null;
   setCorrecting: (s: number | null) => void;
 };
 
-/** Pode pedir troca deste slot? (drafter do time, ação já feita, resultado ainda não marcado) */
-const canCorrect = (g: GameView, myT: TeamIdx | null, side: Side, stepIdx: number) =>
-  myT !== null && sideOf(g, myT) === side && stepIdx < g.actions.length && g.winner === null && g.status !== "lobby";
+/** Pode pedir troca deste slot? (drafter do time, ação já feita, resultado ainda não marcado, fora da própria vez) */
+const canCorrect = (g: GameView, myT: TeamIdx | null, myTurn: boolean, side: Side, stepIdx: number) =>
+  !myTurn && myT !== null && sideOf(g, myT) === side && stepIdx < g.actions.length && g.winner === null && g.status !== "lobby";
 
-function PickColumn({ side, cfg, g, byId, preview, myT, correcting, setCorrecting, send }: SlotProps & { side: Side; send: (a: DraftAction) => Promise<string | null> }) {
+function PickColumn({ side, cfg, g, byId, preview, myT, myTurn, correcting, setCorrecting, send }: SlotProps & { side: Side; send: (a: DraftAction) => Promise<string | null> }) {
   const team = teamOnSide(g, side);
   const right = side === "red";
   const order = g.order[team];
@@ -657,17 +683,16 @@ function PickColumn({ side, cfg, g, byId, preview, myT, correcting, setCorrectin
               </p>
             </div>
             <div className={`absolute top-1.5 flex gap-1 opacity-80 transition-opacity group-hover:opacity-100 ${right ? "left-1.5" : "right-1.5"}`}>
-              {canMove && pos > 0 && (
-                <SlotButton label="Subir" onClick={() => send({ type: "movePick", from: pos, to: pos - 1 })}>
-                  ↑
-                </SlotButton>
-              )}
-              {canMove && pos < 4 && (
-                <SlotButton label="Descer" onClick={() => send({ type: "movePick", from: pos, to: pos + 1 })}>
-                  ↓
-                </SlotButton>
-              )}
-              {canCorrect(g, myT, side, idx) && (
+              {/* levar o campeão direto para outra lane (troca com quem está lá) */}
+              {canMove &&
+                DRAFT_LANES.map((l, k) =>
+                  k === pos ? null : (
+                    <SlotButton key={l} label={`Levar para ${LANE_LABEL[l]}`} onClick={() => send({ type: "movePick", from: pos, to: k })}>
+                      <LaneIcon role={l} className="size-3.5" />
+                    </SlotButton>
+                  ),
+                )}
+              {canCorrect(g, myT, myTurn, side, idx) && (
                 <SlotButton label="Pedir troca deste pick" onClick={() => setCorrecting(fixing ? null : idx)} active={fixing}>
                   ✎
                 </SlotButton>
@@ -694,7 +719,7 @@ function SlotButton({ label, onClick, children, active }: { label: string; onCli
   );
 }
 
-function BanRow({ side, g, byId, version, preview, myT, correcting, setCorrecting }: SlotProps & { side: Side }) {
+function BanRow({ side, g, byId, version, preview, myT, myTurn, correcting, setCorrecting }: SlotProps & { side: Side }) {
   const right = side === "red";
   const groups = [
     [0, 1, 2],
@@ -711,7 +736,7 @@ function BanRow({ side, g, byId, version, preview, myT, correcting, setCorrectin
             const active = g.status === "drafting" && g.step === idx;
             const shown = champ ?? (active ? preview : null);
             const c = shown ? byId.get(shown) : undefined;
-            const fix = canCorrect(g, myT, side, idx);
+            const fix = canCorrect(g, myT, myTurn, side, idx);
             const fixing = correcting === idx;
             return (
               <button
@@ -736,7 +761,7 @@ function BanRow({ side, g, byId, version, preview, myT, correcting, setCorrectin
                       height={64}
                       className={`size-full scale-110 object-cover ${champ ? "animate-[draft-ban_.4s_var(--ease-out-expo)] grayscale" : "opacity-50"}`}
                     />
-                    {champ && <span className="absolute inset-0 animate-[draft-slash_.35s_.15s_ease-out_both] bg-[linear-gradient(135deg,transparent_47%,#ff4d5e_47%,#ff4d5e_53%,transparent_53%)]" />}
+                    {champ && <span className={`absolute inset-0 animate-[draft-slash_.35s_.15s_ease-out_both] ${BAN_SLASH}`} />}
                   </>
                 ) : champ === null ? (
                   <span className="text-lg text-white/30">⦸</span>
@@ -949,7 +974,7 @@ function DonePanel({
           ) : (
             <p className="max-w-sm text-sm text-gray">Depois da partida, um dos drafters marca o vencedor e o próximo jogo é liberado.</p>
           )}
-          {myT !== null && <p className="max-w-md text-xs text-gray-dim">Até marcar o resultado, cada drafter pode reorganizar os próprios picks (↑ ↓) e pedir troca de um slot (✎) se algo saiu errado.</p>}
+          {myT !== null && <p className="max-w-md text-xs text-gray-dim">Até marcar o resultado, cada drafter pode levar os próprios campeões para a lane certa (ícones no slot) e pedir troca de um slot (✎) se algo saiu errado.</p>}
         </>
       ) : (
         <>
@@ -1105,6 +1130,16 @@ function JoinModal({
     else setMe({ team, role });
   }
 
+  /** Espectador neutro: sem time (para transmissão). Libera a vaga de drafter, se estava com ela. */
+  async function joinNeutral() {
+    setBusy(true);
+    setErr(null);
+    const e = await send({ type: "claim", team: 0, role: "spectator" });
+    setBusy(false);
+    if (e) setErr(e);
+    else setMe({ team: 0, role: "spectator", neutral: true });
+  }
+
   // durante o draft a vaga só é livre se o drafter caiu; antes dele (lobby) quem chega pode assumir
   // (ninguém grava presença no lobby, para o banco dormir; o servidor ainda recusa se o drafter agiu há pouco)
   const seatBusy = (t: TeamIdx) => g.status === "drafting" && g.drafters[t].taken && !g.drafters[t].mine && live.online[t];
@@ -1170,6 +1205,19 @@ function JoinModal({
             <span className="text-xs text-gray">Acompanha com a tela do time (sem limite)</span>
           </button>
         </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={joinNeutral}
+          className="mt-3 flex w-full items-center justify-between gap-3 border border-line p-4 text-left transition-colors enabled:hover:border-white disabled:opacity-40"
+          style={{ background: `linear-gradient(90deg, ${teamColor(cfg.teams[g.blueTeam])}1f, transparent 50%, ${teamColor(cfg.teams[other(g.blueTeam)])}1f)` }}
+        >
+          <span>
+            <span className="block font-display text-xl font-black uppercase text-white">Espectador neutro</span>
+            <span className="text-xs text-gray">Sem lado, com as cores dos dois times. Ideal para quem vai transmitir.</span>
+          </span>
+          <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-gray">Sem time</span>
+        </button>
         {err && <p className="mt-4 text-sm text-loss">{err}</p>}
       </div>
     </div>
@@ -1183,7 +1231,7 @@ function RoleLine({ code, me, cfg, canChange, onChange }: { code: string; me: Me
     <div className="flex items-center gap-3 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-gray-dim">
       {me && (
         <span>
-          {me.role === "drafter" ? "Drafter" : "Espectador"} · {cfg.teams[me.team].name}
+          {me.neutral ? "Espectador neutro" : `${me.role === "drafter" ? "Drafter" : "Espectador"} · ${cfg.teams[me.team].name}`}
           {canChange && (
             <button type="button" onClick={onChange} className="ml-2 text-white-dim underline-offset-2 hover:text-white hover:underline">
               trocar
@@ -1220,7 +1268,7 @@ function RoleLine({ code, me, cfg, canChange, onChange }: { code: string; me: Me
  * escondida) pega o resto dela ou só segue para o próximo jogo.
  */
 const FLASH_DELAY_MS = 5500; // > intervalo do sinal na espera do resultado (4 s) + leitura
-const FLASH_MS = 4000;
+const FLASH_MS = 3500;
 
 function WinnerFlash({
   code,
@@ -1229,6 +1277,7 @@ function WinnerFlash({
   score: [a, b],
   offset,
   setBusy,
+  silent,
   onDone,
 }: {
   code: string;
@@ -1237,6 +1286,8 @@ function WinnerFlash({
   score: [number, number];
   offset: number;
   setBusy: (b: boolean) => void;
+  /** jogo que decide a série: não mostra a animação do jogo (a tela de campeão entra no mesmo instante) */
+  silent?: boolean;
   onDone: () => void;
 }) {
   const [show, setShow] = useState(false);
@@ -1249,23 +1300,27 @@ function WinnerFlash({
   useEffect(() => {
     const wonAt = g.wonAt ?? 0;
     const now = Date.now() + off.current;
-    if (now > wonAt + 60_000) return; // resultado antigo (alguém revendo a série): sem animação
+    if (now > wonAt + 60_000) {
+      // soube muito depois (aba esquecida): sem animação, só libera a tela de campeão
+      setBusy(false);
+      return;
+    }
     const start = wonAt + FLASH_DELAY_MS - now;
-    const end = start + FLASH_MS;
+    const end = silent ? start : start + FLASH_MS;
     setBusy(true);
     const finish = () => {
       setShow(false);
       setBusy(false);
       done.current();
     };
-    const t1 = setTimeout(() => setShow(true), Math.max(0, start));
+    const t1 = setTimeout(() => !silent && setShow(true), Math.max(0, start));
     const t2 = setTimeout(finish, Math.max(0, end));
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       setBusy(false);
     };
-  }, [g.wonAt, setBusy]);
+  }, [g.wonAt, setBusy, silent]);
 
   if (!show || g.winner === null) return null;
   const w = g.winner;

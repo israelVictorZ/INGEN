@@ -91,9 +91,8 @@ export type Step = { side: Side; type: "ban" | "pick"; slot: number; phase: 1 | 
 const S = (side: Side, type: "ban" | "pick", slot: number, phase: 1 | 2): Step => ({ side, type, slot, phase });
 
 /**
- * Bans 1: A V A V A V · Picks 1: A1, V1 V2, A2 A3, V3 · Bans 2: A V A V · Picks 2: V4, A4 A5, V5.
- * (Ordem definida pelo Israel em 15/11/2026. No cliente oficial a 2ª fase de bans começa pelo vermelho:
- * para usar essa ordem, troque os quatro bans da fase 2 abaixo.)
+ * Bans 1: A V A V A V · Picks 1: A1, V1 V2, A2 A3, V3 · Bans 2: V A V A · Picks 2: V4, A4 A5, V5.
+ * (Ordem de campeonato confirmada pelo Israel em 15/11/2026: a 2ª fase de bans começa pelo vermelho.)
  */
 export const STEPS: Step[] = [
   S("blue", "ban", 0, 1),
@@ -108,10 +107,10 @@ export const STEPS: Step[] = [
   S("blue", "pick", 1, 1),
   S("blue", "pick", 2, 1),
   S("red", "pick", 2, 1),
-  S("blue", "ban", 3, 2),
   S("red", "ban", 3, 2),
-  S("blue", "ban", 4, 2),
+  S("blue", "ban", 3, 2),
   S("red", "ban", 4, 2),
+  S("blue", "ban", 4, 2),
   S("red", "pick", 3, 2),
   S("blue", "pick", 3, 2),
   S("blue", "pick", 4, 2),

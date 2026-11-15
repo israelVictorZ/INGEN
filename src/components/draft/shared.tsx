@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useDeferredValue, useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { championIcon } from "@/lib/ddragon-urls";
 import { DRAFT_LANES, type DraftChampion, type DraftLane } from "@/lib/draft/lanes";
@@ -53,8 +53,13 @@ export const norm = (s: string) =>
 
 export type ChampStatus = "ok" | "used" | "fearless" | "disabled";
 
-/** Barra de filtro (lanes + busca) e a grade de campeões. */
-export function ChampionPicker({
+/** Risco fino de "banido / já usado" (antes era uma faixa larga). */
+export const BAN_SLASH = "bg-[linear-gradient(135deg,transparent_49.2%,rgb(255_77_94/.85)_49.2%,rgb(255_77_94/.85)_50.8%,transparent_50.8%)]";
+
+/** Barra de filtro (lanes + busca) e a grade de campeões. Memorizado: a sala re-renderiza sem a grade junto. */
+export const ChampionPicker = memo(ChampionPickerBase);
+
+function ChampionPickerBase({
   champions,
   version,
   statusOf,
@@ -162,7 +167,7 @@ export function ChampionPicker({
               className={`group relative flex flex-col items-center gap-1 text-center ${canPick && !blocked ? "cursor-pointer" : "cursor-default"}`}
             >
               <span
-                className={`relative block aspect-square w-full overflow-hidden transition-[box-shadow,transform] duration-150 ${
+                className={`relative block aspect-square w-full overflow-hidden ${
                   sel ? "shadow-[0_0_0_2px_var(--d-accent,#3dfd4e),0_0_18px_var(--d-accent,#3dfd4e)]" : canPick && !blocked ? "group-hover:shadow-[0_0_0_2px_rgb(255_255_255/.6)]" : ""
                 }`}
               >
@@ -172,10 +177,10 @@ export function ChampionPicker({
                   width={120}
                   height={120}
                   loading="lazy"
-                  className={`size-full scale-[1.08] object-cover transition-[filter,opacity] ${blocked ? "opacity-35 grayscale" : ""}`}
+                  className={`size-full object-cover ${blocked ? "opacity-35 grayscale" : ""}`}
                   draggable={false}
                 />
-                {st === "used" && <span className="absolute inset-0 bg-[linear-gradient(135deg,transparent_47%,#ff4d5e_47%,#ff4d5e_53%,transparent_53%)]" />}
+                {st === "used" && <span className={`absolute inset-0 ${BAN_SLASH}`} />}
                 {st === "fearless" && (
                   <span className="absolute inset-x-0 bottom-0 bg-black/75 py-0.5 font-mono text-[0.55rem] uppercase tracking-[0.1em] text-white/80">fearless</span>
                 )}
@@ -184,7 +189,7 @@ export function ChampionPicker({
                     novo
                   </span>
                 )}
-                {sel && dense && <span className="absolute inset-0 bg-[linear-gradient(135deg,transparent_47%,#ff4d5e_47%,#ff4d5e_53%,transparent_53%)]" />}
+                {sel && dense && <span className={`absolute inset-0 ${BAN_SLASH}`} />}
               </span>
               <span className={`w-full truncate text-[0.68rem] ${blocked ? "text-gray-dim" : "text-white-dim"}`}>{c.name}</span>
             </button>

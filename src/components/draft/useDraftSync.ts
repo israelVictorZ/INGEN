@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { roomPhase, type DraftAction, type Role, type RoomView, type TeamIdx } from "@/lib/draft/engine";
 import type { LiveInfo } from "@/lib/draft/server";
 
-export type Me = { team: TeamIdx; role: Role };
+/** `neutral`: espectador sem lado (para transmissão); não conta como espectador de nenhum time. */
+export type Me = { team: TeamIdx; role: Role; neutral?: boolean };
 export type SyncStatus = "loading" | "ok" | "notfound" | "expired" | "offline";
 export type SyncState = { status: SyncStatus; view: RoomView | null; version: number; live: LiveInfo; offset: number };
 
@@ -114,7 +115,14 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
           r.view = json.view;
         }
         const offset = json.now - (t0 + t1) / 2;
-        setState({ status: r.view ? "ok" : "loading", view: r.view, version: r.version, live: json.live, offset });
+        // só re-renderiza a sala quando algo mudou de fato (a consulta de 1 s quase sempre não traz nada)
+        setState((s) => {
+          const status: SyncStatus = r.view ? "ok" : "loading";
+          const live = JSON.stringify(s.live) === JSON.stringify(json.live) ? s.live : json.live;
+          const off = Math.abs(s.offset - offset) > 250 ? offset : s.offset;
+          if (s.status === status && s.view === r.view && s.version === r.version && s.live === live && s.offset === off) return s;
+          return { status, view: r.view, version: r.version, live, offset: off };
+        });
         return json.error ?? null;
       } catch {
         setState((s) => ({ ...s, status: s.view ? "offline" : s.status }));
@@ -211,5 +219,6 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     [call],
   );
 
-  return { ...state, paused, cid, send, refresh: () => call() };
+  const refresh = useCallback(() => call(), [call]);
+  return { ...state, paused, cid, send, refresh };
 }

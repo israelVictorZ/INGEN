@@ -124,8 +124,8 @@ IG.ready(function () {
   var band = IG.el("div", "band");
   stage.appendChild(band);
   var items = modo === "fim"
-    ? ["Obrigado por assistir", "INGEN Black", "INGEN Silver", IG.opt("instagram", "@ingen.gg")]
-    : ["INGEN Black", "INGEN Silver", "League of Legends", IG.opt("instagram", "@ingen.gg"), modo === "pausa" ? "Volta já" : "Já vai começar"];
+    ? ["Obrigado por assistir", IG.TEAMS.black.name, IG.TEAMS.silver.name, IG.opt("instagram", "@ingen.gg")]
+    : [IG.TEAMS.black.name, IG.TEAMS.silver.name, "League of Legends", IG.opt("instagram", "@ingen.gg"), modo === "pausa" ? "Volta já" : "Já vai começar"];
   IG.ticker(band, items, 70);
 
   stage.insertAdjacentHTML("beforeend", '<div class="ig-grain"></div>');

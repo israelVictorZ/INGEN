@@ -2,7 +2,7 @@
  * INGEN · Stream pack: configuração padrão.
  *
  * Tudo aqui pode ser sobrescrito pela URL da fonte de navegador, por exemplo:
- *   overlays/webcam.html?nome=Atlas&time=black
+ *   overlays/webcam.html?nome=Atlas&time=aces
  *
  * Se você usa a opção "Arquivo local" do OBS (que ignora parâmetros de URL),
  * preencha os valores aqui e salve. Deixe "" para usar o padrão.
@@ -14,7 +14,7 @@ window.INGEN_CONFIG = {
 
   // Ou preencha à mão
   nome: "",          // nick que aparece na borda da câmera, no fundo do cliente e nos alertas
-  time: "black",     // "black" ou "silver" (Silver troca o acento verde por prata)
+  time: "aces",      // "aces" ou "jokers" (Jokers troca o acento verde por prata); "black" e "silver" também valem
   lane: "",          // top, jungle, mid, adc, suporte
   elo: "",           // ex.: "Esmeralda IV · 54 PDL"
   meta: "",          // ex.: "Diamante IV" ou "50 seguidores"

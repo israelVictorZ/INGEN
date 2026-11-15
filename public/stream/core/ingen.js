@@ -80,14 +80,24 @@
     });
   }
 
-  /** Aplica o time (black | silver) como classe no body. */
+  /**
+   * Nomes públicos dos times (cópia do mapa de src/lib/teams.ts; mude os dois juntos).
+   * Por dentro o tema continua "black" (verde) e "silver" (prata, classe team-silver).
+   */
+  var TEAMS = {
+    black: { name: "INGEN Aces", short: "Aces" },
+    silver: { name: "INGEN Jokers", short: "Jokers" },
+  };
+
+  /** Aplica o time como classe no body. Aceita o id (black | silver) ou o nome (aces | jokers). */
   function applyTeam() {
     var t = String(opt("time", "black")).toLowerCase();
-    if (t.indexOf("silver") !== -1) document.body.classList.add("team-silver");
-    return t.indexOf("silver") !== -1 ? "silver" : "black";
+    var silver = t.indexOf("silver") !== -1 || t.indexOf("joker") !== -1;
+    if (silver) document.body.classList.add("team-silver");
+    return silver ? "silver" : "black";
   }
   function teamName() {
-    return applyTeam() === "silver" ? "INGEN Silver" : "INGEN Black";
+    return TEAMS[applyTeam()].name;
   }
 
   /** Escala um palco 1920×1080 para caber na fonte (qualquer resolução de canvas). */
@@ -444,6 +454,7 @@
     esc: esc,
     applyTeam: applyTeam,
     teamName: teamName,
+    TEAMS: TEAMS,
     fitStage: fitStage,
     stepPath: stepPath,
     frame: frame,

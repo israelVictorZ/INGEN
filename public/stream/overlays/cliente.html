@@ -163,7 +163,7 @@ IG.ready(function () {
     if (elo) chips.push('<span class="chip">Elo <b>' + IG.esc(elo) + "</b></span>");
     var meta = IG.opt("meta", "");
     if (meta) chips.push('<span class="chip">Meta <b>' + IG.esc(meta) + "</b></span>");
-    if (!chips.length) chips.push('<span class="chip"><b>League of Legends</b></span><span class="chip">Black <b>·</b> Silver</span>');
+    if (!chips.length) chips.push('<span class="chip"><b>League of Legends</b></span><span class="chip">' + IG.TEAMS.black.short + ' <b>·</b> ' + IG.TEAMS.silver.short + '</span>');
     document.getElementById("meta").innerHTML = chips.join("");
   }
   renderChips();
@@ -174,7 +174,7 @@ IG.ready(function () {
     return '<div class="social">' + s.icon + "<span>" + IG.esc(s.label) + "</span></div>";
   }).join("");
 
-  IG.ticker(document.getElementById("ticker"), ["INGEN Black", "INGEN Silver", "League of Legends", IG.opt("instagram", "@ingen.gg"), "Fora de partida"], 55);
+  IG.ticker(document.getElementById("ticker"), [IG.TEAMS.black.name, IG.TEAMS.silver.name, "League of Legends", IG.opt("instagram", "@ingen.gg"), "Fora de partida"], 55);
 
   // chat embutido
   var canal = IG.opt("canal", "ingen_team");

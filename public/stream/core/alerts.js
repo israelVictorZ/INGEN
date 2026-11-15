@@ -221,7 +221,7 @@
       var demo = [
         { type: "follow", name: "Tsuki" },
         { type: "sub", name: "Taiyou", tier: "Tier 1" },
-        { type: "resub", name: "vanessa.gg", months: 14, tier: "Tier 1", message: "14 meses de INGEN, bora Black!" },
+        { type: "resub", name: "vanessa.gg", months: 14, tier: "Tier 1", message: "14 meses de INGEN, bora Aces!" },
         { type: "giftbomb", name: "mod_ingen", amount: 10 },
         { type: "raid", name: "OutroStreamer", amount: 128 },
         { type: "bits", name: "fenrir", amount: 500, message: "pelo pentakill" },

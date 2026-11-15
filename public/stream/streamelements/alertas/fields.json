@@ -4,8 +4,8 @@
     "label": "Time",
     "value": "black",
     "options": {
-      "black": "INGEN Black",
-      "silver": "INGEN Silver"
+      "black": "INGEN Aces",
+      "silver": "INGEN Jokers"
     }
   },
   "posicao": {

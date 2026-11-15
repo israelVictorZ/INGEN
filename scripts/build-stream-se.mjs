@@ -76,7 +76,7 @@ ${adapter}`;
 
 const yesNo = { sim: "Sim", nao: "Não" };
 const fields = {
-  time: { type: "dropdown", label: "Time", value: "black", options: { black: "INGEN Black", silver: "INGEN Silver" } },
+  time: { type: "dropdown", label: "Time", value: "black", options: { black: "INGEN Aces", silver: "INGEN Jokers" } },
   posicao: { type: "dropdown", label: "Posição na tela", value: "topo", options: { topo: "Topo", centro: "Centro", baixo: "Embaixo" } },
   tempo: { type: "number", label: "Tempo na tela (segundos)", value: 6, min: 3, max: 20, step: 1 },
   som: { type: "dropdown", label: "Som", value: "sim", options: { sim: "Ligado", nao: "Desligado" } },

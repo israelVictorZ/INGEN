@@ -127,7 +127,7 @@
     ["primeiravez", "#daa520", "primeira vez aqui, que overlay bonito", {}, true],
     ["lucas_lol", "#000080", "qual a build desse item?", { subscriber: "3" }],
     ["fenrir", "#b22222", "LUL LUL LUL", {}],
-    ["vanessa.gg", "#8a2be2", "INGEN Black vai amassar no campeonato", { subscriber: "7" }],
+    ["vanessa.gg", "#8a2be2", "INGEN Aces vai amassar no campeonato", { subscriber: "7" }],
     ["sup_main", "#2e8b57", "esse ward foi visão de jogo absurda", {}],
   ];
   var DEMO_EMOTES = { Kappa: "25", LUL: "425618" };

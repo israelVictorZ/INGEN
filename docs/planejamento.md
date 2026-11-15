@@ -1,7 +1,7 @@
 # Planejamento INGEN
 
 > Arquivo único de pendências e prioridades. Substitui `roadmap.md`, `melhorias.md`, `fase-2-o-que-melhorar.md` e `fase-2-ingen-lives.md`.
-> Atualizado em 13/11/2026 (Onda 1 homologada e no ar). Site: https://ingengg.com.br
+> Atualizado em 13/11/2026 (Onda 1 100% concluída e no ar, com YouTube e X no site; ideias do grupo aprovadas como Onda 2, as demais ondas desceram uma posição). Site: https://ingengg.com.br
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
@@ -20,7 +20,7 @@ Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e
 
 ### No ar
 - **Home** animada, com faixa "Ao vivo agora".
-- **Redes oficiais** no menu e no rodapé: Twitch, Discord e Instagram ([@ingen.gg](https://www.instagram.com/ingen.gg/)), sempre em nova aba.
+- **Redes oficiais** no menu, no rodapé e nos dados estruturados: Twitch, Discord, Instagram ([@ingen.gg](https://www.instagram.com/ingen.gg/)), YouTube ([@ingengg](https://www.youtube.com/@ingengg)) e X ([@ingen_gg](https://x.com/ingen_gg)), sempre em nova aba.
 - **Elenco** com o Mapa do Rift, os dois times (INGEN Black e INGEN Silver), reservas e vagas abertas apontando para o Discord.
 - **Perfil do jogador:** gráfico de elo, métricas com a posição entre os jogadores da INGEN, vitórias × derrotas, tendência, contexto (lado do mapa e duração), runa-chave mais usada, mapa de calor "Quando joga", forma, recordes, campeões, confrontos de lane, duo, partidas detalhadas, selo e botão da Twitch, imagem de compartilhamento.
 - **Comparar** jogadores (inclusive entre times), com layout próprio no celular.
@@ -33,7 +33,8 @@ Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e
 - **Acessibilidade:** contraste revisado, foco visível e animações respeitando "reduzir movimento" (inclusive o tilt dos cards).
 - **Notícias:** prontas, mas **ocultas** por decisão do time (`FEATURES.news` em `src/lib/features.ts`).
 
-### Onda 1 (no ar desde 13/11/2026, homologada pelo Israel)
+### Onda 1 (no ar desde 13/11/2026, homologada pelo Israel; 100% concluída)
+- **Redes oficiais completas (#39):** YouTube e X entram no menu (ícones no desktop, botões no celular), no rodapé e no `sameAs` do JSON-LD, ao lado de Twitch, Discord e Instagram.
 - **Radar do Comparar por lane (#5):** cada eixo é medido pela referência da lane do jogador (`src/lib/lane-ref.ts`, a mesma do scouting), com anel tracejado no "nível alto da lane", legenda e quadro com os valores de cada eixo (mouse, toque ou teclado).
 - **Vercel Web Analytics (#48):** componente no layout; **ativado no painel da Vercel** e contando desde a publicação (13/11).
 - **Dicas (i) nas métricas (#35):** glossário em `src/lib/glossary.ts`; aparece no perfil, no Comparar, na tabela de campeões e no ranking.
@@ -72,29 +73,57 @@ A ordem leva em conta: o que está errado primeiro, depois o que entrega mais co
 
 ### Onda 1 · Correções e ganhos rápidos (1 a 2 dias)
 
-Concluída e no ar em 13/11/2026 (#5, #48, #35, #37, #33, #34, #22, #18, #27); ver "Onda 1" na seção 1. Resta:
+**100% concluída** em 13/11/2026 (#5, #48, #35, #37, #33, #34, #22, #18, #27 e #39); ver "Onda 1" na seção 1. Nada pendente.
 
-| # | Item | Página | Esforço |
+### Onda 2 · Prioridades do grupo (aprovadas em 13/11/2026)
+
+Ideias levantadas pela staff no grupo (Murillo, Atlas, Israel e Lari) e aprovadas pelo Israel como próxima etapa; tudo o que vinha depois desceu uma onda. Os números `I..` são os do PDF "Ideias do grupo" (`docs/INGEN-ideias.pdf`, gerado com `npm run docs:pdf -- ideias` a partir de `docs/pdf/ideias.html`), que também traz a lista original por pessoa.
+
+**2a · Até segunda-feira, 16/11/2026**
+
+| # | Item | Quem trouxe | Esforço |
 |---|---|---|---|
-| 39 | **X e YouTube no rodapé e no menu**, se o time tiver. Twitch, Discord e Instagram já estão. **Parado:** o Israel vai confirmar com o capitão; até lá, tratamos como "não tem". | Global | P |
+| — | **Draft INGEN para a live** (a antiga v1 da Onda 2, puxada para cá pelo prazo). Sistema de pick & ban próprio, pensado para ser transmitido, com interface amigável e personalizável: fases no formato oficial (3 bans, 3 picks, 2 bans, 2 picks) com cronômetro opcional; **logo e cor de cada um dos dois times**, com a tela se adaptando à cor; busca de campeão por nome e filtro por lane, com splash arts do Data Dragon; visual da INGEN e animações de pick e ban; **modo transmissão** (link limpo, sem controles, como fonte do OBS); configuração da partida em poucos passos. Sem banco: os logos ficam no navegador. | Israel | G |
+| I01 | **Meta definível** (stream asset): barra de meta com objetivo e valor editáveis pelo streamer (doações, inscritos, seguidores). | Murillo | M |
+| I02 | **LivePix** (stream asset) e **LivePix também na tela de lobby**. Avaliar se a meta do I01 pode ser alimentada pelas doações do LivePix. | Murillo | M |
+| I03 | **Música do Spotify na tela:** primeiro **verificar a viabilidade** (depende da conta do streamer autorizar o acesso); se der, asset com música, artista e capa. | Murillo | M |
+| I04 | **Música nas telas "Já vai começar", "Volto já" e "Encerramento".** Pode reaproveitar o componente do I03, se o Spotify for viável. | Murillo | M |
+| I05 | **CTA Rift Masters ↔ INGEN:** chamada para o Rift Masters no site da INGEN e, no sentido contrário, para a INGEN no site do Rift Masters (campeonato à parte do time, coordenado pelo líder da INGEN; o lado de lá fica no site dele, fora deste repositório). Em nova aba. | Murillo | P |
 
-### Onda 2 · Sistema de Draft INGEN (novo, 2 a 4 dias)
+Os assets I01 a I04 entram no kit de stream (`public/stream`); rodar `node scripts/build-stream-se.mjs` ao mexer em `public/stream/core`.
 
-Tela de draft no estilo do drafter.lol, com a cara da INGEN. É independente do resto e tem alto impacto visual: serve para treino, scrims e transmissão.
+**2b · Organizar o Discord** (frente do Atlas, com os passos da Lari; trabalho no servidor, fora do código)
 
-- **v1, só no navegador (sem banco):**
-  - Fases de ban e pick no formato oficial (3 bans, 3 picks, 2 bans, 2 picks), com cronômetro opcional.
-  - **Time adversário personalizável:** subir o logo (fica só no navegador) e escolher a cor do time. A tela inteira se adapta à cor.
-  - Busca de campeão por nome e filtro por lane; splash arts do Data Dragon.
-  - Visual próprio: escudo da INGEN, gradiente verde, animações de pick e ban.
-  - **Modo transmissão:** link limpo, sem controles, para usar como fonte do OBS (conversa com o kit de stream).
-- **v2, com dados da casa:**
-  - Sugestões vindas do banco: comfort picks e pool de cada jogador, campeões que nos banem, picks de risco (já gravados em `match_players` e `match_teams`).
-  - Salvar drafts (histórico de scrims) e exportar imagem do resultado.
-  - Sala compartilhada: os dois capitães montam o draft juntos em tempo real, cada um no seu link.
-- **Depende de:** nada para a v1. A v2 com salvamento usa o login da Onda 4.
+Ordem: estrutura → visual → engajamento (o engajamento depende dos cargos já arrumados).
 
-### Onda 3 · Perfil com os dados novos (2 a 3 dias)
+| # | Item | Bloco |
+|---|---|---|
+| I06 | **Revisar todos os canais:** o que remover, juntar ou mudar de posição. Primeiro passo, porque define onde o resto fica. | Estrutura |
+| I07 | **Arrumar os cargos** (nomes, cores, ordem e permissões). | Estrutura |
+| I08 | **Cargos de staff com poder de moderação.** | Estrutura |
+| I09 | **Calls de treino por line:** arrumar as calls e criar canais de voz e de texto separados para a INGEN Black e a INGEN Silver. | Estrutura |
+| I10 | **Salas para a comunidade:** solo/duo, flex e ARAM, além das salas dos times. | Estrutura |
+| I11 | **Mensagens estilizadas** de boas-vindas e afins, com a identidade da INGEN. | Visual |
+| I12 | **Estatuto com nova estilização** (ex.: imagens personalizadas). | Visual |
+| I13 | **Incentivo a quem usa o Discord:** cargos únicos ou posições de relevância. | Engajamento |
+| I14 | **Incentivo a quem interage no chat:** cargos únicos e posições de relevância (pode ser o mesmo sistema de níveis do I13). | Engajamento |
+
+**2c · Na sequência (nível Alto)**
+
+| # | Item | Quem trouxe | Esforço |
+|---|---|---|---|
+| I15 | **Sistema de agenda:** treinos, scrims, jogos e lives num lugar só, para os times e a comunidade. Traz para cá a parte "agenda" do #43. | Atlas | G |
+
+### Onda 3 · Sistema de Draft INGEN, v2 com dados da casa
+
+A v1 (tela de draft para a live) subiu para a Onda 2 por causa do prazo. Aqui fica a evolução:
+
+- Sugestões vindas do banco: comfort picks e pool de cada jogador, campeões que nos banem, picks de risco (já gravados em `match_players` e `match_teams`).
+- Salvar drafts (histórico de scrims) e exportar imagem do resultado.
+- Sala compartilhada: os dois capitães montam o draft juntos em tempo real, cada um no seu link.
+- **Depende de:** a v1 pronta; o salvamento usa o login da Onda 5.
+
+### Onda 4 · Perfil com os dados novos (2 a 3 dias)
 
 A coleta já começou; esta onda só mostra o que está sendo gravado.
 
@@ -108,7 +137,7 @@ A coleta já começou; esta onda só mostra o que está sendo gravado.
 | 14 | **Placar completo** da partida (os 10 jogadores) ao expandir a linha. | M |
 | 15 | **Gráfico de elo do perfil com eventos** (promoções e quedas) e filtro de período. O gráfico do ranking já tem filtro. | M |
 
-### Onda 4 · Login único e área interna (1 a 2 dias)
+### Onda 5 · Login único e área interna (1 a 2 dias)
 
 Um só sistema de acesso para três áreas que hoje estão planejadas separadamente: `/stream` (kit), `/interno` (Fase 2) e `/admin` (painel).
 
@@ -116,7 +145,7 @@ Um só sistema de acesso para três áreas que hoje estão planejadas separadame
 - Detalhes técnicos no Apêndice A.
 - Logo depois: **senha no kit de stream** (antes de divulgar o kit para mais gente).
 
-### Onda 5 · Fase 2 "O que melhorar" (área interna)
+### Onda 6 · Fase 2 "O que melhorar" (área interna)
 
 Fraquezas, recomendações e metas por jogador, só para a staff. Plano completo no Apêndice A.
 
@@ -125,20 +154,20 @@ Fraquezas, recomendações e metas por jogador, só para a staff. Plano completo
 3. **2c:** metas, notas da staff, antes × depois, papel `jogador`.
 4. **2d:** timeline (ouro e CS aos 10/15 min, mortes cedo, ganks × duelos). **Desbloqueada:** a Personal Key já está ativa e as timelines já estão sendo gravadas.
 
-### Onda 6 · Kit de stream, fase 2
+### Onda 7 · Kit de stream, fase 2
 
-Plano completo no Apêndice B. A fase 1 já foi testada no OBS e funciona, e o teste de alerta pelo chat já está pronto. Ordem:
+Plano completo no Apêndice B. A fase 1 já foi testada no OBS e funciona, e o teste de alerta pelo chat já está pronto. Meta, LivePix e música (I01 a I04) foram antecipados para a Onda 2. Ordem:
 1. **Coleção de cenas do OBS** para importar: instalação cai de ~15 min para ~1 min.
 2. **Placar do dia** (vitórias/derrotas, PDL e sequência; dados prontos).
 3. Câmera cheia e transição (stinger).
 4. "Jogando com", painéis e imagem offline da Twitch.
 5. Página "Novidades do kit" e melhorias do guia.
 
-### Onda 7 · Painel admin
+### Onda 8 · Painel admin
 
 Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. Até lá, as skills de chat resolvem. Detalhes no Apêndice C.
 
-### Onda 8 · Engajamento automático
+### Onda 9 · Engajamento automático
 
 | # | Item | Esforço |
 |---|---|---|
@@ -148,7 +177,7 @@ Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. At�
 | 26 | **Ranking:** alternar Solo/Duo e Flex e novos quadros (KDA, partidas, visão). | M |
 | 45 | **Clipes da Twitch** e vídeos do YouTube no perfil. | M |
 
-### Onda 9 · Elenco, scouting e comparar
+### Onda 10 · Elenco, scouting e comparar
 
 | # | Item | Esforço |
 |---|---|---|
@@ -160,16 +189,20 @@ Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. At�
 | 31 | **Confronto direto** entre os dois jogadores comparados. | M |
 | 32 | **Imagem compartilhável do duelo** (os dois jogadores e o radar). | M |
 
-### Onda 10 · Longo prazo
+### Onda 11 · Longo prazo
 
 | # | Item | Esforço |
 |---|---|---|
-| 43 | **Campeonatos e agenda:** página de campeonatos, próximos jogos na home, resultados. | G |
+| 43 | **Campeonatos:** página de campeonatos, próximos jogos na home, resultados. A agenda foi para a Onda 2 (I15). | G |
 | 44 | **Recrutamento com formulário** e webhook para o Discord. | M |
 | 36 | **Desempenho:** splash arts menores, lazy loading, Lighthouse 90+ no celular. | M |
 | 50 | **Testes e CI:** testes dos cálculos e build a cada push, antes do deploy. | M |
 | 49 | **Logo em SVG** para animar torres, escudo e letras separadamente. | M |
 | — | **Reativar notícias** (`FEATURES.news = true`) quando o time quiser. | P |
+| I17 | **Vídeos e cursos de fundamentos:** sistema de upload para a comunidade (ideia do Atlas). | G |
+| I18 | **Rift Masters, 2ª edição:** começar a pensar no rebranding e na preparação do site (ideia do Israel). | G |
+| I19 | **Bots de automação no Discord:** moderação, vínculo com a conta do LoL em `/elo`, match de duo e de scrim (ideia da Lari; pode ser feito com o Claude). | G |
+| I20 | **Impulsos (boosts) para o servidor do Discord**, para liberar melhorias visuais (ideia da Lari; fora do código). | P |
 
 ---
 
@@ -178,7 +211,7 @@ Cadastrar, editar e remover jogadores, vagas e notícias sem mexer no banco. At�
 - **Logo vetorial:** o arquivo atual é WebP com fundo escuro. Precisamos de SVG com fundo transparente, ou aprovar um redesenho fiel em vetor. Confirmar também se os dois risquinhos verdes abaixo do escudo fazem parte do símbolo.
 - **Login:** usuário e senha agora, Discord depois? (Recomendado: usuário e senha, mais simples e sem depender de app no Discord.)
 - **Flex e Clash:** hoje o sync grava só Solo/Duo. Gravar também Flex (440) e Clash (700) traria os jogos do time junto, úteis para o draft, "Jogando com" e campeonatos. Custa mais chamadas à Riot; o site já filtra Solo/Duo nas estatísticas.
-- **Redes oficiais do time:** o time tem X e YouTube? (Instagram já está no site.) O Israel vai confirmar com o capitão; até lá, o #39 fica parado.
+- **Nomes dos times no estilo cartas de baralho (I16, ideia do Atlas):** em validação no grupo. Se aprovado, muda o site, os overlays e o Discord.
 
 ---
 
@@ -236,7 +269,7 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 | Prioridade | Item | O que é |
 |---|---|---|
 | P1 | **Coleção de cenas do OBS** | Botão que baixa um `.json` de Scene Collection com as 5 cenas (Começando, Lobby, Partida, Pausa, Fim), fontes posicionadas e links do jogador. |
-| P1 | **Senha** | Para `/stream` e `/stream/ajuda`, em `src/app/stream/layout.tsx` (usa o login da Onda 4). |
+| P1 | **Senha** | Para `/stream` e `/stream/ajuda`, em `src/app/stream/layout.tsx` (usa o login da Onda 5). |
 | P1 | **Novidades do kit** | Lista de mudanças com data e "precisa copiar o link de novo?". |
 | P2 | **Placar do dia** | Vitórias/derrotas do dia, PDL e sequência (`lpToday`, `form`, `streak`; só expor no `/api/stream`). |
 | P2 | **Transição (stinger)** | Escada de pixels + logo cruzando a tela; HTML e, se possível, WebM transparente. |
@@ -251,7 +284,7 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 
 ## Apêndice C · Painel admin
 
-- **Rota** `/admin`, fora do menu, `noindex`, com o login da Onda 4 e uma lista de admins editável.
+- **Rota** `/admin`, fora do menu, `noindex`, com o login da Onda 5 e uma lista de admins editável.
 - **Jogadores:** adicionar só com o Riot ID (`Nome#TAG`) + time + lane (valida na Riot e grava o PUUID); editar nome, foto, bio e redes; trocar de time ou lane preservando o histórico (`left_at` + nova participação); remover vira "ex-jogador".
 - **Vagas:** abrir e fechar por time e lane.
 - **Notícias** (quando reativadas): criar, editar, fixar, despublicar.
@@ -277,8 +310,9 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 - Animações respeitando "reduzir movimento": letreiro, transição de pixels, hero e Mapa do Rift (#37, menos o tilt).
 - Domínio próprio `ingengg.com.br` (#47), com SEO e redirecionamento do endereço antigo.
 - Kit de stream testado no OBS; teste de alerta direto no OBS pelo chat (`!testealerta`), com os botões do kit copiando o comando.
-- Instagram oficial (@ingen.gg) no menu, no rodapé e nos dados estruturados (parte do #39).
+- Redes oficiais completas (#39): Instagram (@ingen.gg), YouTube (@ingengg) e X (@ingen_gg) no menu, no rodapé e nos dados estruturados, com Twitch e Discord.
 - PDF de acompanhamento regenerável por qualquer sessão (`npm run docs:pdf`).
+- PDF "Ideias do grupo" com as 22 ideias da staff organizadas por prioridade e frente (`npm run docs:pdf -- ideias`).
 - Banco Neon dormindo quando nada muda (aviso do sync, canais em arquivo, overlays com dados guardados).
 - Twitch: selo "Ao vivo", botão no perfil, faixa na home, canais cadastrados.
 - Links de recrutamento apontando para o Discord.
@@ -313,5 +347,7 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 13/11 | **Onda 1 concluída no código:** radar por lane, Analytics, dicas nas métricas, tilt com "reduzir movimento", tabela ordenável, live no perfil, card do elenco, forma no scouting e setas no ranking. #39 parado até o time confirmar X e YouTube. Analytics ativado no painel da Vercel | branch `feat/ajustes-v1` e Vercel |
 | 13/11 | Homologação da Onda 1 pelo Israel e **publicação** (`main` → Vercel); Analytics passa a contar | git e Vercel |
 | 13/11 | Kit de stream: selos do chat (NOVO, STREAMER, VIP, MOD) voltam a ter a própria cor no tema Silver (o NOVO ficava com letra preta em fundo escuro) | git |
+| 13/11 | **Ideias do grupo** (Murillo, Atlas, Israel e Lari) organizadas no PDF "Ideias do grupo" e aprovadas como **Onda 2**: draft para a live, stream assets e CTA do Rift Masters até 16/11, depois o Discord e a agenda. As demais ondas desceram uma posição | conversa "Ideias do grupo" e grupo da staff |
+| 13/11 | **Onda 1 100% concluída:** YouTube (@ingengg) e X (@ingen_gg) no menu, no rodapé e no JSON-LD (#39), com os links confirmados pelo time; publicado (`main` → Vercel) | git e Vercel |
 
 **Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

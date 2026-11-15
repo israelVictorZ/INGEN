@@ -1,7 +1,8 @@
 /**
  * Gera o PDF de acompanhamento (docs/INGEN-planejamento.pdf) a partir de docs/pdf/planejamento.html.
  *
- *   npm run docs:pdf
+ *   npm run docs:pdf                 -> docs/pdf/planejamento.html -> docs/INGEN-planejamento.pdf
+ *   npm run docs:pdf -- ideias       -> docs/pdf/ideias.html       -> docs/INGEN-ideias.pdf
  *
  * - Usa o Chrome (ou o Edge) sem janela. Outro navegador: CHROME_PATH=<caminho do executável>.
  * - O PDF vai SEMPRE para a pasta principal do projeto (onde o dono baixa o arquivo), mesmo rodando
@@ -16,7 +17,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "..");
-const src = join(repo, "docs", "pdf", "planejamento.html");
+const name = process.argv[2] || "planejamento";
+const src = join(repo, "docs", "pdf", `${name}.html`);
+if (!existsSync(src)) {
+  console.error(`Não achei ${src}.`);
+  process.exit(1);
+}
 
 // pasta principal do projeto: a do .git compartilhado (em worktree, aponta para o checkout principal)
 let mainRoot = repo;
@@ -24,7 +30,7 @@ try {
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: repo, encoding: "utf8" }).trim();
   mainRoot = dirname(common);
 } catch {}
-const out = join(mainRoot, "docs", "INGEN-planejamento.pdf");
+const out = join(mainRoot, "docs", `INGEN-${name}.pdf`);
 
 const candidates = [
   process.env.CHROME_PATH,

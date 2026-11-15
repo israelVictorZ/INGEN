@@ -1,7 +1,7 @@
 # Planejamento INGEN
 
 > Arquivo único de pendências e prioridades. Substitui `roadmap.md`, `melhorias.md`, `fase-2-o-que-melhorar.md` e `fase-2-ingen-lives.md`.
-> Atualizado em 15/11/2026 (Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
+> Atualizado em 15/11/2026 (times renomeados para INGEN Aces e INGEN Jokers, item 1 da Onda 2; Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
@@ -21,7 +21,8 @@ Os números entre `#` são os do mapeamento original de melhorias (11/11/2026) e
 ### No ar
 - **Home** animada, com faixa "Ao vivo agora".
 - **Redes oficiais** no menu, no rodapé e nos dados estruturados: Twitch, Discord, Instagram ([@ingen.gg](https://www.instagram.com/ingen.gg/)), YouTube ([@ingengg](https://www.youtube.com/@ingengg)) e X ([@ingen_gg](https://x.com/ingen_gg)), sempre em nova aba.
-- **Elenco** com o Mapa do Rift, os dois times (INGEN Black e INGEN Silver), reservas e vagas abertas apontando para o Discord.
+- **Elenco** com o Mapa do Rift, os dois times (INGEN Aces e INGEN Jokers), reservas e vagas abertas apontando para o Discord.
+- **Nomes dos times:** INGEN Aces (antiga Black) e INGEN Jokers (antiga Silver), definidos num mapa só (`src/lib/teams.ts`). Endereços novos `/scouting/aces`, `/scouting/jokers`, `/elenco#aces` e `/elenco#jokers`; os antigos (`/scouting/black`, `/scouting/silver`, `#black`, `#silver`) continuam funcionando. Por dentro (banco, `?time=` dos overlays, classes CSS) os ids seguem `black` e `silver`, então reverter é dar `git revert` ou trocar o mapa.
 - **Perfil do jogador:** gráfico de elo, métricas com a posição entre os jogadores da INGEN, vitórias × derrotas, tendência, contexto (lado do mapa e duração), runa-chave mais usada, mapa de calor "Quando joga", forma, recordes, campeões, confrontos de lane, duo, partidas detalhadas, selo e botão da Twitch, imagem de compartilhamento.
 - **Comparar** jogadores (inclusive entre times), com layout próprio no celular.
 - **Scouting** por time: op.gg multi, Discord, PDF legível, bans sugeridos, picks com confiança, pontos fortes, confrontos difíceis, data e patch do relatório.
@@ -79,11 +80,10 @@ A ordem leva em conta: o que está errado primeiro, depois o que entrega mais co
 
 Ideias levantadas pela staff no grupo (Murillo, Atlas, Israel e Lari) e aprovadas pelo Israel como próxima etapa; tudo o que vinha depois desceu uma onda. Os números `I..` são os do PDF "Ideias do grupo" (`docs/INGEN-ideias.pdf`, gerado com `npm run docs:pdf -- ideias` a partir de `docs/pdf/ideias.html`). Este planejamento cobre só o que é feito no site e no kit de stream: a organização do Discord, os bots e impulsos do servidor e a 2ª edição do Rift Masters ficam no PDF de ideias.
 
-**Ordem de execução** (definida pelo Israel em 15/11/2026):
+**Ordem de execução** (definida pelo Israel em 15/11/2026). O item 1, **novos nomes dos times (I16)**, foi concluído em 15/11/2026 (ver Apêndice D):
 
 | Ordem | # | Item | Esforço |
 |---|---|---|---|
-| 1 | I16 | **Novos nomes dos times:** INGEN Black → **INGEN Aces** e INGEN Silver → **INGEN Jokers** (tema de cartas de baralho, ideia do Atlas, aprovada pelo time). Fácil de reverter: os identificadores internos (`black` e `silver` no banco, nas URLs e nos overlays) continuam e só os nomes exibidos mudam, a partir de um mapa único; links antigos seguem funcionando. Cobre site, SEO, overlays, guia do kit, skills e docs. | M |
 | 2 | — | **Categoria "Em teste" no elenco:** jogadores em teste em cada time, com exibição e funcionamento idênticos aos das reservas, mas com a etiqueta "Em teste". | M |
 | 3 | I05 | **CTA do Rift Masters na home** do site da INGEN, em nova aba e fácil de remover depois do campeonato. | P |
 | 4 | — | **Draft INGEN: criação e polimento.** Sistema de pick & ban próprio, pensado para ser transmitido, com interface amigável e personalizável: fases no formato oficial (3 bans, 3 picks, 2 bans, 2 picks) com cronômetro opcional; **logo e cor de cada um dos dois times**, com a tela se adaptando à cor; busca de campeão por nome e filtro por lane, com splash arts do Data Dragon; visual da INGEN e animações de pick e ban; **modo transmissão** (link limpo, sem controles, como fonte do OBS); configuração da partida em poucos passos. Sem banco: os logos ficam no navegador. | G |
@@ -296,6 +296,7 @@ A fase 1 está no ar: `/stream`, `/stream/ajuda`, overlays em `public/stream/` e
 - Sync a cada 5 min em modo sonda; coleta de dados para as próximas fases (13/11/2026).
 - Kit de stream: selos do chat legíveis no tema Silver (o NOVO e o STREAMER ficavam com letra preta em fundo escuro).
 - Onda 1 (13/11/2026, homologada e no ar): radar por lane (#5), Vercel Analytics no código e ativado no painel (#48), dicas (i) nas métricas (#35), tilt com "reduzir movimento" (#37 completo), tabela de campeões ordenável (#33), live embutida no perfil (#34), card do elenco mais rico (#22), forma recente no scouting (#18), setas no ranking (#27).
+- Novos nomes dos times (I16, item 1 da Onda 2, 15/11/2026): INGEN Black → INGEN Aces e INGEN Silver → INGEN Jokers no site, SEO, imagem de compartilhamento, overlays, widget do StreamElements, skills e docs. Mapa único em `src/lib/teams.ts` (cópia em `public/stream/core/ingen.js`); endereços novos com redirecionamento temporário (307) dos antigos; `npm run manage` aceita `--team aces|jokers`.
 
 ---
 
@@ -324,5 +325,6 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 13/11 | **Ideias do grupo** (Murillo, Atlas, Israel e Lari) organizadas no PDF "Ideias do grupo" e aprovadas como **Onda 2**: draft para a live, stream assets e CTA do Rift Masters até 16/11, depois o Discord e a agenda. As demais ondas desceram uma posição | conversa "Ideias do grupo" e grupo da staff |
 | 13/11 | **Onda 1 100% concluída:** YouTube (@ingengg) e X (@ingen_gg) no menu, no rodapé e no JSON-LD (#39), com os links confirmados pelo time; publicado (`main` → Vercel) | git e Vercel |
 | 15/11 | **Planejamento revisto pelo Israel:** a Onda 2 ganha ordem própria (nomes Aces e Jokers, categoria "Em teste", CTA do Rift Masters na home, draft, coleção de cenas do OBS e novos assets do kit); a agenda vai para o longo prazo; a organização do Discord, os avisos e bots do Discord, os impulsos do servidor e a 2ª edição do Rift Masters saem do planejamento do site (seguem no PDF de ideias); o draft fica sem sugestões de pick e ban, e a Onda 3 passa a ser salvar drafts | conversa "Nomes dos times" |
+| 15/11 | **Times renomeados:** INGEN Black vira **INGEN Aces** e INGEN Silver vira **INGEN Jokers** (site, overlays, StreamElements, skills e docs), com endereços novos e os antigos redirecionando; publicado (`main` → Vercel) | branch `feat/times-aces-jokers` e Vercel |
 
 **Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

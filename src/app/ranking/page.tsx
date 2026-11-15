@@ -267,7 +267,7 @@ export default async function RankingPage() {
         </ol>
         <p className="mt-6 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-gray-dim">
           Ordenado por elo na ranqueada Solo/Duo · ▲▼ posições em relação a 7 dias atrás · Winrate da temporada
-          {reserves.length > 0 && ` · ${benchGroups(reserves).map((g) => g.label).join(" e ")} abrem o op.gg`}
+          {reserves.length > 0 && ` · ${benchGroups(reserves).map((g, i) => (g.trial ? `${i ? "j" : "J"}ogadores em teste` : "Reservas")).join(" e ")} abrem o op.gg`}
         </p>
       </section>
     </RevealScope>

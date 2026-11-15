@@ -1,6 +1,6 @@
 ---
 name: ingen-jogador
-description: Adiciona, troca ou remove jogadores do elenco da INGEN (INGEN Black / INGEN Silver) no site e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) e o time para cadastrar, pedir para tirar/remover um jogador, mudar alguém de time ou de lane, ou abrir/fechar vaga.
+description: Adiciona, troca ou remove jogadores do elenco da INGEN (INGEN Aces / INGEN Jokers, antigas Black / Silver) no site e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) e o time para cadastrar, pedir para tirar/remover um jogador, mudar alguém de time ou de lane, ou abrir/fechar vaga.
 ---
 
 # Gerenciar jogadores da INGEN
@@ -9,8 +9,8 @@ O banco (Neon) é a fonte da verdade do elenco. Toda alteração passa por `scri
 
 ## Entradas esperadas
 
-- **Adicionar:** Riot ID `Nome#TAG` + time (`Black`/`Silver`). Opcionais: lane (TOP, JUNGLE, MID, ADC, SUPPORT) e nome de exibição.
-  - Mapeie os apelidos de time: "Black", "line 1", "principal" → `black`; "Silver", "line 2" → `silver`.
+- **Adicionar:** Riot ID `Nome#TAG` + time (`Aces`/`Jokers`). Opcionais: lane (TOP, JUNGLE, MID, ADC, SUPPORT) e nome de exibição.
+  - Mapeie os apelidos de time: "Aces", "Black" (nome antigo), "line 1", "principal" → `aces`; "Jokers", "Silver" (nome antigo), "line 2" → `jokers`. O `--team` também aceita os ids internos `black` e `silver` (ver `src/lib/teams.ts`).
   - Mapeie as lanes: "jg"/"jungle"/"selva" → `JUNGLE`; "sup"/"suporte" → `SUPPORT`; "adc"/"bot"/"atirador" → `ADC`; "mid"/"meio" → `MID`; "top" → `TOP`.
 - **Remover:** nome do jogador (exibição ou Riot ID).
 
@@ -33,7 +33,7 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
 3. **Executar a alteração.**
    - Adicionar:
      ```bash
-     npm run manage -- player:add --riot "Nome#TAG" --team black [--role MID] [--name "Exibição"]
+     npm run manage -- player:add --riot "Nome#TAG" --team aces [--role MID] [--name "Exibição"]
      ```
      - O script valida a conta na Riot e grava o PUUID.
      - Fecha a vaga aberta da lane e, se o jogador estava em outro time, encerra a participação anterior (histórico preservado).
@@ -61,7 +61,7 @@ Se faltar o time, pergunte. Se faltar a lane, deixe o script inferir pelas últi
 
 5. **Publicar na Vercel.** A mudança é só de dados, então um commit vazio dispara o deploy, limpa o cache do site e registra a alteração no histórico. Trabalhe na `main` (ou faça fast-forward da branch atual para a `main`):
    ```bash
-   git commit --allow-empty -m "elenco: <resumo, ex.: entra Fulano (TOP, INGEN Black)>" && git push origin main
+   git commit --allow-empty -m "elenco: <resumo, ex.: entra Fulano (TOP, INGEN Aces)>" && git push origin main
    ```
 
 6. **Verificar em produção** (o deploy leva ~1–2 min):
@@ -82,7 +82,7 @@ Em português, curto:
 
 ## Regras do site a respeitar
 
-- INGEN Black aparece sempre antes da Silver. O site nunca exibe "Line 1/2".
+- INGEN Aces aparece sempre antes da Jokers. O site nunca exibe "Line 1/2". Os nomes públicos vêm de `src/lib/teams.ts`; no banco os times continuam `black` (Aces) e `silver` (Jokers).
 - Não editar `scripts/seed.ts` para mudanças de elenco.
 - Twitch de jogador é outra skill: `ingen-twitch`.
 - Reservas são outra skill: `ingen-reserva`. Se o usuário disser que alguém é reserva/suplente, use aquela. Um `player:add` de quem era reserva do mesmo time já o tira da reserva.

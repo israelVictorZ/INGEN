@@ -1,6 +1,6 @@
 # INGEN: site oficial
 
-Site da organização de League of Legends **INGEN** (INGEN Black e INGEN Silver).
+Site da organização de League of Legends **INGEN** (INGEN Aces e INGEN Jokers; até 15/11/2026, INGEN Black e INGEN Silver). Os nomes públicos dos times ficam em `src/lib/teams.ts`; no banco eles continuam `black` e `silver`.
 
 Stack: Next.js 16 · Tailwind CSS v4 · GSAP + Lenis · Neon Postgres + Drizzle · Riot Games API.
 Direção visual em [`docs/design.md`](docs/design.md) · arquitetura em [`docs/arquitetura.md`](docs/arquitetura.md) · planejamento e pendências em [`docs/planejamento.md`](docs/planejamento.md).
@@ -26,9 +26,9 @@ O site publicado só lê do banco e revalida a cada 15 minutos, então a chave d
 | Rota | Conteúdo |
 |---|---|
 | `/` | Home: hero animado, elencos, números e notícias |
-| `/elenco` | Mapa do Rift e cards dos jogadores (Black primeiro) |
+| `/elenco` | Mapa do Rift e cards dos jogadores (Aces primeiro) |
 | `/jogador/[slug]` | Perfil: elo, métricas, pool de campeões e partidas |
 | `/comparar` | Dois jogadores do mesmo time lado a lado |
 | `/scouting/[time]` | Relatório para outros times: op.gg multi, Discord e PDF |
-| `/ranking` | Ranking interno por elo (único lugar sem a ordem Black → Silver) |
+| `/ranking` | Ranking interno por elo (único lugar sem a ordem Aces → Jokers) |
 | `/noticias` | Notícias (oculto por enquanto: `FEATURES.news` em `src/lib/features.ts`) |

@@ -47,14 +47,14 @@ Valores amostrados direto dos pixels do símbolo.
 
 | Token | Hex | Uso |
 |---|---|---|
-| `--silver` | `#C9CDD3` | toque de identidade da INGEN Silver (metálico) |
+| `--silver` | `#C9CDD3` | toque de identidade da INGEN Jokers (metálico; tema `silver` no código) |
 | `--loss` | `#FF4D5E` | derrotas no histórico de partidas, e só isso |
 
-### Black e Silver sem rótulo de "line"
+### Aces e Jokers sem rótulo de "line"
 
 As duas compartilham a mesma paleta e só mudam o acento:
-- **INGEN Black:** acento no gradiente verde completo.
-- **INGEN Silver:** acento prata (`--silver`) com detalhes em `--green-mint`.
+- **INGEN Aces** (id `black`): acento no gradiente verde completo.
+- **INGEN Jokers** (id `silver`): acento prata (`--silver`) com detalhes em `--green-mint`.
 
 ---
 
@@ -139,7 +139,7 @@ Gradiente lime → mint nas **bordas animadas** (borda que "corre" ao redor do c
 | **Mapa do Rift** | As rotas do minimapa se **desenham** (DrawSVG). Os cards dos jogadores "voam" para suas lanes. A lane acende no hover. |
 | **Card do jogador** | Tilt 3D no hover. **Troca de skin:** a splash alterna entre os 3 campeões mais jogados. Borda em gradiente correndo. |
 | **Números (elo, LP, winrate)** | Efeito de **embaralhar/decodificar** (ScrambleText) como um HUD. Contadores sobem ao entrar na tela. |
-| **Marquee** | `INGEN BLACK — INGEN SILVER — VAGA ABERTA —` em texto vazado gigante. A velocidade reage ao scroll. |
+| **Marquee** | `INGEN ACES — INGEN JOKERS — VAGA ABERTA —` em texto vazado gigante. A velocidade reage ao scroll. |
 | **Notícias** | Cards revelados com clip-path escalonado. A capa tem parallax sutil. |
 | **Comparar** | Tela dividida pelo chevron. O gráfico radar **se transforma** entre jogadores (MorphSVG). As barras de métricas crescem lado a lado. |
 | **Scouting** | Visual de "dossiê" em mono. As linhas da tabela entram em sequência. |

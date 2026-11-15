@@ -36,7 +36,7 @@ GitHub Actions (a cada 5 min) ──> scripts/sync-riot.ts ──> Riot API (br1
 
 | Tabela | Campos principais |
 |---|---|
-| `teams` | `slug` (`black`, `silver`), nome, ordem de exibição (Black = 1), acento |
+| `teams` | `slug` interno (`black`, `silver`), nome, ordem de exibição (`black` = 1), acento. Nome e endereço públicos (Aces e Jokers) vêm de `src/lib/teams.ts`, por cima do banco |
 | `players` | `puuid` (chave real), `game_name`, `tag_line`, nome de exibição, foto, bio |
 | `team_memberships` | jogador, time, lane (`TOP`/`JUNGLE`/`MID`/`ADC`/`SUPPORT`), `joined_at`, `left_at` |
 | `team_reserves` | reservas por time (fora de ranking, comparação e scouting) |
@@ -57,7 +57,7 @@ GitHub Actions (a cada 5 min) ──> scripts/sync-riot.ts ──> Riot API (br1
 | Rota | Conteúdo |
 |---|---|
 | `/` | home |
-| `/elenco` | elenco (Black primeiro), com `/elenco/[time]` |
+| `/elenco` | elenco (Aces primeiro), com âncoras `#aces` e `#jokers` (as antigas `#black` e `#silver` continuam valendo) |
 | `/jogador/[slug]` | perfil do jogador |
 | `/comparar?a=…&b=…` | comparar jogadores |
 | `/scouting/[time]` | relatório do time para outros times analisarem |
@@ -69,8 +69,8 @@ GitHub Actions (a cada 5 min) ──> scripts/sync-riot.ts ──> Riot API (br1
 
 ## Regras de produto
 
-- **INGEN Black aparece sempre antes da Silver**: menus, abas, listas, home, scouting. **Exceção:** rankings, que ordenam só por elo.
-- **Nunca** exibir "Line 1" ou "Line 2". Usar apenas "INGEN Black" e "INGEN Silver".
+- **INGEN Aces aparece sempre antes da Jokers**: menus, abas, listas, home, scouting. **Exceção:** rankings, que ordenam só por elo.
+- **Nunca** exibir "Line 1" ou "Line 2". Usar apenas "INGEN Aces" e "INGEN Jokers" (até 15/11/2026, INGEN Black e INGEN Silver). `/scouting/black` e `/scouting/silver` redirecionam para `/scouting/aces` e `/scouting/jokers`.
 - Vaga aberta ("Recrutando") é um card de recrutamento, não um espaço vazio.
 - Rodapé com o aviso legal da Riot: *"INGEN isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties…"*
 

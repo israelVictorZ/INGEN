@@ -1,6 +1,6 @@
 ---
 name: ingen-reserva
-description: Adiciona ou remove jogadores RESERVA de um time da INGEN (INGEN Black / INGEN Silver) e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) dizendo que é reserva/suplente/sub de uma line ou time, ou pedir para tirar alguém da reserva.
+description: Adiciona ou remove jogadores RESERVA de um time da INGEN (INGEN Aces / INGEN Jokers, antigas Black / Silver) e publica na Vercel. Use quando o usuário enviar um Riot ID (Nome#TAG) dizendo que é reserva/suplente/sub de uma line ou time, ou pedir para tirar alguém da reserva.
 ---
 
 # Gerenciar reservas da INGEN
@@ -12,7 +12,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 ## Entradas esperadas
 
 - **Adicionar:** Riot ID `Nome#TAG` + a line/time.
-  - Times: "Black", "line 1", "principal" → `black`; "Silver", "line 2" → `silver`. Se faltar, **pergunte**.
+  - Times: "Aces", "Black" (nome antigo), "line 1", "principal" → `aces`; "Jokers", "Silver" (nome antigo), "line 2" → `jokers`. Se faltar, **pergunte**. O `--team` também aceita os ids internos `black` e `silver`.
   - Opcional: lane ("jg"/"jungle"/"selva" → `JUNGLE`; "sup"/"suporte" → `SUPPORT`; "adc"/"bot"/"atirador" → `ADC`; "mid"/"meio" → `MID`; "top" → `TOP`). Sem lane, o site mostra a mais jogada nas Solo/Duo recentes (não precisa perguntar).
   - Opcional: nome de exibição (padrão: última palavra do nick, "Osamu Chuuya" → "Chuuya").
 - **Remover:** nome do reserva (exibição ou Riot ID) e, se ele estiver nos dois times, de qual.
@@ -33,7 +33,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 3. **Executar a alteração.**
    - Adicionar:
      ```bash
-     npm run manage -- reserve:add --riot "Nome#TAG" --team black [--role MID] [--name "Exibição"]
+     npm run manage -- reserve:add --riot "Nome#TAG" --team aces [--role MID] [--name "Exibição"]
      ```
      - Valida a conta na Riot e reaproveita o jogador se ele já existe no banco (ex.: ex-titular), senão cria.
      - Recusa se a pessoa já for **titular** do mesmo time. Pergunte ao usuário se é para rebaixar; se sim, primeiro `player:remove --slug <slug>` (skill `ingen-jogador`) e depois o `reserve:add`.
@@ -41,7 +41,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
      - Se o slug gerado já for de outra pessoa, o script recusa: repita com `--slug`.
    - Remover:
      ```bash
-     npm run manage -- reserve:remove --slug <slug> [--team black|silver]
+     npm run manage -- reserve:remove --slug <slug> [--team aces|jokers]
      ```
      - Sem `--team`, tira da reserva de todos os times. O jogador continua no banco (histórico com data de saída).
    - **Promover reserva a titular:** use a skill `ingen-jogador` (`player:add` com o mesmo Riot ID, o time e a lane). O script já tira a pessoa da reserva daquele time.
@@ -55,7 +55,7 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 
 5. **Publicar na Vercel.** Mudança só de dados: um commit vazio dispara o deploy e limpa o cache. Trabalhe na `main` (ou faça fast-forward da branch atual para a `main`):
    ```bash
-   git commit --allow-empty -m "elenco: <resumo, ex.: Fulano entra como reserva da INGEN Black>" && git push origin main
+   git commit --allow-empty -m "elenco: <resumo, ex.: Fulano entra como reserva da INGEN Aces>" && git push origin main
    ```
    - Pré-requisito: o suporte a reservas (`src/components/roster/ReserveList.tsx`) precisa estar na `main`. Confira com `git show origin/main:src/components/roster/ReserveList.tsx > /dev/null`; se falhar, avise o usuário que o código ainda não foi publicado e não faça o commit vazio.
 
@@ -72,10 +72,10 @@ Cada time tem os seus reservas (um registro por time). O banco (Neon) é a fonte
 Em português, curto:
 - quem entrou ou saiu da reserva, e de qual time;
 - a lane (cadastrada ou "a mais jogada nas Solo/Duo") e o elo puxado da Riot;
-- o link `https://ingengg.com.br/elenco#<black|silver>` e o resultado da verificação.
+- o link `https://ingengg.com.br/elenco#<aces|jokers>` e o resultado da verificação.
 
 ## Regras do site a respeitar
 
 - Reserva nunca vira titular sozinho, nem ocupa ou fecha vaga aberta.
-- O site nunca exibe "Line 1/2": use INGEN Black / INGEN Silver.
+- O site nunca exibe "Line 1/2": use INGEN Aces / INGEN Jokers (nomes em `src/lib/teams.ts`).
 - Titulares são outra skill: `ingen-jogador`. Twitch: `ingen-twitch` (o selo "Ao vivo" só aparece para titulares).

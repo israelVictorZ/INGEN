@@ -97,7 +97,7 @@
   tr { break-inside: avoid; }
   td:first-child { font-weight: 600; width: 44mm; }
   table.tl td:first-child { width: 34mm; white-space: nowrap; }
-  table.tl td { padding-top: 1.5mm; padding-bottom: 1.5mm; }
+  table.tl td { padding-top: 1.2mm; padding-bottom: 1.2mm; }
   table.tl td:last-child { width: 42mm; color: var(--muted); }
   .note { margin-top: 6mm; font-size: 8.5pt; color: var(--muted); border-left: 2px solid var(--green); padding-left: 3mm; }
   .timeline { display: flex; gap: 0; margin: 2mm 0 7mm; }
@@ -116,9 +116,9 @@
   <h1>Funcionalidades<span>e planejamento</span></h1>
   <p class="lead">O que o site da INGEN já entrega hoje e a ordem recomendada para as próximas entregas, da mais prioritária para a menos prioritária.</p>
   <div class="meta">
-    <div>Data<b>13/11/2026</b></div>
+    <div>Data<b>15/11/2026</b></div>
     <div>Site<b>ingengg.com.br</b></div>
-    <div>Versão<b>Plano consolidado v3</b></div>
+    <div>Versão<b>Plano consolidado v4</b></div>
   </div>
 </section>
 
@@ -219,7 +219,7 @@
 
   <div class="timeline">
     <div class="on"><b>ONDAS 1–2</b>Correções e prioridades do grupo</div>
-    <div><b>ONDAS 3–4</b>Draft v2 e perfil</div>
+    <div><b>ONDAS 3–4</b>Drafts salvos e perfil</div>
     <div><b>ONDAS 5–6</b>Login e área interna</div>
     <div><b>ONDAS 7–8</b>Stream e admin</div>
     <div><b>ONDAS 9–11</b>Engajamento e longo prazo</div>
@@ -239,31 +239,30 @@
   <div class="wave hl">
     <div class="n">2<small>PRÓXIMA</small></div>
     <div>
-      <h3>Prioridades do grupo <span class="effort">primeira parte até seg. 16/11</span></h3>
-      <div class="why"><b>Por quê aqui:</b> ideias da staff (Murillo, Atlas, Israel e Lari) aprovadas em 13/11 como próxima etapa; as demais ondas desceram uma posição. Lista completa no PDF "Ideias do grupo".</div>
+      <h3>Prioridades do grupo <span class="effort">ordem revista em 15/11</span></h3>
+      <div class="why"><b>Por quê aqui:</b> ideias da staff (Murillo, Atlas, Israel e Lari) aprovadas em 13/11 como próxima etapa, na ordem definida pelo Israel. Aqui entra só o que é feito no site e no kit de stream; Discord e Rift Masters 2ª edição seguem no PDF "Ideias do grupo".</div>
       <div class="draft">
         <div>
-          <h4>2a · até segunda, 16/11</h4>
+          <h4>Site</h4>
           <ul>
-            <li><b>Draft INGEN para a live:</b> logo e cor de cada time, modo transmissão para o OBS.</li>
-            <li>Stream asset de meta definível.</li>
-            <li>LivePix, também na tela de lobby.</li>
-            <li>Música do Spotify na tela (verificar viabilidade).</li>
-            <li>Música nas telas "Já vai começar", "Volto já" e "Encerramento".</li>
-            <li>CTA Rift Masters ↔ INGEN nos dois sites.</li>
+            <li><b>1 · Novos nomes dos times:</b> INGEN Black vira <b>INGEN Aces</b> e INGEN Silver vira <b>INGEN Jokers</b>, no site, nos overlays e no guia. Fácil de reverter e sem quebrar links antigos.</li>
+            <li><b>2 · Categoria "Em teste"</b> no elenco: igual às reservas, com a etiqueta "Em teste".</li>
+            <li><b>3 · CTA do Rift Masters</b> na home, fácil de tirar depois do campeonato.</li>
+            <li><b>4 · Draft INGEN:</b> criação e polimento. Logo e cor de cada time, fases oficiais, cronômetro e modo transmissão para o OBS.</li>
           </ul>
         </div>
         <div>
-          <h4>2b · organizar o Discord</h4>
+          <h4>Kit de stream</h4>
           <ul>
-            <li>Revisar os canais, arrumar os cargos e criar a staff com moderação.</li>
-            <li>Calls de treino por line e salas de solo/duo, flex e ARAM.</li>
-            <li>Boas-vindas e estatuto com visual da INGEN.</li>
-            <li>Incentivos para quem usa o servidor e o chat.</li>
-          </ul>
-          <h4 style="margin-top:3mm">2c · na sequência</h4>
-          <ul>
-            <li>Sistema de agenda (treinos, scrims, jogos e lives).</li>
+            <li><b>5 · Coleção de cenas do OBS</b> para importar de uma vez (instalação de ~15 min para ~1 min).</li>
+            <li><b>6 · Novos assets:</b>
+              <ul>
+                <li>Meta definível (inscritos, seguidores ou doações).</li>
+                <li>Contorno para o LivePix e espaço para ele no lobby, removível como a câmera.</li>
+                <li>Música do Spotify na tela (verificar viabilidade).</li>
+                <li>Música nas telas "Já vai começar", "Volto já" e "Encerramento".</li>
+              </ul>
+            </li>
           </ul>
         </div>
       </div>
@@ -273,9 +272,9 @@
   <div class="wave">
     <div class="n">3</div>
     <div>
-      <h3>Sistema de Draft INGEN, v2 <span class="effort">2 a 3 dias</span></h3>
-      <div class="why"><b>Por quê aqui:</b> a v1 (tela para a live) subiu para a onda 2 pelo prazo; a v2 usa os dados da casa e o login da onda 5 para salvar.</div>
-      <div class="chips"><span class="chip p">Sugestões pelo pool de cada jogador</span><span class="chip">Comfort picks e o que costumam banir</span><span class="chip">Salvar drafts das scrims</span><span class="chip">Exportar imagem</span><span class="chip">Sala compartilhada entre os capitães</span></div>
+      <h3>Draft INGEN: drafts salvos <span class="effort">1 a 2 dias</span></h3>
+      <div class="why"><b>Por quê aqui:</b> depois do draft pronto, guardar cada draft para analisar. Sem sugestão de picks pela pool nem de bans: seria injusto com os times visitantes e entregaria ao adversário o estudo que é dele.</div>
+      <div class="chips"><span class="chip p">Salvar drafts de scrims e jogos</span><span class="chip wait">A decidir: exportar imagem do draft</span><span class="chip wait">A decidir: sala compartilhada entre os capitães</span></div>
     </div>
   </div>
 
@@ -312,8 +311,8 @@
     <div class="n">7</div>
     <div>
       <h3>Kit de stream, fase 2 <span class="effort">2 a 4 dias</span></h3>
-      <div class="why"><b>Por quê aqui:</b> o kit já foi testado e funciona no OBS; agora o foco é reduzir a instalação de ~15 min para ~1 min e ganhar peças novas.</div>
-      <div class="chips"><span class="chip p">Coleção de cenas para importar</span><span class="chip">Placar do dia</span><span class="chip">Câmera cheia</span><span class="chip">Transição animada</span><span class="chip">"Jogando com"</span><span class="chip">Painéis e tela offline</span></div>
+      <div class="why"><b>Por quê aqui:</b> o kit já foi testado e funciona no OBS; a coleção de cenas e os assets novos foram para a onda 2, e aqui ficam as peças seguintes.</div>
+      <div class="chips"><span class="chip p">Placar do dia</span><span class="chip">Câmera cheia</span><span class="chip">Transição animada</span><span class="chip">"Jogando com"</span><span class="chip">Painéis e tela offline</span></div>
     </div>
   </div>
 
@@ -331,7 +330,7 @@
     <div>
       <h3>Engajamento automático <span class="effort">2 a 3 dias</span></h3>
       <div class="why"><b>Por quê aqui:</b> mantém o site vivo sem trabalho manual, usando o histórico que está sendo acumulado.</div>
-      <div class="chips"><span class="chip">Destaques automáticos na home</span><span class="chip">Feed de atividades</span><span class="chip">Avisos no Discord (promoções, pentas, lives)</span><span class="chip">Ranking Solo/Flex</span><span class="chip">Clipes da Twitch</span></div>
+      <div class="chips"><span class="chip">Destaques automáticos na home</span><span class="chip">Feed de atividades</span><span class="chip">Ranking Solo/Flex</span><span class="chip">Clipes da Twitch</span></div>
     </div>
   </div>
 
@@ -349,7 +348,7 @@
     <div>
       <h3>Longo prazo</h3>
       <div class="why"><b>Por quê por último:</b> dependem de decisões, de custo ou de material de terceiros.</div>
-      <div class="chips"><span class="chip">Campeonatos</span><span class="chip">Formulário de recrutamento</span><span class="chip">Desempenho (Lighthouse 90+)</span><span class="chip">Testes automáticos</span><span class="chip">Logo em SVG animado</span><span class="chip">Reativar notícias</span><span class="chip">Vídeos e cursos de fundamentos</span><span class="chip">Rift Masters, 2ª edição</span><span class="chip">Bots no Discord</span><span class="chip">Impulsos do servidor</span></div>
+      <div class="chips"><span class="chip">Campeonatos</span><span class="chip">Sistema de agenda (treinos, scrims, jogos e lives)</span><span class="chip">Formulário de recrutamento</span><span class="chip">Desempenho (Lighthouse 90+)</span><span class="chip">Testes automáticos</span><span class="chip">Logo em SVG animado</span><span class="chip">Reativar notícias</span><span class="chip">Vídeos e cursos de fundamentos</span></div>
     </div>
   </div>
 </section>
@@ -364,9 +363,8 @@
     <tbody>
       <tr><td>Logo vetorial</td><td>Arquivo SVG com fundo transparente, ou aprovação de um redesenho fiel em vetor. Confirmar se os dois traços verdes abaixo do escudo fazem parte do símbolo.</td><td>Animação do logo (onda 11)</td></tr>
       <tr><td>Forma de login</td><td>Usuário e senha agora e Discord depois (recomendado), ou Discord desde o início.</td><td>Ondas 5, 6 e 8</td></tr>
-      <tr><td>Partidas Flex e Clash</td><td>Hoje só a Solo/Duo é gravada. Gravar também Flex e Clash traria os jogos do time junto.</td><td>Draft v2, "Jogando com", campeonatos</td></tr>
+      <tr><td>Partidas Flex e Clash</td><td>Hoje só a Solo/Duo é gravada. Gravar também Flex e Clash traria os jogos do time junto.</td><td>"Jogando com", campeonatos</td></tr>
       <tr><td>Notícias</td><td>Quando reativar a seção, que já está pronta.</td><td>Onda 11</td></tr>
-      <tr><td>Nomes dos times</td><td>Ideia do Atlas de nomes no estilo cartas de baralho, em validação no grupo.</td><td>Site, overlays e Discord</td></tr>
     </tbody>
   </table>
 
@@ -391,11 +389,11 @@
       <tr><td>13/11 · madrugada</td><td>Instagram oficial no site; botões de teste do kit copiam o comando; PDF passa a ser atualizado por toda conversa.</td><td>Conversa "Planejamento"</td></tr>
       <tr><td>13/11</td><td><b>Onda 1 no ar e 100% concluída</b> (homologada): radar por lane, Analytics, dicas nas métricas, tabela ordenável, live no perfil, card do elenco, forma no scouting, setas no ranking, YouTube e X no site. Selos do chat do kit legíveis na Silver.</td><td>Código e Vercel</td></tr>
       <tr><td>13/11</td><td><b>Ideias do grupo</b> organizadas em PDF próprio e aprovadas como onda 2: draft para a live, stream assets e CTA do Rift Masters até 16/11, depois o Discord e a agenda.</td><td>Conversa "Ideias do grupo"</td></tr>
+      <tr><td>15/11</td><td><b>Planejamento revisto pelo Israel:</b> nova ordem da onda 2 (Aces e Jokers, "Em teste", CTA do Rift Masters, draft, cenas do OBS, assets do kit); agenda no longo prazo; Discord e Rift Masters 2ª edição fora deste plano; draft sem sugestões.</td><td>Conversa "Nomes dos times"</td></tr>
     </tbody>
   </table>
-  <div class="note">A página 404 existe desde a fase 1, mas o primeiro mapa de melhorias a listou como pendente; o domínio foi configurado fora do código. Daqui para frente, toda conversa lê <span class="mono">docs/planejamento.md</span> ao começar, marca o que concluiu e atualiza este PDF; tarefas novas só entram depois de aprovadas.</div>
-  <div class="note">O planejamento detalhado, com os números de cada item e os apêndices técnicos, está em <span class="mono">docs/planejamento.md</span> no repositório.</div>
-  <div class="foot"><span>INGEN Esports · Funcionalidades e planejamento</span><span>13/11/2026</span></div>
+  <div class="note">A página 404 existe desde a fase 1, mas o primeiro mapa de melhorias a listou como pendente; o domínio foi configurado fora do código. Daqui para frente, toda conversa lê <span class="mono">docs/planejamento.md</span> ao começar, marca o que concluiu e atualiza este PDF; tarefas novas só entram depois de aprovadas. O planejamento detalhado, com os números de cada item e os apêndices técnicos, está nesse mesmo arquivo.</div>
+  <div class="foot"><span>INGEN Esports · Funcionalidades e planejamento</span><span>15/11/2026</span></div>
 </section>
 
 </body>

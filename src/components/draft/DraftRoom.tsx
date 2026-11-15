@@ -300,7 +300,7 @@ function Room({
         <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} ready={g.ready[blueT]} onEditNames={myT === blueT ? () => setEditNames(true) : undefined} />
         <div className="order-first col-span-2 flex flex-col items-center gap-1.5 lg:order-none lg:col-span-1">
           <GameTabs total={cfg.games} available={view.games} n={n} setGame={setGame} />
-          <PhaseLine g={g} timer={cfg.timer} cfg={cfg} offset={sync.offset} onTimeout={refresh} />
+          <PhaseLine g={g} timer={cfg.timer} cfg={cfg} offset={sync.offset} onTimeout={refresh} eager={myT !== null} />
         </div>
         <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} ready={g.ready[redT]} onEditNames={myT === redT ? () => setEditNames(true) : undefined} />
       </header>
@@ -497,7 +497,22 @@ function GameTabs({ total, available, n, setGame }: { total: number; available: 
   );
 }
 
-function PhaseLine({ g, timer, cfg, offset, onTimeout }: { g: GameView; timer: number; cfg: RoomView["config"]; offset: number; onTimeout: () => void }) {
+function PhaseLine({
+  g,
+  timer,
+  cfg,
+  offset,
+  onTimeout,
+  eager,
+}: {
+  g: GameView;
+  timer: number;
+  cfg: RoomView["config"];
+  offset: number;
+  onTimeout: () => void;
+  /** drafter: pede o fechamento do passo assim que o prazo vence; as outras telas só se ninguém fechou em 3 s */
+  eager: boolean;
+}) {
   // o relógio bate aqui dentro (5 vezes por segundo) sem re-renderizar a sala inteira
   const now = useServerNow(offset, g.status === "drafting" && g.deadline !== null);
   const remaining = g.deadline !== null ? Math.min(timer, Math.max(0, Math.ceil((g.deadline - now) / 1000))) : null;
@@ -508,11 +523,11 @@ function PhaseLine({ g, timer, cfg, offset, onTimeout }: { g: GameView; timer: n
   });
   useEffect(() => {
     // o prazo passou: pede ao servidor para fechar a ação (sem esperar a próxima consulta)
-    if (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS + 250 && kicked.current !== g.step) {
+    if (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS + (eager ? 250 : 3000) && kicked.current !== g.step) {
       kicked.current = g.step;
       timeout.current();
     }
-  }, [now, g.status, g.deadline, g.step]);
+  }, [now, g.status, g.deadline, g.step, eager]);
   const step = currentStep(g);
   if (!step) {
     const text = g.status === "lobby" ? "Aguardando os drafters" : g.winner !== null ? `Vitória de ${cfg.teams[g.winner].name}` : "Draft encerrado";

@@ -27,22 +27,23 @@ function clientId(): string | null {
 }
 
 /*
- * Como a sala fica em dia gastando o mínimo do banco (Neon), que só dorme depois de 5 min sem consulta:
+ * Como a sala fica em dia gastando o mínimo de Vercel e de banco (Neon):
  *
- * - "ao vivo" (só enquanto um draft está acontecendo): consulta direta a cada 1 s (drafter) ou 1,5 s.
- *   Quando nada mudou, o servidor lê do banco só a versão e o prazo, sem o estado inteiro.
- * - "sinal" (todo o resto: lobby, depois do draft, durante a partida, fim da série): a tela só pergunta
- *   "mudou algo?" a uma resposta guardada no cache da Vercel, que não chega ao banco. Quem age (pronto,
- *   vencedor, correção…) grava no banco e apaga essa resposta; as outras telas percebem em poucos segundos
- *   e aí sim leem a sala. Assim o banco fica dormindo no lobby até os dois darem "Pronto" e durante a
- *   partida até alguém marcar o vencedor.
- * - pausa total: sem nenhuma mudança nem toque na tela por 2 h (ou 15 min num draft sem relógio parado),
- *   a tela para de perguntar; qualquer toque volta.
+ * 1. Tempo real (Ably), quando o servidor tem a chave: cada mudança chega pelo canal `draft:<código>`, com a
+ *    sala inteira. A tela não consulta nada de tempo em tempo; só envia as próprias ações. A presença
+ *    (quem está conectado, quantos assistem) também vem do Ably. Se a conexão cair e voltar sem retomar o
+ *    que perdeu, a tela lê a sala uma vez.
+ * 2. Reserva (sem a chave, ou com o Ably fora do ar): o esquema anterior.
+ *    - "ao vivo" (só durante um draft): consulta direta a cada 1 s (drafter) ou 2 s; sem novidade, o
+ *      servidor lê do banco só a versão e o prazo.
+ *    - "sinal" (lobby, depois do draft, partida, fim da série): pergunta "mudou algo?" a uma resposta
+ *      guardada no cache da Vercel, que não chega ao banco.
+ *    - pausa total sem nenhuma mudança nem toque por 2 h (15 min num draft sem relógio parado).
  */
-// Cada consulta conta como requisição na Vercel (o Hobby inclui 1 milhão por mês para o site todo):
-// com até 14 telas por série, o intervalo dos espectadores e o da espera pelo vencedor pesam mais.
 const LIVE_MS = { drafter: 1000, other: 2000, hidden: 5000 };
 const SIGNAL_MS = { ready: 2000, result: 4000, other: 6000, hidden: 20_000 };
+/** com o Ably ligado o laço só confere, sem rede, se precisa voltar para a reserva */
+const RT_IDLE_MS = 3000;
 export const STOP_SIGNAL_MS = 2 * 60 * 60_000;
 export const STOP_UNTIMED_MS = 15 * 60_000;
 
@@ -64,20 +65,97 @@ function stopAfter(view: RoomView | null) {
 }
 
 const WAKE_EVENTS = ["pointerdown", "keydown", "focus"] as const;
+const NO_LIVE: LiveInfo = { spectators: [0, 0], online: [false, false] };
+
+/** Dados de presença de cada aba no Ably. */
+type PresenceData = { t: TeamIdx | null; r: Role | "none"; g: number };
+
+type Ref = {
+  version: number;
+  /** visão como veio (do servidor ou do canal); a exibida passa por `normalize` */
+  view: RoomView | null;
+  game: number;
+  me: Me | null;
+  activity: number;
+  dead: boolean;
+  kick: null | (() => void);
+  /** resumo público desta aba (vaga e presença) */
+  pid: string | null;
+  /** o canal está conectado e assinado: não precisa consultar */
+  rtLive: boolean;
+  /** presença no canal: resumo da aba → dados */
+  present: Map<string, PresenceData>;
+  presenceUpdate: null | (() => void);
+  live: LiveInfo;
+};
 
 /**
  * Mantém a sala em dia com o servidor e envia ações. `send` devolve a mensagem de erro (ou null se deu certo).
  */
 export function useDraftSync(code: string, game: number, me: Me | null) {
   const [cid] = useState(clientId);
-  const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: { spectators: [0, 0], online: [false, false] }, offset: 0 });
+  const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: NO_LIVE, offset: 0 });
   const [paused, setPaused] = useState(false);
-  const ref = useRef({ version: 0, view: null as RoomView | null, game, me, activity: 0, dead: false, kick: null as null | (() => void) });
+  /** o servidor publica no Ably (vem na primeira resposta) */
+  const [rt, setRt] = useState(false);
+  const ref = useRef<Ref>({
+    version: 0,
+    view: null,
+    game,
+    me,
+    activity: 0,
+    dead: false,
+    kick: null,
+    pid: null,
+    rtLive: false,
+    present: new Map(),
+    presenceUpdate: null,
+    live: NO_LIVE,
+  });
 
   useEffect(() => {
     ref.current.game = game;
     ref.current.me = me;
+    ref.current.presenceUpdate?.();
   }, [game, me]);
+
+  /**
+   * Publica a sala na tela. Com o Ably, "é minha" e "conectado" saem do resumo da aba e da presença
+   * (a sala que chega pelo canal não traz esses dados de ninguém).
+   */
+  const commit = useCallback((patch?: { status?: SyncStatus; offset?: number; live?: LiveInfo }) => {
+    const r = ref.current;
+    let view = r.view;
+    let live = patch?.live ?? r.live;
+    if (view && r.pid) {
+      const pid = r.pid;
+      view = {
+        ...view,
+        games: view.games.map((g) => ({
+          ...g,
+          drafters: g.drafters.map((s) => {
+            const mine = s.mine || (!!s.id && s.id === pid);
+            return { ...s, mine, online: r.rtLive ? mine || (!!s.id && r.present.has(s.id)) : s.online };
+          }) as typeof g.drafters,
+        })),
+      };
+    }
+    if (r.rtLive && view) {
+      const g = view.games[r.game - 1];
+      const spectators: [number, number] = [0, 0];
+      for (const p of r.present.values()) if (p.r === "spectator" && p.t !== null && p.g === r.game) spectators[p.t]++;
+      live = { spectators, online: g ? [g.drafters[0].online, g.drafters[1].online] : [false, false] };
+    }
+    r.live = live;
+    setState((s) => {
+      const status: SyncStatus = patch?.status ?? (r.view ? "ok" : "loading");
+      const nextLive = JSON.stringify(s.live) === JSON.stringify(live) ? s.live : live;
+      const off = patch?.offset !== undefined && Math.abs(s.offset - patch.offset) > 250 ? patch.offset : s.offset;
+      const sameView = s.version === r.version && s.view !== null && JSON.stringify(s.view) === JSON.stringify(view);
+      if (s.status === status && sameView && s.live === nextLive && s.offset === off) return s;
+      return { status, view: sameView ? s.view : view, version: r.version, live: nextLive, offset: off };
+    });
+  }, []);
 
   /** Consulta direta (banco): traz o estado se mudou, grava a presença e leva a ação, se houver. */
   const call = useCallback(
@@ -86,8 +164,8 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       const r = ref.current;
       const t0 = Date.now();
       if (action) r.activity = t0;
-      // fora do draft a presença não interessa (e gravá-la acordaria o banco à toa)
-      const me = action || isLive(r.view) ? r.me : null;
+      // fora do draft (ou com o Ably, que cuida da presença) a presença no banco não interessa
+      const me = action || (isLive(r.view) && !r.rtLive) ? r.me : null;
       try {
         const res = await fetch(`/api/draft/${code}`, {
           method: "POST",
@@ -109,27 +187,21 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
           return json.error;
         }
         if (!res.ok) return json.error ?? "Algo deu errado. Tente de novo.";
+        if (json.pid) r.pid = json.pid;
+        if (json.rt) setRt(true);
         if (json.view && json.version >= r.version) {
           if (json.version > r.version) r.activity = t1; // alguém mexeu na sala
           r.version = json.version;
           r.view = json.view;
         }
-        const offset = json.now - (t0 + t1) / 2;
-        // só re-renderiza a sala quando algo mudou de fato (a consulta de 1 s quase sempre não traz nada)
-        setState((s) => {
-          const status: SyncStatus = r.view ? "ok" : "loading";
-          const live = JSON.stringify(s.live) === JSON.stringify(json.live) ? s.live : json.live;
-          const off = Math.abs(s.offset - offset) > 250 ? offset : s.offset;
-          if (s.status === status && s.view === r.view && s.version === r.version && s.live === live && s.offset === off) return s;
-          return { status, view: r.view, version: r.version, live, offset: off };
-        });
+        commit({ offset: json.now - (t0 + t1) / 2, live: r.rtLive ? undefined : json.live });
         return json.error ?? null;
       } catch {
         setState((s) => ({ ...s, status: s.view ? "offline" : s.status }));
         return "Sem conexão com o servidor.";
       }
     },
-    [cid, code],
+    [cid, code, commit],
   );
 
   /** Pergunta barata (cache da Vercel): só lê a sala no banco se a versão mudou. */
@@ -149,6 +221,101 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     }
   }, [code, call]);
 
+  // ------------------------------------------------------------------------------------------
+  // Tempo real (Ably)
+  // ------------------------------------------------------------------------------------------
+  useEffect(() => {
+    if (!cid || !rt) return;
+    const r = ref.current;
+    let closed = false;
+    let client: import("ably/modular").BaseRealtime | null = null;
+    let attachedOnce = false;
+
+    const presenceData = (): PresenceData => {
+      const m = r.me;
+      return m ? { t: m.team, r: m.role, g: r.game } : { t: null, r: "none", g: r.game };
+    };
+
+    (async () => {
+      // carregado só quando a sala usa o Ably (fora do pacote inicial da página)
+      const { BaseRealtime, WebSocketTransport, FetchRequest, RealtimePresence } = await import("ably/modular");
+      if (closed) return;
+      client = new BaseRealtime({
+        authUrl: `/api/draft/${code}/ably`,
+        authMethod: "POST",
+        authParams: { cid },
+        plugins: { WebSocketTransport, FetchRequest, RealtimePresence },
+        closeOnUnload: true,
+      });
+      const channel = client.channels.get(`draft:${code}`);
+
+      const setLive = (on: boolean) => {
+        if (r.rtLive === on) return;
+        r.rtLive = on;
+        commit();
+        // voltou para a reserva: o laço consulta já
+        if (!on) r.kick?.();
+      };
+      const readPresence = async () => {
+        try {
+          const members = await channel.presence.get();
+          r.present = new Map(members.filter((m) => m.clientId).map((m) => [m.clientId!, m.data as PresenceData]));
+          commit();
+        } catch {
+          /* presença indisponível: fica a última */
+        }
+      };
+
+      client.connection.on((change) => {
+        if (change.current !== "connected") setLive(false);
+        else if (channel.state === "attached") setLive(true);
+      });
+      channel.on((change) => {
+        if (change.current === "attached") {
+          // reconectou sem retomar o que perdeu (ou é a primeira vez): lê a sala uma vez
+          if (attachedOnce && !change.resumed) call();
+          attachedOnce = true;
+          setLive(client?.connection.state === "connected");
+          readPresence();
+        } else if (change.current !== "attaching") setLive(false);
+      });
+
+      await channel.subscribe("state", (msg) => {
+        const d = (typeof msg.data === "string" ? JSON.parse(msg.data) : msg.data) as { v: number; room?: RoomView };
+        if (!d || typeof d.v !== "number" || d.v <= r.version) return;
+        if (!d.room) return void call(); // sala grande demais para a mensagem: lê direto
+        r.version = d.v;
+        r.view = d.room;
+        r.activity = Date.now();
+        commit();
+      });
+      await channel.presence.subscribe(() => readPresence());
+      await channel.presence.enter(presenceData());
+      r.presenceUpdate = () => {
+        channel.presence.update(presenceData()).catch(() => {});
+      };
+      readPresence();
+    })().catch((e) => {
+      console.warn("draft: tempo real indisponível, usando consultas", e);
+      r.rtLive = false;
+      r.kick?.();
+    });
+
+    return () => {
+      closed = true;
+      r.rtLive = false;
+      r.presenceUpdate = null;
+      try {
+        client?.close();
+      } catch {
+        /* já fechado */
+      }
+    };
+  }, [cid, code, rt, call, commit]);
+
+  // ------------------------------------------------------------------------------------------
+  // Laço de consultas (reserva) e pausa
+  // ------------------------------------------------------------------------------------------
   useEffect(() => {
     if (!cid) return;
     const r = ref.current;
@@ -169,13 +336,17 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     };
     const loop = async () => {
       clearTimeout(timer);
-      // a primeira leitura (e a de quem muda de jogo ou papel) é sempre direta
-      if (first || isLive(r.view)) await call();
-      else await signal();
+      // a primeira leitura (e a de quem muda de jogo ou papel) é sempre direta; com o Ably no ar, nada mais
+      if (first) await call();
+      else if (!r.rtLive) {
+        if (isLive(r.view)) await call();
+        else await signal();
+      }
       first = false;
       if (stop || r.dead) return;
-      if (Date.now() - r.activity > stopAfter(r.view)) return sleep();
-      timer = setTimeout(loop, intervalFor(r.view, document.hidden, r.me));
+      // com o Ably a tela não custa nada parada: só a reserva pausa
+      if (!r.rtLive && Date.now() - r.activity > stopAfter(r.view)) return sleep();
+      timer = setTimeout(loop, r.rtLive ? RT_IDLE_MS : intervalFor(r.view, document.hidden, r.me));
     };
     loop();
     // depois de uma ação minha (ex.: o "Pronto" que começa o draft) a próxima consulta vem logo
@@ -196,7 +367,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     const onVisible = () => {
       if (document.hidden || stop) return;
       if (sleeping) wake();
-      else loop();
+      else if (!r.rtLive) loop();
     };
     document.addEventListener("visibilitychange", onVisible);
     for (const e of WAKE_EVENTS) window.addEventListener(e, wake, { passive: true, capture: true });
@@ -213,12 +384,12 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
   const send = useCallback(
     async (action: DraftAction) => {
       const err = await call(action);
-      ref.current.kick?.();
+      if (!ref.current.rtLive) ref.current.kick?.();
       return err;
     },
     [call],
   );
 
   const refresh = useCallback(() => call(), [call]);
-  return { ...state, paused, cid, send, refresh };
+  return { ...state, paused, cid, send, refresh, realtime: rt };
 }

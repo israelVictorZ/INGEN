@@ -4,6 +4,7 @@ import { waitUntil, dangerouslyDeleteByTag } from "@vercel/functions";
 import { DraftError, GRACE_MS, SEAT_TIMEOUT_MS, TIMER_OPTIONS, apply, newRoom, roomPhase, tick, toView, type DraftAction, type Presence, type PresenceEntry, type RoomConfig, type RoomView, type TeamIdx } from "./engine";
 import { getDraftChampions } from "./champions";
 import { draftStore, type Logos } from "./store";
+import { REALTIME_ON, presentSeats, publishRoom, seatId } from "./realtime";
 
 const CODE_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 /** Código da sala: 10 caracteres aleatórios (~58 bits), sem letras que se confundem (l, I, O, 0, 1). */
@@ -129,7 +130,11 @@ export type LiveInfo = {
 };
 
 export type SyncResult =
-  | { status: 200; body: { now: number; version: number; view?: RoomView; live: LiveInfo; error?: string } }
+  | {
+      status: 200;
+      /** `pid`: resumo público desta aba; `rt`: a sala está publicando no Ably (o navegador pode parar de consultar) */
+      body: { now: number; version: number; view?: RoomView; live: LiveInfo; error?: string; pid: string; rt: boolean };
+    }
   | { status: 400 | 404 | 410 | 409; body: { error: string; now: number } };
 
 /** Presença só é regravada se a anterior tiver mais que isso (ou se o papel mudou). */
@@ -173,7 +178,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     if (h.expiresAt < now) return { status: 410, body: { error: "Este link expirou.", now } };
     if (h.version === v && (h.deadline === null || now <= h.deadline + GRACE_MS)) {
       const presence = await touchPresence(code, cid, game, me, h.presence, now);
-      return { status: 200, body: { now, version: v, live: liveFromPresence(presence, game, now) } };
+      return { status: 200, body: { now, version: v, live: liveFromPresence(presence, game, now), pid: seatId(cid), rt: REALTIME_ON } };
     }
   }
 
@@ -186,7 +191,13 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     const { state, presence } = row;
     if (state.expiresAt < now) return { status: 410, body: { error: "Este link expirou.", now } };
 
-    const online = (id: string) => id === cid || (presence[id]?.s ?? 0) > now - SEAT_TIMEOUT_MS;
+    // com o Ably as telas não gravam mais presença no banco: para decidir se uma vaga pode ser assumida,
+    // vale também quem está na presença do canal (consultada só quando alguém tenta pegar uma vaga ocupada)
+    const ablySeats =
+      REALTIME_ON && action?.type === "claim" && action.role === "drafter" && state.games[game - 1]?.drafters[action.team] && state.games[game - 1]?.drafters[action.team] !== cid
+        ? await presentSeats(code)
+        : null;
+    const online = (id: string) => id === cid || (presence[id]?.s ?? 0) > now - SEAT_TIMEOUT_MS || !!ablySeats?.has(seatId(id));
     const phaseBefore = roomPhase(state);
     let changed = tick(state, now);
 
@@ -221,6 +232,8 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
       // durante o draft todas as telas consultam direto; o sinal só precisa mudar quando a fase muda
       // ou quando a mudança acontece fora do draft (pronto, vencedor, correção…)
       if (phaseBefore !== "drafting" || roomPhase(state) !== "drafting") bumpSignal(code);
+      // todas as telas recebem a sala nova pelo Ably (sem os ids das abas), depois da resposta
+      if (REALTIME_ON) waitUntil(publishRoom(code, version, toView(state, "", () => false, seatId)));
     }
 
     await touchPresence(code, cid, game, me, presence, now);
@@ -230,7 +243,15 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     const live = liveInfo(presence, now, seats);
     return {
       status: 200,
-      body: { now, version, live, ...(actionError ? { error: actionError } : {}), ...(version !== v ? { view: toView(state, cid, online) } : {}) },
+      body: {
+        now,
+        version,
+        live,
+        pid: seatId(cid),
+        rt: REALTIME_ON,
+        ...(actionError ? { error: actionError } : {}),
+        ...(version !== v ? { view: toView(state, cid, online, seatId) } : {}),
+      },
     };
   }
   return { status: 409, body: { error: "Muita gente mexendo ao mesmo tempo. Tente de novo.", now } };

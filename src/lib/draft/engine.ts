@@ -500,16 +500,17 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
 // Visão pública (o que vai para o navegador): sem os ids dos clientes
 // ---------------------------------------------------------------------------------------------
 
-export type SeatView = { taken: boolean; online: boolean; mine: boolean };
+/** `id`: resumo público da aba que ocupa a vaga (nunca o id da aba); o navegador deduz "é minha" e "conectado". */
+export type SeatView = { taken: boolean; online: boolean; mine: boolean; id: string | null };
 export type GameView = Omit<GameState, "drafters"> & { drafters: [SeatView, SeatView] };
 export type RoomView = Omit<RoomState, "games"> & { games: GameView[] };
 
-export function toView(state: RoomState, cid: string, online: (cid: string) => boolean): RoomView {
+export function toView(state: RoomState, cid: string, online: (cid: string) => boolean, idOf: (cid: string) => string | null = () => null): RoomView {
   return {
     ...state,
     games: state.games.map((g) => ({
       ...g,
-      drafters: g.drafters.map((d) => ({ taken: !!d, online: !!d && online(d), mine: !!d && d === cid })) as [SeatView, SeatView],
+      drafters: g.drafters.map((d) => ({ taken: !!d, online: !!d && online(d), mine: !!d && d === cid, id: d ? idOf(d) : null })) as [SeatView, SeatView],
     })),
   };
 }

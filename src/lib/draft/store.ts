@@ -1,6 +1,8 @@
-import type { Presence, PresenceEntry, RoomState } from "./engine";
+import { nextDeadline, type Presence, type PresenceEntry, type RoomState } from "./engine";
 
 export type RoomRow = { state: RoomState; version: number; presence: Presence };
+/** O mínimo para responder "nada mudou": poucos bytes, sem o estado da sala. */
+export type RoomHead = { version: number; deadline: number | null; expiresAt: number; presence: Presence };
 export type Logos = Partial<Record<"0" | "1", string>>;
 
 /**
@@ -10,6 +12,7 @@ export type Logos = Partial<Record<"0" | "1", string>>;
 export interface DraftStore {
   create(code: string, state: RoomState, logos: Logos): Promise<void>;
   get(code: string): Promise<RoomRow | null>;
+  head(code: string): Promise<RoomHead | null>;
   /** grava só se ninguém gravou antes (`version` igual); devolve a versão nova ou null */
   save(code: string, version: number, state: RoomState): Promise<number | null>;
   touch(code: string, cid: string, entry: PresenceEntry): Promise<void>;
@@ -29,6 +32,10 @@ const memoryStore: DraftStore = {
   async get(code) {
     const r = mem.get(code);
     return r ? { state: structuredClone(r.state), version: r.version, presence: { ...r.presence } } : null;
+  },
+  async head(code) {
+    const r = mem.get(code);
+    return r ? { version: r.version, deadline: nextDeadline(r.state), expiresAt: r.state.expiresAt, presence: { ...r.presence } } : null;
   },
   async save(code, version, state) {
     const r = mem.get(code);
@@ -60,7 +67,7 @@ async function pg() {
 const postgresStore: DraftStore = {
   async create(code, state, logos) {
     const { db, t } = await pg();
-    await db.insert(t).values({ code, state, logos, expiresAt: new Date(state.expiresAt) });
+    await db.insert(t).values({ code, state, logos, deadline: nextDeadline(state), expiresAt: new Date(state.expiresAt) });
   },
   async get(code) {
     const { db, t, eq } = await pg();
@@ -68,11 +75,21 @@ const postgresStore: DraftStore = {
     const r = rows[0];
     return r ? { state: r.state as RoomState, version: r.version, presence: (r.presence ?? {}) as Presence } : null;
   },
+  async head(code) {
+    const { db, t, eq } = await pg();
+    const rows = await db
+      .select({ version: t.version, deadline: t.deadline, expiresAt: t.expiresAt, presence: t.presence })
+      .from(t)
+      .where(eq(t.code, code))
+      .limit(1);
+    const r = rows[0];
+    return r ? { version: r.version, deadline: r.deadline ?? null, expiresAt: r.expiresAt.getTime(), presence: (r.presence ?? {}) as Presence } : null;
+  },
   async save(code, version, state) {
     const { db, t, eq, and, sql } = await pg();
     const rows = await db
       .update(t)
-      .set({ state, version: sql`${t.version} + 1` })
+      .set({ state, deadline: nextDeadline(state), version: sql`${t.version} + 1` })
       .where(and(eq(t.code, code), eq(t.version, version)))
       .returning({ version: t.version });
     return rows[0]?.version ?? null;

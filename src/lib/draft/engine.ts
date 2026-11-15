@@ -63,6 +63,8 @@ export type GameState = {
   /** ordem de exibição dos 5 picks de cada time (o drafter pode reorganizar depois do draft) */
   order: [number[], number[]];
   winner: TeamIdx | null;
+  /** quando o vencedor foi marcado (todas as telas animam juntas a partir daí) */
+  wonAt?: number | null;
   startedAt: number | null;
   endedAt: number | null;
 };
@@ -215,6 +217,7 @@ export function newGame(config: RoomConfig, n: number, blueTeam: TeamIdx = defau
       [0, 1, 2, 3, 4],
     ],
     winner: null,
+    wonAt: null,
     startedAt: null,
     endedAt: null,
   };
@@ -246,6 +249,18 @@ function closeStep(state: RoomState, gi: number, champ: string | null, nextDeadl
  * Fecha as ações cujo relógio acabou: entra o campeão selecionado (se ainda for válido) ou fica vazio.
  * Muta `state`; devolve true se mudou algo.
  */
+/** Fase da sala para quem acompanha: a do jogo mais recente. */
+export function roomPhase(state: AnyRoom): GameState["status"] {
+  return state.games[state.games.length - 1]?.status ?? "lobby";
+}
+
+/** Próximo prazo do relógio (o banco guarda à parte: a consulta leve sabe se precisa ler o estado). */
+export function nextDeadline(state: AnyRoom): number | null {
+  let d: number | null = null;
+  for (const g of state.games) if (g.status === "drafting" && g.deadline !== null && (d === null || g.deadline < d)) d = g.deadline;
+  return d;
+}
+
 export function tick(state: RoomState, now: number): boolean {
   let changed = false;
   state.games.forEach((g, gi) => {
@@ -455,6 +470,7 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
       const w = action.winner;
       if (w !== null && w !== 0 && w !== 1) fail("Time inválido.");
       g.winner = w;
+      g.wonAt = w === null ? null : now;
       g.requests = [];
       // libera (ou recolhe) o próximo jogo
       if (w === null) {

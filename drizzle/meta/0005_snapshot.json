@@ -1,5 +1,5 @@
 {
-  "id": "5bba3cbb-a135-4926-9472-030eef7324bf",
+  "id": "72640aa8-0cd1-4f80-8d30-acc6b7501e7b",
   "prevId": "f6413f1b-ae4d-47bf-a3df-d12f579bd9e8",
   "version": "7",
   "dialect": "postgresql",
@@ -110,6 +110,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "deadline": {
+          "name": "deadline",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "presence": {
           "name": "presence",

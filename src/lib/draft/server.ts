@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { DraftError, SEAT_TIMEOUT_MS, TIMER_OPTIONS, apply, newRoom, tick, toView, type DraftAction, type Presence, type PresenceEntry, type RoomConfig, type RoomView, type TeamIdx } from "./engine";
+import { waitUntil, dangerouslyDeleteByTag } from "@vercel/functions";
+import { DraftError, GRACE_MS, SEAT_TIMEOUT_MS, TIMER_OPTIONS, apply, newRoom, roomPhase, tick, toView, type DraftAction, type Presence, type PresenceEntry, type RoomConfig, type RoomView, type TeamIdx } from "./engine";
 import { getDraftChampions } from "./champions";
 import { draftStore, type Logos } from "./store";
 
@@ -133,11 +134,44 @@ export type SyncResult =
 /** Presença só é regravada se a anterior tiver mais que isso (ou se o papel mudou). */
 const TOUCH_EVERY_MS = 8_000;
 
+// ---------------------------------------------------------------------------------------------
+// Sinal barato: as telas fora do draft só perguntam "mudou algo?" a uma resposta guardada no cache
+// da Vercel (não chega ao banco). Cada gravação apaga essa resposta, e a próxima pergunta lê a versão nova.
+// ---------------------------------------------------------------------------------------------
+
+export const signalTag = (code: string) => `draft-${code}`;
+
+/** Versão atual da sala, para a resposta em cache (`GET /api/draft/<código>/v`). */
+export async function roomSignal(code: string): Promise<{ status: 200 | 400 | 404 | 410; body: { v?: number; error?: string } }> {
+  if (!isCode(code)) return { status: 400, body: { error: "Pedido inválido." } };
+  const h = await draftStore.head(code);
+  if (!h) return { status: 404, body: { error: "Sala não encontrada." } };
+  if (h.expiresAt < Date.now()) return { status: 410, body: { error: "Este link expirou." } };
+  return { status: 200, body: { v: h.version } };
+}
+
+/** Apaga a resposta em cache do sinal (fora da Vercel não faz nada). Roda depois da resposta, sem atrasar quem agiu. */
+function bumpSignal(code: string) {
+  waitUntil(dangerouslyDeleteByTag(signalTag(code)).catch((e) => console.error("draft: falha ao limpar o sinal", e)));
+}
+
 export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> {
   const now = Date.now();
   const parsed = syncInput.safeParse(raw);
   if (!parsed.success || !isCode(code)) return { status: 400, body: { error: "Pedido inválido.", now } };
   const { cid, v, game, me, action } = parsed.data;
+
+  // Consulta sem ação e sem novidade (o caso de quase todas durante o draft): lê só a versão, o prazo e a
+  // presença, sem trazer o estado inteiro do banco.
+  if (!action && v > 0) {
+    const h = await draftStore.head(code);
+    if (!h) return { status: 404, body: { error: "Sala não encontrada.", now } };
+    if (h.expiresAt < now) return { status: 410, body: { error: "Este link expirou.", now } };
+    if (h.version === v && (h.deadline === null || now <= h.deadline + GRACE_MS)) {
+      const presence = await touchPresence(code, cid, game, me, h.presence, now);
+      return { status: 200, body: { now, version: v, live: liveFromPresence(presence, game, now) } };
+    }
+  }
 
   let actionError: string | undefined;
   let ids: Set<string> | null = null;
@@ -149,6 +183,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     if (state.expiresAt < now) return { status: 410, body: { error: "Este link expirou.", now } };
 
     const online = (id: string) => id === cid || (presence[id]?.s ?? 0) > now - SEAT_TIMEOUT_MS;
+    const phaseBefore = roomPhase(state);
     let changed = tick(state, now);
 
     if (action) {
@@ -178,17 +213,12 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
         continue; // alguém gravou no meio: relê e tenta de novo
       }
       version = saved;
+      // durante o draft todas as telas consultam direto; o sinal só precisa mudar quando a fase muda
+      // ou quando a mudança acontece fora do draft (pronto, vencedor, correção…)
+      if (phaseBefore !== "drafting" || roomPhase(state) !== "drafting") bumpSignal(code);
     }
 
-    // presença
-    const prev = presence[cid];
-    if (me) {
-      const entry: PresenceEntry = { t: me.team as TeamIdx, r: me.role, g: game, s: now };
-      if (!prev || prev.t !== entry.t || prev.r !== entry.r || prev.g !== entry.g || now - prev.s > TOUCH_EVERY_MS) {
-        await draftStore.touch(code, cid, entry);
-        presence[cid] = entry;
-      }
-    }
+    await touchPresence(code, cid, game, me, presence, now);
 
     const g = state.games[game - 1];
     const seats: [boolean, boolean] = g ? [!!g.drafters[0] && online(g.drafters[0]), !!g.drafters[1] && online(g.drafters[1])] : [false, false];
@@ -199,6 +229,25 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     };
   }
   return { status: 409, body: { error: "Muita gente mexendo ao mesmo tempo. Tente de novo.", now } };
+}
+
+/** Grava a presença de quem consulta (só se mudou de papel ou se a última tem mais de 8 s). Muta `presence`. */
+async function touchPresence(code: string, cid: string, game: number, me: { team: number; role: "drafter" | "spectator" } | null, presence: Presence, now: number) {
+  if (!me) return presence;
+  const prev = presence[cid];
+  const entry: PresenceEntry = { t: me.team as TeamIdx, r: me.role, g: game, s: now };
+  if (!prev || prev.t !== entry.t || prev.r !== entry.r || prev.g !== entry.g || now - prev.s > TOUCH_EVERY_MS) {
+    await draftStore.touch(code, cid, entry);
+    presence[cid] = entry;
+  }
+  return presence;
+}
+
+/** Sem o estado (consulta leve): drafter conectado = alguém visto há pouco como drafter daquele time neste jogo. */
+function liveFromPresence(presence: Presence, game: number, now: number): LiveInfo {
+  const seats: [boolean, boolean] = [false, false];
+  for (const p of Object.values(presence)) if (p.r === "drafter" && p.g === game && p.s > now - SEAT_TIMEOUT_MS) seats[p.t] = true;
+  return liveInfo(presence, now, seats);
 }
 
 function liveInfo(presence: Presence, now: number, online: [boolean, boolean]): LiveInfo {

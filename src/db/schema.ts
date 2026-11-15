@@ -373,6 +373,8 @@ export const draftRooms = pgTable(
     code: text("code").primaryKey(),
     state: jsonb("state").notNull(),
     version: integer("version").notNull().default(1),
+    /** próximo prazo do relógio (ms) do jogo em draft; deixa a consulta saber se precisa ler o estado */
+    deadline: bigint("deadline", { mode: "number" }),
     presence: jsonb("presence").notNull().default({}),
     logos: jsonb("logos").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

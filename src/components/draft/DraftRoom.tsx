@@ -256,6 +256,7 @@ function Room({
   const result = seriesResult(view);
   const [a, b] = score(view);
   const showJoin = isLatest && g.winner === null && (!me || lostSeat);
+  const [flashing, setFlashing] = useState(false);
 
   const blueT = teamOnSide(g, "blue");
   const redT = teamOnSide(g, "red");
@@ -281,12 +282,12 @@ function Room({
 
       {/* topo */}
       <header className="relative z-10 grid grid-cols-2 items-center gap-x-3 gap-y-2 lg:grid-cols-[1fr_auto_1fr] px-3 pt-3 lg:px-4">
-        <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} />
+        <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} ready={g.ready[blueT]} />
         <div className="order-first col-span-2 flex flex-col items-center gap-1.5 lg:order-none lg:col-span-1">
           <GameTabs total={cfg.games} available={view.games} n={n} setGame={setGame} />
           <PhaseLine g={g} remaining={remaining} timer={cfg.timer} cfg={cfg} />
         </div>
-        <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} />
+        <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} ready={g.ready[redT]} />
       </header>
 
       {/* meio: picks | seletor | picks */}
@@ -358,7 +359,22 @@ function Room({
       )}
 
       {showJoin && <JoinModal code={code} cfg={cfg} g={g} live={sync.live} lostSeat={lostSeat} send={send} setMe={setMe} lastTeam={lastTeam} />}
-      {!showJoin && (result.clinched || result.over) && <Victory code={code} cfg={cfg} view={view} result={result} score={[a, b]} setGame={setGame} />}
+      {g.winner !== null && g.wonAt ? (
+        <WinnerFlash
+          key={g.wonAt}
+          code={code}
+          cfg={cfg}
+          g={g}
+          score={[a, b]}
+          offset={sync.offset}
+          setBusy={setFlashing}
+          // todas as telas seguem juntas para o próximo jogo (se a série já está decidida, fica a tela de campeão)
+          onDone={() => {
+            if (view.games[n] && !result.clinched) setGame(n + 1);
+          }}
+        />
+      ) : null}
+      {!showJoin && !flashing && (result.clinched || result.over) && <Victory code={code} cfg={cfg} view={view} result={result} score={[a, b]} setGame={setGame} />}
     </div>
   );
 }
@@ -373,18 +389,23 @@ function TeamHeader({
   team,
   side,
   wins,
+  live,
   online,
   spectators,
   taken,
+  ready,
 }: {
   code: string;
   cfg: RoomView["config"];
   team: TeamIdx;
   side: Side;
   wins: number;
+  /** durante o draft há presença ao vivo; fora dele as telas não gravam presença (o banco dorme) */
+  live: boolean;
   online: boolean;
   spectators: number;
   taken: boolean;
+  ready: boolean;
 }) {
   const t = cfg.teams[team];
   const color = teamColor(t);
@@ -400,11 +421,18 @@ function TeamHeader({
           {t.name}
         </p>
         <p className={`flex items-center gap-2 font-mono text-[0.62rem] uppercase tracking-[0.12em] text-gray ${right ? "justify-end" : ""}`}>
-          <span className="inline-flex items-center gap-1" title={taken ? (online ? "Drafter conectado" : "Drafter desconectado") : "Sem drafter"}>
-            <span className={`size-1.5 rounded-full ${taken && online ? "bg-green" : taken ? "bg-loss" : "bg-white/25"}`} />
-            drafter
-          </span>
-          {spectators > 0 && <span>· {spectators} assistindo</span>}
+          {live ? (
+            <span className="inline-flex items-center gap-1" title={taken ? (online ? "Drafter conectado" : "Drafter desconectado") : "Sem drafter"}>
+              <span className={`size-1.5 rounded-full ${taken && online ? "bg-green" : taken ? "bg-loss" : "bg-white/25"}`} />
+              drafter
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <span className={`size-1.5 rounded-full ${taken ? "bg-white/60" : "bg-white/25"}`} />
+              {taken ? (ready ? "drafter pronto" : "drafter na vaga") : "sem drafter"}
+            </span>
+          )}
+          {live && spectators > 0 && <span>· {spectators} assistindo</span>}
         </p>
       </div>
       {cfg.games > 1 && (
@@ -977,7 +1005,10 @@ function JoinModal({
     else setMe({ team, role });
   }
 
-  const seatBusy = (t: TeamIdx) => g.drafters[t].taken && !g.drafters[t].mine && live.online[t];
+  // durante o draft a vaga só é livre se o drafter caiu; antes dele (lobby) quem chega pode assumir
+  // (ninguém grava presença no lobby, para o banco dormir; o servidor ainda recusa se o drafter agiu há pouco)
+  const seatBusy = (t: TeamIdx) => g.status === "drafting" && g.drafters[t].taken && !g.drafters[t].mine && live.online[t];
+  const seatTaken = (t: TeamIdx) => g.drafters[t].taken && !g.drafters[t].mine;
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-sm">
@@ -1027,7 +1058,11 @@ function JoinModal({
           >
             <span className="block font-display text-xl font-black uppercase text-white">Drafter</span>
             <span className="text-xs text-gray">
-              {team !== null && seatBusy(team) ? "Vaga ocupada" : "Faz os picks e bans do time (um por time)"}
+              {team !== null && seatBusy(team)
+                ? "Vaga ocupada"
+                : team !== null && seatTaken(team)
+                  ? "Já tem drafter: entrar assume a vaga dele"
+                  : "Faz os picks e bans do time (um por time)"}
             </span>
           </button>
           <button type="button" disabled={team === null || busy} onClick={() => join("spectator")} className="border border-line p-4 text-left transition-colors enabled:hover:border-white disabled:opacity-40">
@@ -1071,6 +1106,93 @@ function RoleLine({ code, me, cfg, canChange, onChange }: { code: string; me: Me
       >
         {copied ? "Link copiado" : "Copiar link"}
       </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Vencedor do jogo: a mesma animação em todas as telas
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Começa um pouco depois de o vencedor ser marcado (pelo relógio do servidor), para dar tempo de todas as
+ * telas ficarem sabendo pelo sinal; assim a animação roda junta em todas. Quem souber atrasado (aba
+ * escondida) pega o resto dela ou só segue para o próximo jogo.
+ */
+const FLASH_DELAY_MS = 4500;
+const FLASH_MS = 4000;
+
+function WinnerFlash({
+  code,
+  cfg,
+  g,
+  score: [a, b],
+  offset,
+  setBusy,
+  onDone,
+}: {
+  code: string;
+  cfg: RoomView["config"];
+  g: GameView;
+  score: [number, number];
+  offset: number;
+  setBusy: (b: boolean) => void;
+  onDone: () => void;
+}) {
+  const [show, setShow] = useState(false);
+  // relógio do servidor no momento em que soubemos (o deslocamento oscila um pouco a cada consulta)
+  const off = useRef(offset);
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
+  useEffect(() => {
+    const wonAt = g.wonAt ?? 0;
+    const now = Date.now() + off.current;
+    if (now > wonAt + 60_000) return; // resultado antigo (alguém revendo a série): sem animação
+    const start = wonAt + FLASH_DELAY_MS - now;
+    const end = start + FLASH_MS;
+    setBusy(true);
+    const finish = () => {
+      setShow(false);
+      setBusy(false);
+      done.current();
+    };
+    const t1 = setTimeout(() => setShow(true), Math.max(0, start));
+    const t2 = setTimeout(finish, Math.max(0, end));
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setBusy(false);
+    };
+  }, [g.wonAt, setBusy]);
+
+  if (!show || g.winner === null) return null;
+  const w = g.winner;
+  const team = cfg.teams[w];
+  const color = teamColor(team);
+  return (
+    <div
+      role="status"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden p-6 text-center"
+      style={{ background: `radial-gradient(ellipse at center, ${color}40, transparent 65%), rgb(0 0 0 / .86)` }}
+    >
+      <div className="relative animate-[draft-in_.6s_var(--ease-out-expo)]">
+        <div className="flex justify-center">
+          <LogoPlate src={teamLogo(code, team, w)} tone={teamLogoTone(team)} color={color} size={104} />
+        </div>
+        <p className="mt-6 font-mono text-sm uppercase tracking-[0.3em] text-white/70">Jogo {g.n} · vitória</p>
+        <h2 className="mt-2 font-display text-5xl font-black uppercase leading-none sm:text-7xl" style={{ color, textShadow: `0 0 50px ${color}88` }}>
+          {team.name}
+        </h2>
+        {cfg.games > 1 && (
+          <p className="mt-5 font-display text-4xl font-black tabular-nums text-white">
+            <span style={{ color: teamColor(cfg.teams[0]) }}>{a}</span>
+            <span className="mx-3 text-white/40">×</span>
+            <span style={{ color: teamColor(cfg.teams[1]) }}>{b}</span>
+          </p>
+        )}
+      </div>
     </div>
   );
 }

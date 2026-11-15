@@ -38,8 +38,10 @@ function clientId(): string | null {
  * - pausa total: sem nenhuma mudança nem toque na tela por 2 h (ou 15 min num draft sem relógio parado),
  *   a tela para de perguntar; qualquer toque volta.
  */
-const LIVE_MS = { drafter: 1000, other: 1500, hidden: 4000 };
-const SIGNAL_MS = { result: 3000, other: 4000, hidden: 15_000 };
+// Cada consulta conta como requisição na Vercel (o Hobby inclui 1 milhão por mês para o site todo):
+// com até 14 telas por série, o intervalo dos espectadores e o da espera pelo vencedor pesam mais.
+const LIVE_MS = { drafter: 1000, other: 2000, hidden: 5000 };
+const SIGNAL_MS = { ready: 2000, result: 4000, other: 6000, hidden: 20_000 };
 export const STOP_SIGNAL_MS = 2 * 60 * 60_000;
 export const STOP_UNTIMED_MS = 15 * 60_000;
 
@@ -47,8 +49,10 @@ const isLive = (view: RoomView | null) => !view || roomPhase(view) === "drafting
 
 function intervalFor(view: RoomView | null, hidden: boolean, me: Me | null) {
   if (isLive(view)) return hidden ? LIVE_MS.hidden : me?.role === "drafter" ? LIVE_MS.drafter : LIVE_MS.other;
-  if (hidden) return SIGNAL_MS.hidden;
   const last = view!.games.at(-1)!;
+  // drafter pronto esperando o adversário: o draft pode começar a qualquer momento (sinal, não banco)
+  if (last.status === "lobby" && me?.role === "drafter" && last.drafters[me.team].mine && last.ready[me.team]) return SIGNAL_MS.ready;
+  if (hidden) return SIGNAL_MS.hidden;
   return last.status === "done" && last.winner === null ? SIGNAL_MS.result : SIGNAL_MS.other;
 }
 
@@ -67,7 +71,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
   const [cid] = useState(clientId);
   const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: { spectators: [0, 0], online: [false, false] }, offset: 0 });
   const [paused, setPaused] = useState(false);
-  const ref = useRef({ version: 0, view: null as RoomView | null, game, me, activity: 0, kick: null as null | (() => void) });
+  const ref = useRef({ version: 0, view: null as RoomView | null, game, me, activity: 0, dead: false, kick: null as null | (() => void) });
 
   useEffect(() => {
     ref.current.game = game;
@@ -92,11 +96,14 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
         });
         const json = await res.json();
         const t1 = Date.now();
+        // sala inexistente ou vencida: para de consultar de vez
         if (res.status === 404) {
+          r.dead = true;
           setState((s) => ({ ...s, status: "notfound" }));
           return json.error;
         }
         if (res.status === 410) {
+          r.dead = true;
           setState((s) => ({ ...s, status: "expired" }));
           return json.error;
         }
@@ -121,7 +128,8 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
   const signal = useCallback(async () => {
     const r = ref.current;
     try {
-      const res = await fetch(`/api/draft/${code}/v`, { cache: "no-store" });
+      // sem `cache: "no-store"`: ele manda "no-cache" junto e poderia furar o cache da Vercel
+      const res = await fetch(`/api/draft/${code}/v`);
       if (res.status === 404 || res.status === 410) return void (await call());
       if (!res.ok) return;
       const json = (await res.json()) as { v?: number };
@@ -157,7 +165,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       if (first || isLive(r.view)) await call();
       else await signal();
       first = false;
-      if (stop) return;
+      if (stop || r.dead) return;
       if (Date.now() - r.activity > stopAfter(r.view)) return sleep();
       timer = setTimeout(loop, intervalFor(r.view, document.hidden, r.me));
     };

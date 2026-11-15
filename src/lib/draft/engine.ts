@@ -9,6 +9,8 @@
 export const DRAFT_TTL_MS = 32 * 60 * 60 * 1000;
 /** Folga para a latência: ações chegando até esse tempo depois do fim do relógio ainda valem. */
 export const GRACE_MS = 1000;
+/** folga antes do primeiro relógio do draft: as telas que esperavam no sinal têm tempo de entrar */
+export const START_DELAY_MS = 3000;
 /** Sem sinal de vida por esse tempo, a vaga de drafter pode ser assumida por outra pessoa. */
 export const SEAT_TIMEOUT_MS = 25_000;
 export const TIMER_OPTIONS = [30, 45, 60, 0] as const;
@@ -266,7 +268,7 @@ export function tick(state: RoomState, now: number): boolean {
   state.games.forEach((g, gi) => {
     while (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS) {
       const hover = g.hover && !unavailable(state, gi).has(g.hover) ? g.hover : null;
-      closeStep(state, gi, hover, g.deadline);
+      closeStep(state, gi, hover, g.deadline + GRACE_MS);
       changed = true;
     }
   });
@@ -282,13 +284,14 @@ export type DraftAction =
   | { type: "ready"; value: boolean }
   | { type: "swapSides" }
   | { type: "cancelSwap" }
-  | { type: "hover"; champ: string | null }
-  | { type: "lock"; champ: string | null }
+  | { type: "hover"; champ: string | null; step?: number }
+  | { type: "lock"; champ: string | null; step?: number }
   | { type: "request"; step: number; champ: string | null }
   | { type: "respond"; id: string; accept: boolean }
   | { type: "cancelRequest"; id: string }
   | { type: "movePick"; from: number; to: number }
-  | { type: "result"; winner: TeamIdx | null };
+  | { type: "result"; winner: TeamIdx | null }
+  | { type: "players"; names: string[] };
 
 export type Ctx = {
   now: number;
@@ -339,7 +342,7 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
       if (t !== 0 && t !== 1) fail("Time inválido.");
       if (action.role === "drafter") {
         const holder = g.drafters[t];
-        if (holder && holder !== cid && ctx.online(holder)) fail("A vaga de drafter deste time já está ocupada.");
+        if (holder && holder !== cid && (g.status === "done" || ctx.online(holder))) fail("A vaga de drafter deste time já está ocupada.");
         if (g.drafters[other(t)] === cid) {
           g.drafters[other(t)] = null;
           if (g.status === "lobby") g.ready[other(t)] = false;
@@ -369,7 +372,7 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
         g.hover = null;
         g.sideSwapBy = null;
         g.startedAt = now;
-        g.deadline = state.config.timer > 0 ? now + state.config.timer * 1000 : null;
+        g.deadline = state.config.timer > 0 ? now + START_DELAY_MS + state.config.timer * 1000 : null;
       }
       return;
     }
@@ -399,6 +402,7 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
       const s = currentStep(g);
       if (!s) fail("Não há ação em andamento.");
       if (teamOnSide(g, s!.side) !== t) fail("Não é a vez do seu time.");
+      if (action.step !== undefined && action.step !== g.step) fail("O tempo dessa ação acabou.");
       if (g.deadline !== null && now > g.deadline + GRACE_MS) fail("O tempo acabou.");
       const c = action.champ;
       if (c !== null) {
@@ -452,6 +456,14 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
       return;
     }
 
+    case "players": {
+      // nomes dos jogadores por lane (opcional): o drafter do time ajusta a qualquer momento da série
+      const t = requireDrafter(g, cid);
+      if (!Array.isArray(action.names) || action.names.length !== 5) fail("Envie os 5 nomes.");
+      state.config.teams[t].players = action.names.map((n) => String(n ?? "").trim().slice(0, 24));
+      return;
+    }
+
     case "movePick": {
       const t = requireDrafter(g, cid);
       if (g.status !== "done") fail("A ordem dos picks só muda depois do draft.");
@@ -469,6 +481,7 @@ export function apply(state: RoomState, gi: number, action: DraftAction, ctx: Ct
       if (!editable(state, gi)) fail("O próximo jogo já começou; o resultado não muda mais.");
       const w = action.winner;
       if (w !== null && w !== 0 && w !== 1) fail("Time inválido.");
+      if (g.winner === w) return; // clique repetido: nada muda
       g.winner = w;
       g.wonAt = w === null ? null : now;
       g.requests = [];

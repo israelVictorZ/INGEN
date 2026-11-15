@@ -8,6 +8,7 @@ import type { DraftChampionData } from "@/lib/draft/lanes";
 import { TIMER_OPTIONS, type TeamKind } from "@/lib/draft/engine";
 import { INGEN_LOGO, SIDE_COLOR, teamColor } from "@/lib/draft/theme";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ChampionPicker, LANE_LABEL, LogoPlate, processLogo } from "./shared";
 
 type Roster = { aces: string[]; jokers: string[] };
@@ -333,26 +334,38 @@ function TeamCard({
                     style={{ background: c }}
                   />
                 ))}
-                <label className="relative size-6 cursor-pointer overflow-hidden border border-line" title="Outra cor">
-                  <input type="color" value={form.color ?? "#3d8bff"} onChange={(e) => setTeam(i, { color: e.target.value })} className="absolute -inset-2 size-10 cursor-pointer" />
-                </label>
                 <button type="button" onClick={() => setTeam(i, { color: null })} className={`px-1.5 text-xs ${form.color ? "text-gray hover:text-white" : "text-white"}`}>
                   Sem cor
                 </button>
+              </div>
+              {/* cor personalizada: seletor do sistema + código hexadecimal */}
+              <div className="mt-2 flex items-center gap-2">
+                <label
+                  className={`relative flex h-8 cursor-pointer items-center gap-2 overflow-hidden border px-2 text-xs text-white transition-colors hover:border-white ${
+                    form.color && !SWATCHES.includes(form.color) ? "border-white" : "border-line"
+                  }`}
+                  title="Escolher qualquer cor"
+                >
+                  <span
+                    className="size-4 shrink-0 rounded-full"
+                    style={{ background: form.color && !SWATCHES.includes(form.color) ? form.color : "conic-gradient(#ff4d5e, #ffb03d, #3dfd4e, #3dd6ff, #8a5bff, #ff4dd8, #ff4d5e)" }}
+                  />
+                  Personalizada
+                  <input type="color" value={form.color ?? "#3d8bff"} onChange={(e) => setTeam(i, { color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+                </label>
+                <HexInput value={form.color} onChange={(c) => setTeam(i, { color: c })} />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <details className="mt-5 group" open={!guest}>
-        <summary className="cursor-pointer list-none font-mono text-[0.7rem] uppercase tracking-[0.14em] text-gray hover:text-white">
-          <span className="group-open:hidden">+ Nomes dos jogadores (opcional)</span>
-          <span className="hidden group-open:inline">− Nomes dos jogadores</span>
-        </summary>
+      <div className="mt-5">
+        <p className="label-mono">Jogadores por lane (opcional)</p>
         <div className="mt-3 grid gap-2">
           {LANES.map((l, k) => (
-            <label key={l} className="grid grid-cols-[5.5rem_1fr] items-center gap-2">
+            <label key={l} className="grid grid-cols-[1.25rem_4.5rem_1fr] items-center gap-2">
+              <LaneIcon role={l} className="size-5" />
               <span className="text-xs text-gray">{LANE_LABEL[l]}</span>
               <input
                 value={form.players[k] ?? ""}
@@ -362,13 +375,14 @@ function TeamCard({
                   players[k] = e.target.value;
                   setTeam(i, { players });
                 }}
-                placeholder={`Jogador ${k + 1}`}
+                placeholder="Nome (opcional)"
                 className="w-full border border-line bg-bg-0 px-3 py-1.5 text-sm text-white placeholder:text-gray-dim focus:border-green focus:outline-none"
               />
             </label>
           ))}
         </div>
-      </details>
+        <p className="mt-2 text-[0.7rem] text-gray-dim">Dá para mudar depois, dentro da sala, pelo drafter do time.</p>
+      </div>
     </div>
   );
 }
@@ -400,5 +414,31 @@ function Segmented<T extends string | number>({ value, options, onChange }: { va
         </button>
       ))}
     </div>
+  );
+}
+
+/** Código da cor (#rrggbb): aceita digitar ou colar; só aplica quando o código está completo. */
+function HexInput({ value, onChange }: { value: string | null; onChange: (c: string) => void }) {
+  const [text, setText] = useState(value ?? "");
+  const [seen, setSeen] = useState(value);
+  if (seen !== value) {
+    setSeen(value);
+    setText(value ?? "");
+  }
+  return (
+    <input
+      value={text}
+      maxLength={7}
+      spellCheck={false}
+      aria-label="Código da cor"
+      placeholder="#3d8bff"
+      onChange={(e) => {
+        const raw = e.target.value.trim();
+        const v = raw.startsWith("#") ? raw : `#${raw}`;
+        setText(raw);
+        if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v.toLowerCase());
+      }}
+      className="h-8 w-24 border border-line bg-bg-0 px-2 font-mono text-xs uppercase text-white placeholder:text-gray-dim focus:border-green focus:outline-none"
+    />
   );
 }

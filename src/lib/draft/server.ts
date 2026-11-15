@@ -12,7 +12,7 @@ export function newCode(len = 10): string {
   let out = "";
   for (let i = 0; out.length < len && i < bytes.length; i++) {
     const b = bytes[i];
-    if (b < 232) out += CODE_ALPHABET[b % CODE_ALPHABET.length]; // 232 = 4 × 58: sem viés
+    if (b < 228) out += CODE_ALPHABET[b % CODE_ALPHABET.length]; // 228 = 4 × 57: sem viés
   }
   return out.length === len ? out : newCode(len);
 }
@@ -100,13 +100,14 @@ const actionInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ready"), value: z.boolean() }),
   z.object({ type: z.literal("swapSides") }),
   z.object({ type: z.literal("cancelSwap") }),
-  z.object({ type: z.literal("hover"), champ: z.string().max(40).nullable() }),
-  z.object({ type: z.literal("lock"), champ: z.string().max(40).nullable() }),
+  z.object({ type: z.literal("hover"), champ: z.string().max(40).nullable(), step: z.number().int().min(0).max(19).optional() }),
+  z.object({ type: z.literal("lock"), champ: z.string().max(40).nullable(), step: z.number().int().min(0).max(19).optional() }),
   z.object({ type: z.literal("request"), step: z.number().int().min(0).max(19), champ: z.string().max(40).nullable() }),
   z.object({ type: z.literal("respond"), id: z.string().max(40), accept: z.boolean() }),
   z.object({ type: z.literal("cancelRequest"), id: z.string().max(40) }),
   z.object({ type: z.literal("movePick"), from: z.number().int().min(0).max(4), to: z.number().int().min(0).max(4) }),
   z.object({ type: z.literal("result"), winner: z.union([z.literal(0), z.literal(1)]).nullable() }),
+  z.object({ type: z.literal("players"), names: z.array(z.string().trim().max(24)).length(5) }),
 ]);
 
 export const syncInput = z.object({
@@ -152,7 +153,10 @@ export async function roomSignal(code: string): Promise<{ status: 200 | 400 | 40
 
 /** Apaga a resposta em cache do sinal (fora da Vercel não faz nada). Roda depois da resposta, sem atrasar quem agiu. */
 function bumpSignal(code: string) {
-  waitUntil(dangerouslyDeleteByTag(signalTag(code)).catch((e) => console.error("draft: falha ao limpar o sinal", e)));
+  const purge = () => dangerouslyDeleteByTag(signalTag(code)).catch((e) => console.error("draft: falha ao limpar o sinal", e));
+  // a segunda limpeza cobre uma leitura lenta (banco acordando) que tenha guardado a versão anterior
+  // depois da primeira
+  waitUntil(purge().then(() => new Promise((r) => setTimeout(r, 2500))).then(purge));
 }
 
 export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> {
@@ -190,6 +194,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
       if (!ids && (action.type === "hover" || action.type === "lock" || action.type === "request")) {
         ids = new Set((await getDraftChampions()).champions.map((c) => c.id));
       }
+      const snap = JSON.stringify(state);
       try {
         apply(state, game - 1, action as DraftAction, {
           now,
@@ -198,7 +203,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
           isChampion: (id) => (ids ? ids.has(id) : true),
           newId: () => newCode(8),
         });
-        changed = true;
+        if (JSON.stringify(state) !== snap) changed = true;
       } catch (e) {
         if (!(e instanceof DraftError)) throw e;
         actionError = e.message;

@@ -26,7 +26,9 @@ import {
   type TeamIdx,
 } from "@/lib/draft/engine";
 import { SIDE_COLOR, teamColor, teamLogo, teamLogoTone, themeFor, themeVars } from "@/lib/draft/theme";
-import { ChampionPicker, LogoPlate, type ChampStatus } from "./shared";
+import { LaneIcon } from "@/components/brand/LaneIcon";
+import { DRAFT_LANES } from "@/lib/draft/lanes";
+import { ChampionPicker, LANE_LABEL, LogoPlate, type ChampStatus } from "./shared";
 import { useDraftSync, type Me } from "./useDraftSync";
 
 // ---------------------------------------------------------------------------------------------
@@ -91,6 +93,7 @@ export function DraftRoom({ code, data }: { code: string; data: DraftChampionDat
   const seen = view?.games.length ?? 1;
   if (view && seen !== latest) setLatest(seen);
   if (view && gameParam === null) setGameParam(seen);
+  if (view && gameParam !== null && gameParam > seen) setGameParam(seen);
 
   if (sync.status === "notfound") return <FullMessage title="Sala não encontrada" text="Confira o link. Ele pode ter sido digitado errado." />;
   if (sync.status === "expired") return <FullMessage title="Link expirado" text="As salas de draft ficam abertas por 32 horas. Crie uma nova para a próxima série." />;
@@ -208,7 +211,7 @@ function Room({
 
   // relógio
   const now = useServerNow(sync.offset, g.status === "drafting" && g.deadline !== null);
-  const remaining = g.deadline !== null ? Math.max(0, Math.ceil((g.deadline - now) / 1000)) : null;
+  const remaining = g.deadline !== null ? Math.min(cfg.timer, Math.max(0, Math.ceil((g.deadline - now) / 1000))) : null;
   const kicked = useRef(-1);
   useEffect(() => {
     if (g.status === "drafting" && g.deadline !== null && now > g.deadline + GRACE_MS + 250 && kicked.current !== g.step) {
@@ -235,11 +238,11 @@ function Room({
     }
     if (!myTurn) return;
     setSel(id ?? "");
-    send({ type: "hover", champ: id });
+    send({ type: "hover", champ: id, step: g.step });
   };
   const lock = async () => {
     if (sel === null || !step) return;
-    await send({ type: "lock", champ: sel || null });
+    await send({ type: "lock", champ: sel || null, step: g.step });
     setSel(null);
   };
   const sendCorrection = async () => {
@@ -257,6 +260,9 @@ function Room({
   const [a, b] = score(view);
   const showJoin = isLatest && g.winner === null && (!me || lostSeat);
   const [flashing, setFlashing] = useState(false);
+  const [sawOpen, setSawOpen] = useState(g.winner === null);
+  if (g.winner === null && !sawOpen) setSawOpen(true);
+  const [editNames, setEditNames] = useState(false);
 
   const blueT = teamOnSide(g, "blue");
   const redT = teamOnSide(g, "red");
@@ -272,9 +278,10 @@ function Room({
       className="relative flex min-h-dvh flex-col overflow-x-hidden text-white-dim lg:h-dvh lg:overflow-hidden"
       style={{
         ...themeVars(theme),
-        background: `radial-gradient(ellipse 80% 55% at 50% -5%, color-mix(in srgb, var(--d-accent) 16%, transparent), transparent 70%), var(--d-bg)`,
+        background: `radial-gradient(ellipse 80% 55% at 50% -5%, color-mix(in srgb, var(--d-accent) 10%, transparent), transparent 70%), var(--d-bg)`,
       }}
     >
+      <DraftBackdrop blue={teamColor(cfg.teams[blueT])} red={teamColor(cfg.teams[redT])} />
       {theme.logo && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={theme.logo} alt="" aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 w-[38vmin] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.045]" />
@@ -282,12 +289,12 @@ function Room({
 
       {/* topo */}
       <header className="relative z-10 grid grid-cols-2 items-center gap-x-3 gap-y-2 lg:grid-cols-[1fr_auto_1fr] px-3 pt-3 lg:px-4">
-        <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} ready={g.ready[blueT]} />
+        <TeamHeader code={code} cfg={cfg} team={blueT} side="blue" wins={blueT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[blueT]} spectators={sync.live.spectators[blueT]} taken={g.drafters[blueT].taken} ready={g.ready[blueT]} onEditNames={myT === blueT ? () => setEditNames(true) : undefined} />
         <div className="order-first col-span-2 flex flex-col items-center gap-1.5 lg:order-none lg:col-span-1">
           <GameTabs total={cfg.games} available={view.games} n={n} setGame={setGame} />
           <PhaseLine g={g} remaining={remaining} timer={cfg.timer} cfg={cfg} />
         </div>
-        <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} ready={g.ready[redT]} />
+        <TeamHeader code={code} cfg={cfg} team={redT} side="red" wins={redT === 0 ? a : b} live={g.status === "drafting"} online={sync.live.online[redT]} spectators={sync.live.spectators[redT]} taken={g.drafters[redT].taken} ready={g.ready[redT]} onEditNames={myT === redT ? () => setEditNames(true) : undefined} />
       </header>
 
       {/* meio: picks | seletor | picks */}
@@ -358,8 +365,9 @@ function Room({
         </button>
       )}
 
+      {editNames && myT !== null && <NamesModal cfg={cfg} team={myT} send={send} onClose={() => setEditNames(false)} />}
       {showJoin && <JoinModal code={code} cfg={cfg} g={g} live={sync.live} lostSeat={lostSeat} send={send} setMe={setMe} lastTeam={lastTeam} />}
-      {g.winner !== null && g.wonAt ? (
+      {sawOpen && g.winner !== null && g.wonAt ? (
         <WinnerFlash
           key={g.wonAt}
           code={code}
@@ -394,12 +402,14 @@ function TeamHeader({
   spectators,
   taken,
   ready,
+  onEditNames,
 }: {
   code: string;
   cfg: RoomView["config"];
   team: TeamIdx;
   side: Side;
   wins: number;
+  onEditNames?: () => void;
   /** durante o draft há presença ao vivo; fora dele as telas não gravam presença (o banco dorme) */
   live: boolean;
   online: boolean;
@@ -411,7 +421,7 @@ function TeamHeader({
   const color = teamColor(t);
   const right = side === "red";
   return (
-    <div className={`flex min-w-0 items-center gap-3 ${right ? "flex-row-reverse text-right" : ""}`}>
+    <div className={`flex min-w-0 animate-[draft-rise_.6s_var(--ease-out-expo)] items-center gap-3 ${right ? "flex-row-reverse text-right" : ""}`}>
       <LogoPlate src={teamLogo(code, t, team)} tone={teamLogoTone(t)} color={color} size={52} className="max-sm:!size-10" />
       <div className="min-w-0">
         <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em]" style={{ color: SIDE_COLOR[side] }}>
@@ -433,6 +443,11 @@ function TeamHeader({
             </span>
           )}
           {live && spectators > 0 && <span>· {spectators} assistindo</span>}
+          {onEditNames && (
+            <button type="button" onClick={onEditNames} className="text-white-dim underline-offset-2 hover:text-white hover:underline">
+              ✎ nomes
+            </button>
+          )}
         </p>
       </div>
       {cfg.games > 1 && (
@@ -477,21 +492,87 @@ function PhaseLine({ g, remaining, timer, cfg }: { g: GameView; remaining: numbe
   const step = currentStep(g);
   if (!step) {
     const text = g.status === "lobby" ? "Aguardando os drafters" : g.winner !== null ? `Vitória de ${cfg.teams[g.winner].name}` : "Draft encerrado";
-    return <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white-dim">{text}</p>;
+    return (
+      <p key={text} className="animate-[draft-rise_.5s_var(--ease-out-expo)] font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white-dim">
+        {text}
+      </p>
+    );
   }
   const color = SIDE_COLOR[step.side];
   const pct = remaining !== null && timer > 0 ? Math.min(100, (remaining / timer) * 100) : 100;
   return (
     <div className="flex w-[min(22rem,80vw)] lg:w-[min(22rem,40vw)] flex-col items-center gap-1">
-      <p className="font-mono text-[0.68rem] uppercase tracking-[0.16em]" style={{ color }}>
+      <p key={g.step} className="animate-[draft-rise_.45s_var(--ease-out-expo)] font-mono text-[0.68rem] uppercase tracking-[0.16em]" style={{ color }}>
         {step.type === "ban" ? `Bans fase ${step.phase}` : `Picks fase ${step.phase}`} · {step.side === "blue" ? "Azul" : "Vermelho"} {step.type === "ban" ? "bane" : "escolhe"}
       </p>
       <p className={`font-display text-4xl font-black tabular-nums leading-none ${remaining !== null && remaining <= 5 ? "animate-pulse text-loss" : "text-white"}`}>
         {remaining ?? "∞"}
       </p>
-      <span className="h-1 w-full overflow-hidden bg-white/10">
-        <span className="block h-full transition-[width] duration-200 ease-linear" style={{ width: `${pct}%`, background: color }} />
+      <span className={`h-1 w-full overflow-hidden bg-white/10 ${remaining !== null && remaining <= 5 ? "animate-[draft-urgent_1s_ease-in-out_infinite]" : ""}`}>
+        <span className="block h-full transition-[width] duration-200 ease-linear" style={{ width: `${pct}%`, background: remaining !== null && remaining <= 5 ? "#ff4d5e" : color, boxShadow: `0 0 10px ${color}` }} />
       </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Fundo e nomes
+// ---------------------------------------------------------------------------------------------
+
+/** Fundo com as cores dos dois times (lado azul à esquerda, vermelho à direita), no estilo do kit de stream. */
+function DraftBackdrop({ blue, red }: { blue: string; red: string }) {
+  return (
+    <div className="draft-backdrop" aria-hidden>
+      <div className="draft-half draft-half--blue" style={{ "--team": blue } as React.CSSProperties} />
+      <div className="draft-half draft-half--red" style={{ "--team": red } as React.CSSProperties} />
+      <div className="draft-seam" />
+      <div className="draft-dots" />
+      <div className="draft-vignette" />
+      <div className="draft-grain" />
+    </div>
+  );
+}
+
+/** Nomes dos jogadores por lane (opcional), editados pelo drafter do time. Valem para a série toda. */
+function NamesModal({ cfg, team, send, onClose }: { cfg: RoomView["config"]; team: TeamIdx; send: (a: DraftAction) => Promise<string | null>; onClose: () => void }) {
+  const [names, setNames] = useState(() => Array.from({ length: 5 }, (_, k) => cfg.teams[team].players[k] ?? ""));
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    const err = await send({ type: "players", names });
+    setBusy(false);
+    if (!err) onClose();
+  }
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="clip-step my-auto w-full max-w-md animate-[draft-rise_.4s_var(--ease-out-expo)] bg-bg-2 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <p className="label-mono">{cfg.teams[team].name}</p>
+        <h2 className="mt-2 font-display text-3xl font-black uppercase text-white">Jogadores por lane</h2>
+        <p className="mt-1 text-sm text-gray">Opcional. Aparece nos slots de pick e vale para os próximos jogos da série.</p>
+        <div className="mt-5 grid gap-2">
+          {DRAFT_LANES.map((l, k) => (
+            <label key={l} className="grid grid-cols-[1.5rem_5rem_1fr] items-center gap-2">
+              <LaneIcon role={l} className="size-5" />
+              <span className="text-xs text-gray">{LANE_LABEL[l]}</span>
+              <input
+                value={names[k]}
+                maxLength={24}
+                onChange={(e) => setNames((n) => n.map((x, j) => (j === k ? e.target.value : x)))}
+                placeholder="Nome (opcional)"
+                className="w-full border border-line bg-bg-0 px-3 py-1.5 text-sm text-white placeholder:text-gray-dim focus:border-green focus:outline-none"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-gray hover:text-white">
+            Cancelar
+          </button>
+          <BigButton onClick={save} disabled={busy}>
+            Salvar
+          </BigButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -529,7 +610,8 @@ function PickColumn({ side, cfg, g, byId, preview, myT, correcting, setCorrectin
         const active = g.status === "drafting" && g.step === idx;
         const shown = champ ?? (active ? preview : null);
         const c = shown ? byId.get(shown) : undefined;
-        const player = cfg.teams[team].players[pos]?.trim() || `Jogador ${pos + 1}`;
+        const lane = DRAFT_LANES[pos];
+        const player = cfg.teams[team].players[pos]?.trim();
         const fixing = correcting === idx;
         return (
           <div
@@ -556,9 +638,20 @@ function PickColumn({ side, cfg, g, byId, preview, myT, correcting, setCorrectin
               className="absolute inset-0"
               style={{ background: `linear-gradient(${right ? "270deg" : "90deg"}, rgb(0 0 0 / .85), rgb(0 0 0 / .1) 70%), linear-gradient(0deg, ${SIDE_COLOR[side]}22, transparent 60%)` }}
             />
-            {active && <span className="absolute inset-0 animate-pulse" style={{ background: `${SIDE_COLOR[side]}14` }} />}
+            {active && (
+              <>
+                <span className="absolute inset-0 animate-pulse" style={{ background: `${SIDE_COLOR[side]}12` }} />
+                <span
+                  className="pointer-events-none absolute inset-y-0 left-0 w-1/2 animate-[draft-shine_1.8s_ease-in-out_infinite]"
+                  style={{ background: `linear-gradient(90deg, transparent, ${SIDE_COLOR[side]}30, transparent)` }}
+                />
+              </>
+            )}
             <div className={`relative flex h-full flex-col justify-end p-2.5 ${right ? "items-end text-right" : ""}`}>
-              <p className="font-mono text-[0.6rem] uppercase tracking-[0.16em] text-white/60">{player}</p>
+              <p className={`flex items-center gap-1.5 font-mono text-[0.6rem] uppercase tracking-[0.16em] text-white/60 ${right ? "flex-row-reverse" : ""}`} title={LANE_LABEL[lane]}>
+                <LaneIcon role={lane} className="size-3.5 shrink-0 opacity-80" />
+                <span className="truncate">{player || LANE_LABEL[lane]}</span>
+              </p>
               <p className="font-display text-lg font-black uppercase leading-none text-white lg:text-2xl">
                 {c ? c.name : champ === null ? <span className="text-white/35">Sem campeão</span> : active ? <span className="text-white/45">Escolhendo…</span> : ""}
               </p>
@@ -635,8 +728,15 @@ function BanRow({ side, g, byId, version, preview, myT, correcting, setCorrectin
               >
                 {c ? (
                   <>
-                    <Image src={championIcon(version, c.id)} alt={c.name} width={64} height={64} className={`size-full scale-110 object-cover ${champ ? "grayscale" : "opacity-50"}`} />
-                    {champ && <span className="absolute inset-0 bg-[linear-gradient(135deg,transparent_47%,#ff4d5e_47%,#ff4d5e_53%,transparent_53%)]" />}
+                    <Image
+                      key={champ ?? "preview"}
+                      src={championIcon(version, c.id)}
+                      alt={c.name}
+                      width={64}
+                      height={64}
+                      className={`size-full scale-110 object-cover ${champ ? "animate-[draft-ban_.4s_var(--ease-out-expo)] grayscale" : "opacity-50"}`}
+                    />
+                    {champ && <span className="absolute inset-0 animate-[draft-slash_.35s_.15s_ease-out_both] bg-[linear-gradient(135deg,transparent_47%,#ff4d5e_47%,#ff4d5e_53%,transparent_53%)]" />}
                   </>
                 ) : champ === null ? (
                   <span className="text-lg text-white/30">⦸</span>
@@ -1119,7 +1219,7 @@ function RoleLine({ code, me, cfg, canChange, onChange }: { code: string; me: Me
  * telas ficarem sabendo pelo sinal; assim a animação roda junta em todas. Quem souber atrasado (aba
  * escondida) pega o resto dela ou só segue para o próximo jogo.
  */
-const FLASH_DELAY_MS = 4500;
+const FLASH_DELAY_MS = 5500; // > intervalo do sinal na espera do resultado (4 s) + leitura
 const FLASH_MS = 4000;
 
 function WinnerFlash({

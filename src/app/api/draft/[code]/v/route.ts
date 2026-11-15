@@ -11,7 +11,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/draft/[code]/v"
   const res = await roomSignal(code);
   const headers: Record<string, string> = { "Cache-Control": "public, max-age=0, must-revalidate" };
   if (res.status === 200) {
-    headers["Vercel-CDN-Cache-Control"] = "public, max-age=86400";
+    headers["Vercel-CDN-Cache-Control"] = "public, max-age=3600";
     headers["Vercel-Cache-Tag"] = signalTag(code);
   }
   return Response.json(res.body, { status: res.status, headers });

@@ -9,6 +9,12 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/draft/[code]/lo
   const m = data?.match(/^data:(image\/(?:webp|png|jpeg));base64,(.+)$/);
   if (!m) return new Response(null, { status: 404 });
   return new Response(Buffer.from(m[2], "base64"), {
-    headers: { "Content-Type": m[1], "Cache-Control": "public, max-age=172800, immutable" },
+    headers: {
+      "Content-Type": m[1],
+      "Cache-Control": "public, max-age=172800, immutable",
+      // guarda também no cache da Vercel: o escudo sai do banco uma vez só
+      "Vercel-CDN-Cache-Control": "public, max-age=172800",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

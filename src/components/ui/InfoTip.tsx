@@ -58,7 +58,8 @@ export function InfoTip({ text, label, className = "" }: { text: string; label: 
           e.stopPropagation();
           show();
         }}
-        className={`no-print inline-flex size-3.5 shrink-0 cursor-help items-center justify-center rounded-full border border-gray-dim/70 align-middle font-mono text-[0.5rem] normal-case leading-none tracking-normal text-gray transition-colors hover:border-green hover:text-green ${className}`}
+        // before: área de toque maior que o círculo de 14px (fica fácil acertar no celular)
+        className={`no-print relative inline-flex size-3.5 shrink-0 cursor-help items-center before:absolute before:-inset-2.5 justify-center rounded-full border border-gray-dim/70 align-middle font-mono text-[0.5rem] normal-case leading-none tracking-normal text-gray transition-colors hover:border-green hover:text-green ${className}`}
       >
         i
       </button>

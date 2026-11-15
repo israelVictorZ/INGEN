@@ -105,8 +105,9 @@ export function Header() {
           </a>
         </nav>
 
-        <div className="flex items-center gap-3 md:hidden">
-          <TeamTwitchNavLink />
+        <div className="flex items-center gap-1 md:hidden">
+          {/* área de toque de ~40px no celular (o ícone sozinho tem 16px) */}
+          <TeamTwitchNavLink className="p-3" />
           <button
           type="button"
           className="relative flex size-10 items-center justify-center md:hidden"

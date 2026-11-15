@@ -167,8 +167,9 @@ export function LiveNowStrip({ names }: { names: Record<string, string> }) {
 /* ------------------------------------------------------------------ */
 /* Pin flutuante "AO VIVO"                                            */
 /* ------------------------------------------------------------------ */
-const PIN_KEY = "ingen:live-pin-min";
-const readMin = () => {
+// escolha da pessoa nesta aba, por transmissão: "min|<live>" (fechou) ou "open|<live>" (abriu)
+const PIN_KEY = "ingen:live-pin";
+const readPref = () => {
   try {
     return sessionStorage.getItem(PIN_KEY);
   } catch {
@@ -180,24 +181,34 @@ const subscribePin = (cb: () => void) => {
   pinListeners.add(cb);
   return () => pinListeners.delete(cb);
 };
-const writeMin = (v: string | null) => {
+const writePref = (v: string) => {
   try {
-    if (v) sessionStorage.setItem(PIN_KEY, v);
-    else sessionStorage.removeItem(PIN_KEY);
+    sessionStorage.setItem(PIN_KEY, v);
   } catch {
     /* sem storage: só não lembra entre páginas */
   }
   pinListeners.forEach((l) => l());
 };
 
+/** Celular (o aviso aberto ocupa a largura toda): começa fechado, só a pílula "Ao vivo". */
+const SMALL = "(max-width: 639px)";
+const subscribeSmall = (cb: () => void) => {
+  const mq = window.matchMedia(SMALL);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+const useSmallScreen = () => useSyncExternalStore(subscribeSmall, () => window.matchMedia(SMALL).matches, () => false);
+
 /**
  * Pin fixo no canto da tela quando a INGEN está ao vivo (canal oficial primeiro;
  * se ele estiver offline, mostra o primeiro jogador transmitindo).
- * Pode ser minimizado: vira uma pílula pulsante e lembra a escolha nesta aba.
+ * Pode ser fechado: vira uma pílula pulsante e lembra a escolha nesta aba. No celular começa
+ * fechado (aberto, ele cobre a parte de baixo da tela e atrapalha a navegação).
  */
 export function LivePin({ names }: { names: Record<string, string> }) {
   const { team, players, fetchedAt } = useLive();
-  const minimized = useSyncExternalStore(subscribePin, readMin, () => null);
+  const pref = useSyncExternalStore(subscribePin, readPref, () => null);
+  const small = useSmallScreen();
   const [imgError, setImgError] = useState(false);
 
   const pathname = usePathname();
@@ -213,11 +224,13 @@ export function LivePin({ names }: { names: Record<string, string> }) {
   const viewers = fmtViewers(info.viewers);
   const up = uptime(info, fetchedAt);
 
-  if (minimized === streamKey) {
+  const minimized = pref === `min|${streamKey}` || (small && pref !== `open|${streamKey}`);
+
+  if (minimized) {
     return (
       <button
         type="button"
-        onClick={() => writeMin(null)}
+        onClick={() => writePref(`open|${streamKey}`)}
         className="no-print fixed bottom-4 right-4 z-[60] flex animate-[live-glow_2.4s_ease-in-out_infinite] items-center gap-2.5 bg-[#9146ff] py-2.5 pl-3 pr-4 font-mono text-[0.68rem] font-medium uppercase tracking-[0.16em] text-white md:bottom-6 md:right-6"
         aria-label={`Abrir aviso: ${who} ao vivo na Twitch`}
       >
@@ -272,15 +285,16 @@ export function LivePin({ names }: { names: Record<string, string> }) {
         <div className="relative p-4">
           <button
             type="button"
-            onClick={() => writeMin(streamKey)}
-            className="absolute right-2 top-2 flex size-7 items-center justify-center text-gray transition-colors hover:text-white"
-            aria-label="Minimizar aviso de transmissão"
+            onClick={() => writePref(`min|${streamKey}`)}
+            className="absolute right-3 top-3 flex h-8 items-center gap-1.5 border border-white/15 px-2.5 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-white-dim transition-colors hover:border-white/40 hover:text-white"
+            aria-label="Fechar aviso de transmissão"
           >
+            Fechar
             <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
               <path d="M3 8h10" />
             </svg>
           </button>
-          <p className="flex items-center gap-2 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-[#bf94ff]">
+          <p className="flex items-center gap-2 pr-20 font-mono text-[0.62rem] uppercase tracking-[0.18em] text-[#bf94ff]">
             <TwitchIcon className="size-3.5" /> {who}
           </p>
           <p className="mt-2 line-clamp-2 pr-6 font-display text-xl font-extrabold uppercase leading-[1.05] text-white">

@@ -1,7 +1,7 @@
 # Planejamento INGEN
 
 > Arquivo único de pendências e prioridades. Substitui `roadmap.md`, `melhorias.md`, `fase-2-o-que-melhorar.md` e `fase-2-ingen-lives.md`.
-> Atualizado em 15/11/2026 (ajustes de uso no celular: aviso de live fechado por padrão; chamada da Copa Rift Masters na home, item 3 da Onda 2; categoria "Em teste" no elenco, item 2; times renomeados para INGEN Aces e INGEN Jokers, item 1; Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
+> Atualizado em 15/11/2026 (draft para scrims construído na branch `feat/draft-scrims`, em validação e ainda fora do ar, item 4 da Onda 2; ajustes de uso no celular: aviso de live fechado por padrão; chamada da Copa Rift Masters na home, item 3 da Onda 2; categoria "Em teste" no elenco, item 2; times renomeados para INGEN Aces e INGEN Jokers, item 1; Onda 2 com ordem própria; draft sem sugestões de pick e ban; agenda no longo prazo; Discord e Rift Masters 2ª edição fora do planejamento do site). Site: https://ingengg.com.br
 >
 > Referência técnica que continua em arquivos próprios: [`arquitetura.md`](arquitetura.md), [`design.md`](design.md), [`stream-pack.md`](stream-pack.md).
 
@@ -86,7 +86,7 @@ Ideias levantadas pela staff no grupo (Murillo, Atlas, Israel e Lari) e aprovada
 
 | Ordem | # | Item | Esforço |
 |---|---|---|---|
-| 4 | — | **Draft INGEN: criação e polimento.** Sistema de pick & ban próprio, pensado para ser transmitido, com interface amigável e personalizável: fases no formato oficial (3 bans, 3 picks, 2 bans, 2 picks) com cronômetro opcional; **logo e cor de cada um dos dois times**, com a tela se adaptando à cor; busca de campeão por nome e filtro por lane, com splash arts do Data Dragon; visual da INGEN e animações de pick e ban; **modo transmissão** (link limpo, sem controles, como fonte do OBS); configuração da partida em poucos passos. Sem banco: os logos ficam no navegador. | G |
+| 4 | — | **Draft para scrims (sala compartilhada).** Escopo redefinido pelo Israel em 15/11/2026, com base no drafter.lol: criação em `/draft` (link no rodapé) com os dois times (Aces × Jokers, line × visitante ou visitante × visitante), lado inicial, cor e escudo do visitante (escudo numa placa que contrasta com o desenho), nomes dos jogadores, 1 a 5 jogos, campeões banidos na série, fearless ou livre e tempo por ação. Gera um link `/draft/<código>?jogo=N` que vale 32 h; a cada jogo cada pessoa escolhe o time e se é drafter (um por time) ou espectador (sem limite), e a tela assume as cores e o escudo do time escolhido (INGEN, cor do visitante ou preto com cinza). Draft no formato de campeonato com cronômetro do servidor, "Pronto" dos dois drafters, lados alternados a cada jogo (troca só com acordo), pedido de troca de slot aceito pelo adversário (tempo esgotado ou miss click), reorganização dos picks, "quem ganhou" libera o próximo jogo, fearless entre os jogos e tela de campeão da série. Sem cabeçalho e rodapé na sala e sem rolagem no desktop. Usa a tabela `draft_rooms` no Neon (migração `0005`) com sincronização a cada 1 a 3 s. **Status:** construído e testado localmente (salas em memória) na branch `feat/draft-scrims`; falta aplicar a migração no Neon, validar com o Israel e publicar. O **modo transmissão** (link limpo para o OBS) fica para depois. | G |
 | 5 | — | **Coleção de cenas do OBS para importar** (veio da Onda 7): botão que baixa um `.json` de Scene Collection com as 5 cenas (Começando, Lobby, Partida, Pausa, Fim), fontes posicionadas e links do jogador. A instalação cai de ~15 min para ~1 min. | M |
 | 6 | I01–I04 | **Novos assets do kit de stream:** meta definível, de inscritos, seguidores ou doações (I01); contorno para o LivePix e espaço para ele na tela de lobby, removível como a câmera (I02); verificar se a música do Spotify pode aparecer na tela, o que depende da conta do streamer autorizar o acesso (I03); música nas telas "Já vai começar", "Volto já" e "Encerramento", reaproveitando o I03 se ele for viável (I04). | G |
 
@@ -99,7 +99,6 @@ Os itens 5 e 6 entram no kit de stream (`public/stream`); rodar `node scripts/bu
 - **Salvar drafts** (scrims e jogos) para analisar depois.
 - **A decidir pelo Israel:**
   - *Exportar imagem:* gerar um PNG do draft pronto (picks e bans dos dois times, com logos e cores) para postar no Discord ou nas redes.
-  - *Sala compartilhada:* cada capitão escolhe os próprios picks e bans pelo seu link, em tempo real, em vez de uma só pessoa operar o draft dos dois times.
 - **Depende de:** o draft da Onda 2 pronto; o salvamento usa o login da Onda 5.
 
 ### Onda 4 · Perfil com os dados novos (2 a 3 dias)
@@ -334,5 +333,6 @@ Montada a partir do histórico do git e das conversas com o Claude. Horários de
 | 15/11 | **Chamada da Copa Rift Masters 2026** na home (estreia seg. 16/11, 20h; Twitch e site do campeonato); publicado (`main` → Vercel) | branch `feat/cta-rift-masters` e Vercel |
 | 15/11 | **Ajustes de uso no celular:** aviso da live fechado por padrão (cobria a tela no celular do capitão), botão "Fechar" e áreas de toque maiores (topo, dicas e gráfico do ranking); publicado (`main` → Vercel) | branch `fix/ux-live-celular` e Vercel |
 | 15/11 | **Organização do git:** branches finalizadas apagadas (só fica a `main`), tag `nomes-aces-jokers` na renomeação e regra de branch própria por alteração no `CLAUDE.md` | git e GitHub |
+| 15/11 | **Draft para scrims** construído (criação em `/draft`, sala compartilhada com drafter e espectadores por time, fearless, série de até 5 jogos, link de 32 h) e testado com dois navegadores; tabela `draft_rooms` criada só como migração (ainda não aplicada no Neon); **não publicado**, aguardando validação | branch `feat/draft-scrims` |
 
 **Por que alguns itens pareciam "perdidos":** a página 404 existe desde a fase 1, mas o mapa de melhorias de 11/11 a listou como pendente. O domínio foi configurado fora do repositório (Registro.br e Vercel), então não aparece no git. A partir de agora, este arquivo é a fonte única (ver "Como manter este arquivo", no topo).

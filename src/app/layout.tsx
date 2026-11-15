@@ -6,6 +6,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { MotionRoot } from "@/components/motion/MotionRoot";
 import { ExternalLinks } from "@/components/site/ExternalLinks";
+import { HideInDraftRoom } from "@/components/site/HideInDraftRoom";
 import { LivePin } from "@/components/live/Live";
 import { getSiteData } from "@/lib/data";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -41,14 +42,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="pt-BR" suppressHydrationWarning className={`${display.variable} ${sans.variable} ${mono.variable} ${pixel.variable}`}>
       <body className="flex min-h-dvh flex-col">
         <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
-        <Header />
+        {/* na sala do draft (/draft/<código>) a tela é só do draft: sem cabeçalho, rodapé, pin de live e scroll suave */}
+        <HideInDraftRoom>
+          <Header />
+        </HideInDraftRoom>
         <main className="flex-1">{children}</main>
-        <Footer />
-        <MotionRoot />
+        <HideInDraftRoom>
+          <Footer />
+          <MotionRoot />
+        </HideInDraftRoom>
         <ExternalLinks />
-        <Suspense>
-          <LivePinMount />
-        </Suspense>
+        <HideInDraftRoom>
+          <Suspense>
+            <LivePinMount />
+          </Suspense>
+        </HideInDraftRoom>
         {/* Vercel Web Analytics (#48): visitas por página, sem cookies. Ativar em Vercel → projeto → Analytics. */}
         <Analytics />
       </body>

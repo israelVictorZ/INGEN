@@ -360,3 +360,23 @@ export const appMeta = pgTable("app_meta", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });
+
+/**
+ * Draft de scrims (/draft): uma linha por sala. `state` guarda a série inteira (configuração e jogos) e
+ * só muda com `version` (troca otimista). `presence` (quem está na sala e quando foi visto) fica fora do
+ * `state` para não acordar todos os clientes a cada batida. `logos` são os escudos enviados dos times
+ * visitantes (data URL WebP/PNG, já reduzidos no navegador). A sala vale 32 h (`expires_at`).
+ */
+export const draftRooms = pgTable(
+  "draft_rooms",
+  {
+    code: text("code").primaryKey(),
+    state: jsonb("state").notNull(),
+    version: integer("version").notNull().default(1),
+    presence: jsonb("presence").notNull().default({}),
+    logos: jsonb("logos").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("draft_rooms_expires_idx").on(t.expiresAt)],
+);

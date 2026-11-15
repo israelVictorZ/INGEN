@@ -36,13 +36,35 @@ function intervalFor(view: RoomView | null, hidden: boolean) {
 }
 
 /**
+ * Pausa para o banco (Neon) poder dormir: cada consulta o mantém acordado, e ele só dorme depois de
+ * 5 minutos sem nenhuma. Sem atividade na sala (clique, tecla, alguém mudando algo) por este tempo, a
+ * tela para de consultar; qualquer toque na tela volta a atualizar.
+ * - draft concluído / série encerrada: 3 min (dá tempo de reorganizar e pedir correção);
+ * - esperando o próximo jogo (lobby) ou draft sem relógio parado: 15 min;
+ * - draft com relógio correndo: nunca (o tempo de cada ação precisa chegar a todos).
+ */
+export const IDLE_DONE_MS = 3 * 60_000;
+export const IDLE_WAIT_MS = 15 * 60_000;
+
+function pauseAfter(view: RoomView | null): number {
+  const g = view?.games.at(-1);
+  if (!g) return Infinity;
+  if (g.status === "drafting") return view!.config.timer > 0 ? Infinity : IDLE_WAIT_MS;
+  if (g.status === "lobby") return IDLE_WAIT_MS;
+  return IDLE_DONE_MS;
+}
+
+const WAKE_EVENTS = ["pointerdown", "keydown", "focus"] as const;
+
+/**
  * Mantém a sala em dia com o servidor (consulta periódica com a versão que já temos) e envia ações.
  * `send` devolve a mensagem de erro (ou null se deu certo).
  */
 export function useDraftSync(code: string, game: number, me: Me | null) {
   const [cid] = useState(clientId);
   const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: { spectators: [0, 0], online: [false, false] }, offset: 0 });
-  const ref = useRef({ version: 0, view: null as RoomView | null, game, me });
+  const [paused, setPaused] = useState(false);
+  const ref = useRef({ version: 0, view: null as RoomView | null, game, me, activity: 0 });
 
   useEffect(() => {
     ref.current.game = game;
@@ -54,6 +76,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       if (!cid) return null;
       const r = ref.current;
       const t0 = Date.now();
+      if (action) r.activity = t0;
       try {
         const res = await fetch(`/api/draft/${code}`, {
           method: "POST",
@@ -73,6 +96,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
         }
         if (!res.ok) return json.error ?? "Algo deu errado. Tente de novo.";
         if (json.view && json.version >= r.version) {
+          if (json.version > r.version) r.activity = t1; // alguém mexeu na sala
           r.version = json.version;
           r.view = json.view;
         }
@@ -89,25 +113,53 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
 
   useEffect(() => {
     if (!cid) return;
+    const r = ref.current;
     let stop = false;
+    let sleeping = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    r.activity = Date.now();
+
+    const sleep = () => {
+      sleeping = true;
+      setPaused(true);
+      // drafter pronto esperando o adversário: sai do "pronto", senão o draft começaria com esta tela parada
+      const g = r.view?.games.at(-1);
+      if (g && g.status === "lobby" && g.n === r.game && r.me?.role === "drafter" && g.drafters[r.me.team].mine && g.ready[r.me.team]) {
+        call({ type: "ready", value: false });
+      }
+    };
     const loop = async () => {
       clearTimeout(timer);
       await call();
-      if (!stop) timer = setTimeout(loop, intervalFor(ref.current.view, document.hidden));
+      if (stop) return;
+      if (Date.now() - r.activity > pauseAfter(r.view)) return sleep();
+      timer = setTimeout(loop, intervalFor(r.view, document.hidden));
     };
     loop();
+
+    const wake = () => {
+      if (stop || document.hidden) return;
+      r.activity = Date.now();
+      if (!sleeping) return;
+      sleeping = false;
+      setPaused(false);
+      loop();
+    };
     const onVisible = () => {
-      if (!document.hidden && !stop) loop();
+      if (document.hidden || stop) return;
+      if (sleeping) wake();
+      else loop();
     };
     document.addEventListener("visibilitychange", onVisible);
+    for (const e of WAKE_EVENTS) window.addEventListener(e, wake, { passive: true, capture: true });
     return () => {
       stop = true;
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      for (const e of WAKE_EVENTS) window.removeEventListener(e, wake, { capture: true });
     };
     // muda de jogo ou de papel → sincroniza na hora (presença nova)
   }, [cid, call, game, me?.team, me?.role]);
 
-  return { ...state, cid, send: call, refresh: () => call() };
+  return { ...state, paused, cid, send: call, refresh: () => call() };
 }

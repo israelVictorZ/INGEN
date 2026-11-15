@@ -343,8 +343,18 @@ function Room({
           {toast}
         </div>
       )}
-      {sync.status === "offline" && (
+      {sync.status === "offline" && !sync.paused && (
         <div className="fixed left-1/2 top-2 z-50 -translate-x-1/2 bg-loss px-3 py-1 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-white">Reconectando…</div>
+      )}
+      {sync.paused && (
+        // qualquer toque na tela já volta a atualizar (useDraftSync); o botão só deixa isso claro
+        <button
+          type="button"
+          className="fixed left-1/2 top-2 z-50 flex -translate-x-1/2 items-center gap-2 border border-[var(--d-line)] bg-black/85 px-3 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-white-dim shadow-xl backdrop-blur-sm hover:text-white"
+        >
+          <span className="size-1.5 rounded-full bg-gray" aria-hidden />
+          Sala em pausa · toque para atualizar
+        </button>
       )}
 
       {showJoin && <JoinModal code={code} cfg={cfg} g={g} live={sync.live} lostSeat={lostSeat} send={send} setMe={setMe} lastTeam={lastTeam} />}

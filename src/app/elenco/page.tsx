@@ -5,10 +5,11 @@ import { ogFor } from "@/lib/site";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Split } from "@/components/motion/Split";
 import { TeamBlock } from "@/components/roster/TeamBlock";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 export const metadata: Metadata = {
   title: "Elenco",
-  description: "Elenco da INGEN Black e da INGEN Silver: jogadores de cada lane, elo na Solo/Duo, winrate e campeões mais jogados.",
+  description: `Elenco da ${TEAM_DISPLAY.black.name} e da ${TEAM_DISPLAY.silver.name}: jogadores de cada lane, elo na Solo/Duo, winrate e campeões mais jogados.`,
   alternates: { canonical: "/elenco" },
   openGraph: ogFor("/elenco"),
 };

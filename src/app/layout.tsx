@@ -10,6 +10,7 @@ import { LivePin } from "@/components/live/Live";
 import { getSiteData } from "@/lib/data";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 const display = Big_Shoulders({ variable: "--font-big-shoulders", subsets: ["latin"], weight: ["700", "800", "900"] });
 const sans = Geist({ variable: "--font-geist", subsets: ["latin"] });
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   title: { default: "INGEN · Time de League of Legends", template: "%s · INGEN" },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
-  keywords: ["INGEN", "INGEN Black", "INGEN Silver", "League of Legends", "LoL", "time de LoL", "e-sports", "Solo/Duo", "elo", "scouting"],
+  keywords: ["INGEN", TEAM_DISPLAY.black.name, TEAM_DISPLAY.silver.name, "League of Legends", "LoL", "time de LoL", "e-sports", "Solo/Duo", "elo", "scouting"],
   openGraph: { siteName: SITE_NAME, locale: "pt_BR", type: "website" },
   twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },

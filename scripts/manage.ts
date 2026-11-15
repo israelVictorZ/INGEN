@@ -2,14 +2,16 @@
  * Gerenciamento do elenco e redes pela linha de comando (usado pelas skills do Claude).
  *
  *   npx tsx scripts/manage.ts list
- *   npx tsx scripts/manage.ts player:add --riot "Nome#TAG" --team black|silver [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug] [--replace]
+ *   npx tsx scripts/manage.ts player:add --riot "Nome#TAG" --team aces|jokers [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug] [--replace]
  *   npx tsx scripts/manage.ts player:remove --slug slug [--no-open-slot]
  *   npx tsx scripts/manage.ts player:rename --slug atual --to novo [--name "Exibição"]   (antigo vira redirecionamento 308)
- *   npx tsx scripts/manage.ts reserve:add --riot "Nome#TAG" --team black|silver [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug]
- *   npx tsx scripts/manage.ts reserve:remove --slug slug [--team black|silver]   (sem --team: sai de todos os times)
+ *   npx tsx scripts/manage.ts reserve:add --riot "Nome#TAG" --team aces|jokers [--role TOP|JUNGLE|MID|ADC|SUPPORT] [--name "Exibição"] [--slug slug]
+ *   npx tsx scripts/manage.ts reserve:remove --slug slug [--team aces|jokers]   (sem --team: sai de todos os times)
  *   npx tsx scripts/manage.ts twitch:set --slug slug --url https://www.twitch.tv/canal
  *   npx tsx scripts/manage.ts twitch:remove --slug slug
  *   npx tsx scripts/manage.ts twitch:export   (regrava src/lib/twitch-channels.json; set/remove/rename já fazem isso)
+ *
+ * --team aceita o nome público (aces, jokers) ou o id interno do banco (black, silver); ver src/lib/teams.ts.
  *
  * Remover NÃO apaga o jogador: fecha a participação (left_at) e, por padrão, abre a vaga da lane.
  */
@@ -18,6 +20,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import { ROLES, type Role } from "../src/db/schema";
+import { teamDisplay, teamIdFrom } from "../src/lib/teams";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const args: Record<string, string | true> = {};
@@ -55,9 +58,11 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+/** Aceita o nome público (aces, jokers) ou o id interno (black, silver); devolve o time com o nome público. */
 async function teamBySlug(slug: string) {
-  const [t] = await db.select().from(schema.teams).where(eq(schema.teams.slug, slug));
-  return t ?? fail(`Time "${slug}" não existe (use black ou silver).`);
+  const id = teamIdFrom(slug) ?? slug.trim().toLowerCase();
+  const [t] = await db.select().from(schema.teams).where(eq(schema.teams.slug, id));
+  return t ? { ...t, name: teamDisplay(t.slug, t).name } : fail(`Time "${slug}" não existe (use aces ou jokers).`);
 }
 
 async function playerBySlug(slug: string) {
@@ -73,7 +78,7 @@ async function list() {
   const socials = await db.select().from(schema.socialLinks);
   const reserves = await db.select().from(schema.teamReserves).where(isNull(schema.teamReserves.leftAt));
   for (const t of teams.sort((a, b) => a.sortOrder - b.sortOrder)) {
-    console.log(`\n${t.name} (${t.slug})`);
+    console.log(`\n${teamDisplay(t.slug, t).name} (--team ${teamDisplay(t.slug, t).slug})`);
     for (const r of ROLES) {
       const m = ms.find((x) => x.teamId === t.id && x.role === r);
       const p = m && players.find((x) => x.id === m.playerId);
@@ -94,7 +99,7 @@ async function playerAdd() {
   const riotId = str("riot") ?? fail('Informe --riot "Nome#TAG"');
   const [gameName, tagLine] = riotId.split("#");
   if (!gameName || !tagLine) fail('Riot ID inválido. Formato: "Nome#TAG"');
-  const team = await teamBySlug(str("team") ?? fail("Informe --team black|silver"));
+  const team = await teamBySlug(str("team") ?? fail("Informe --team aces|jokers"));
 
   const acc = await riot<{ puuid: string; gameName: string; tagLine: string }>(
     process.env.RIOT_REGION ?? "americas",
@@ -183,7 +188,7 @@ async function reserveAdd() {
   const riotId = str("riot") ?? fail('Informe --riot "Nome#TAG"');
   const [gameName, tagLine] = riotId.split("#");
   if (!gameName || !tagLine) fail('Riot ID inválido. Formato: "Nome#TAG"');
-  const team = await teamBySlug(str("team") ?? fail("Informe --team black|silver"));
+  const team = await teamBySlug(str("team") ?? fail("Informe --team aces|jokers"));
   const role = str("role")?.toUpperCase() as Role | undefined;
   if (role && !ROLES.includes(role)) fail(`Lane inválida: ${role}. Use ${ROLES.join(", ")}`);
 

@@ -1,15 +1,18 @@
 import { ImageResponse } from "next/og";
 import { OG_COLORS as C, OG_SIZE, displayFont, logoDataUrl } from "@/lib/og";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
-export const alt = "INGEN, time brasileiro de League of Legends: INGEN Black e INGEN Silver";
+export const alt = `INGEN, time brasileiro de League of Legends: ${TEAM_DISPLAY.black.name} e ${TEAM_DISPLAY.silver.name}`;
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
 /** Imagem padrão de compartilhamento (vale para todas as páginas sem imagem própria). */
 export default async function Image() {
   const title = "INGEN";
+  const A = TEAM_DISPLAY.black.shortName.toUpperCase();
+  const B = TEAM_DISPLAY.silver.shortName.toUpperCase();
   const tagline = "TIME DE LEAGUE OF LEGENDS";
-  const [logo, fonts] = await Promise.all([logoDataUrl(), displayFont(`${title}${tagline}BLACKSILVER·`)]);
+  const [logo, fonts] = await Promise.all([logoDataUrl(), displayFont(`${title}${tagline}${A}${B}·`)]);
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: C.bg, position: "relative", fontFamily: "Big Shoulders" }}>
@@ -33,9 +36,9 @@ export default async function Image() {
           <div style={{ display: "flex", fontSize: 30, letterSpacing: 8, color: C.green }}>{tagline}</div>
           <div style={{ display: "flex", fontSize: 230, lineHeight: 0.9, color: C.white, marginTop: 10 }}>{title}</div>
           <div style={{ display: "flex", gap: 24, marginTop: 30, fontSize: 44 }}>
-            <span style={{ color: C.green }}>BLACK</span>
+            <span style={{ color: C.green }}>{A}</span>
             <span style={{ color: C.gray }}>·</span>
-            <span style={{ color: "#c9cdd3" }}>SILVER</span>
+            <span style={{ color: "#c9cdd3" }}>{B}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 460 }}>

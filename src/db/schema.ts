@@ -17,7 +17,7 @@ import {
 export const ROLES = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
 export type Role = (typeof ROLES)[number];
 
-/** Times (INGEN Black, INGEN Silver). `sortOrder` define a ordem de exibição: Black = 1. */
+/** Times (ids internos black e silver; nomes públicos INGEN Aces e INGEN Jokers em src/lib/teams.ts). `sortOrder` define a ordem de exibição: black (Aces) = 1. */
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   slug: text("slug").notNull().unique(),

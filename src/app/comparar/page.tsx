@@ -8,10 +8,11 @@ import { opggUrl, riotId } from "@/lib/format";
 import { mainChamps } from "@/lib/view";
 import slugRedirects from "@/lib/slug-redirects.json";
 import { ogFor } from "@/lib/site";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 export const metadata: Metadata = {
   title: "Comparar jogadores",
-  description: "Compare jogadores da INGEN Black e da INGEN Silver lado a lado: KDA, farm, visão, dano, forma, elo e pool de campeões.",
+  description: `Compare jogadores da ${TEAM_DISPLAY.black.name} e da ${TEAM_DISPLAY.silver.name} lado a lado: KDA, farm, visão, dano, forma, elo e pool de campeões.`,
   // ?a=…&b=… gera infinitas combinações: todas apontam para a mesma página canônica
   alternates: { canonical: "/comparar" },
   openGraph: ogFor("/comparar"),

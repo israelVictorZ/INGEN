@@ -22,8 +22,8 @@ export const metadata: Metadata = {
 export default async function Home() {
   const data = await getSiteData();
   const { teams, players, news } = data;
-  const black = teams.find((t) => t.slug === "black");
-  const silver = teams.find((t) => t.slug === "silver");
+  const black = teams.find((t) => t.id === "black");
+  const silver = teams.find((t) => t.id === "silver");
   const openSlots = teams.flatMap((t) => t.slots.filter((s) => s.kind === "open").map((s) => ({ team: t, role: s.role })));
 
   const totalGames = players.reduce((s, p) => s + (p.stats?.games ?? 0), 0);
@@ -58,7 +58,7 @@ export default async function Home() {
 
       <LiveNowStrip names={Object.fromEntries(players.map((p) => [p.slug, p.displayName]))} />
 
-      <Marquee items={["INGEN Black", "INGEN Silver", ...openSlots.map((o) => `Vaga aberta ${ROLE_META[o.role].short}`)]} />
+      <Marquee items={[...teams.map((t) => t.name), ...openSlots.map((o) => `Vaga aberta ${ROLE_META[o.role].short}`)]} />
 
       {/* 01: Elenco */}
       <section className="wrap py-28 md:py-40">

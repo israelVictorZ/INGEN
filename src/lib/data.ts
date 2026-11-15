@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { Role, NewsCategory } from "@/db/schema";
 import { getChampionMap, getRuneMap, getRuneNames, getSpellMap, type ChampionInfo } from "./ddragon";
 import { POSITION_TO_ROLE, ROLE_META, confidentWr, rankScore } from "./format";
+import { teamDisplay } from "./teams";
 
 export type Rank = {
   tier: string;
@@ -124,7 +125,8 @@ export type Insights = {
 
 export type RankPoint = { t: number; score: number; tier: string; division: string; lp: number };
 
-export type TeamRef = { slug: string; name: string; shortName: string; accent: string; sortOrder: number };
+/** `slug`, `name` e `shortName` são os públicos (ver src/lib/teams.ts); `id` é o slug interno do banco (black | silver). */
+export type TeamRef = { id: string; slug: string; name: string; shortName: string; accent: string; sortOrder: number };
 
 export type Player = {
   id: number;
@@ -313,7 +315,8 @@ export async function getSiteData(): Promise<SiteData> {
 
   const teamRef = (id: number): TeamRef => {
     const t = teams.find((x) => x.id === id)!;
-    return { slug: t.slug, name: t.name, shortName: t.shortName, accent: t.accent, sortOrder: t.sortOrder };
+    const d = teamDisplay(t.slug, t);
+    return { id: t.slug, slug: d.slug, name: d.name, shortName: d.shortName, accent: t.accent, sortOrder: t.sortOrder };
   };
 
   /** Monta o jogador completo. Titular: time + lane da participação; reserva: lane cadastrada ou inferida. */
@@ -609,7 +612,7 @@ export async function getSiteData(): Promise<SiteData> {
   const builtTeams: Team[] = teams
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((t) => {
-      const tp = builtPlayers.filter((p) => p.team.slug === t.slug);
+      const tp = builtPlayers.filter((p) => p.team.id === t.slug);
       const open = slots.filter((s) => s.teamId === t.id && s.active);
       const slotList: Team["slots"] = [
         ...tp.map((p) => ({ kind: "player" as const, role: p.role, player: p })),
@@ -623,13 +626,13 @@ export async function getSiteData(): Promise<SiteData> {
         tagline: t.tagline,
         slots: slotList,
         players: slotList.flatMap((s) => (s.kind === "player" ? [s.player] : [])),
-        reserves: builtReserves.filter((r) => r.team.slug === t.slug),
+        reserves: builtReserves.filter((r) => r.team.id === t.slug),
         avgScore: scores.length ? avg(scores) : null,
         stats: games ? { games, winrate: wins / games } : null,
       };
     });
 
-  // Ordem padrão de jogadores: Black primeiro, depois por lane
+  // Ordem padrão de jogadores: Aces (sortOrder 1) primeiro, depois por lane
   builtPlayers.sort((a, b) => a.team.sortOrder - b.team.sortOrder || ROLE_META[a.role].order - ROLE_META[b.role].order);
 
   return {

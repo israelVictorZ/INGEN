@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ButtonLink } from "@/components/ui";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -96,8 +97,8 @@ export function Hero({ blackAvg, silverAvg }: { blackAvg: string; silverAvg: str
         INGEN <span className="text-green">{"//"}</span> BR1
       </div>
       <div data-hero data-hero-hud className="absolute right-[var(--gutter)] top-24 hidden text-right font-mono text-[0.68rem] uppercase leading-relaxed tracking-[0.2em] text-gray-dim md:block">
-        <div>Black · elo médio <span className="text-white-dim">{blackAvg}</span></div>
-        <div>Silver · elo médio <span className="text-white-dim">{silverAvg}</span></div>
+        <div>{TEAM_DISPLAY.black.shortName} · elo médio <span className="text-white-dim">{blackAvg}</span></div>
+        <div>{TEAM_DISPLAY.silver.shortName} · elo médio <span className="text-white-dim">{silverAvg}</span></div>
       </div>
 
       <div className="wrap relative grid items-center gap-10 md:grid-cols-[1.1fr_0.9fr] lg:grid-cols-[1.05fr_1fr]">
@@ -124,7 +125,7 @@ export function Hero({ blackAvg, silverAvg }: { blackAvg: string; silverAvg: str
             ))}
           </h1>
           <p data-hero data-hero-fade className="mt-8 max-w-md text-base leading-relaxed text-gray md:text-lg">
-            <span className="text-white-dim">INGEN Black</span> e <span className="text-white-dim">INGEN Silver</span>:
+            <span className="text-white-dim">{TEAM_DISPLAY.black.name}</span> e <span className="text-white-dim">{TEAM_DISPLAY.silver.name}</span>:
             elencos, estatísticas direto da Riot, comparação de jogadores e scouting em um só lugar.
           </p>
           <div data-hero data-hero-fade className="mt-10 flex flex-wrap gap-3">

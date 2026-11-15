@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FEATURES, LINKS } from "@/lib/features";
+import { TEAM_DISPLAY } from "@/lib/teams";
 import { TeamTwitchNavLink } from "@/components/live/Live";
 import { DiscordIcon, InstagramIcon, XIcon, YouTubeIcon } from "@/components/brand/SocialIcons";
 
@@ -12,7 +13,7 @@ const ALL_NAV = [
   { href: "/elenco", label: "Elenco" },
   { href: "/ranking", label: "Ranking" },
   { href: "/comparar", label: "Comparar" },
-  { href: "/scouting/black", label: "Scouting", match: "/scouting" },
+  { href: `/scouting/${TEAM_DISPLAY.black.slug}`, label: "Scouting", match: "/scouting" },
   { href: "/noticias", label: "Notícias", feature: "news" as const },
 ];
 const NAV = ALL_NAV.filter((n) => !("feature" in n && n.feature) || FEATURES[n.feature]);

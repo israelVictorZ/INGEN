@@ -1,4 +1,5 @@
 import { LINKS } from "./features";
+import { TEAM_DISPLAY } from "./teams";
 
 /** Domínio oficial. O antigo (ingen-three.vercel.app) redireciona para cá (next.config.ts). */
 export const PRODUCTION_URL = "https://ingengg.com.br";
@@ -15,7 +16,7 @@ export const SITE_URL = (
 
 export const SITE_NAME = "INGEN";
 export const SITE_DESCRIPTION =
-  "INGEN é uma organização brasileira de League of Legends. Conheça a INGEN Black e a INGEN Silver: elenco, elo, campeões, estatísticas de cada jogador, ranking interno e scouting.";
+  `INGEN é uma organização brasileira de League of Legends. Conheça a ${TEAM_DISPLAY.black.name} e a ${TEAM_DISPLAY.silver.name}: elenco, elo, campeões, estatísticas de cada jogador, ranking interno e scouting.`;
 
 export const abs = (path = "/") => `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 

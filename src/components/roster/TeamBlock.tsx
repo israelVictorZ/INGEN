@@ -10,7 +10,9 @@ import { Split } from "@/components/motion/Split";
 
 export function TeamBlock({ team, version, index }: { team: Team; version: string; index: number }) {
   return (
-    <section id={team.slug} className="scroll-mt-24 py-20 md:py-28">
+    <section id={team.slug} className="relative scroll-mt-24 py-20 md:py-28">
+      {/* âncora antiga (/elenco#black, /elenco#silver): links já compartilhados continuam caindo no time certo */}
+      {team.id !== team.slug && <span id={team.id} aria-hidden className="absolute top-0 scroll-mt-24" />}
       <div className="wrap">
         <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr]">
           <div>

@@ -9,10 +9,11 @@ import "dotenv/config";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import type { Role, NewsCategory } from "../src/db/schema";
+import { TEAM_DISPLAY } from "../src/lib/teams";
 
 const TEAMS = [
-  { slug: "black", name: "INGEN Black", shortName: "Black", sortOrder: 1, accent: "green", tagline: "O escudo em sua forma mais afiada." },
-  { slug: "silver", name: "INGEN Silver", shortName: "Silver", sortOrder: 2, accent: "silver", tagline: "Forjada no aço, pronta para subir." },
+  { slug: "black", name: TEAM_DISPLAY.black.name, shortName: TEAM_DISPLAY.black.shortName, sortOrder: 1, accent: "green", tagline: "O escudo em sua forma mais afiada." },
+  { slug: "silver", name: TEAM_DISPLAY.silver.name, shortName: TEAM_DISPLAY.silver.shortName, sortOrder: 2, accent: "silver", tagline: "Forjada no aço, pronta para subir." },
 ];
 
 const ROSTER: { team: string; role: Role; slug: string; displayName: string; gameName: string; tagLine: string }[] = [
@@ -48,7 +49,7 @@ const NEWS: { slug: string; title: string; excerpt: string; category: NewsCatego
     daysAgo: 0,
     body: `A INGEN agora tem um lar oficial na internet.
 
-Aqui você encontra os **elencos da INGEN Black e da INGEN Silver**, o perfil de cada jogador com dados atualizados direto da API da Riot Games, e ferramentas pensadas para quem joga sério:
+Aqui você encontra os **elencos da INGEN Aces e da INGEN Jokers**, o perfil de cada jogador com dados atualizados direto da API da Riot Games, e ferramentas pensadas para quem joga sério:
 
 - **Comparar jogadores** do mesmo time, métrica por métrica;
 - **Relatório de scouting** de cada time, pronto para enviar a outras equipes;
@@ -60,13 +61,13 @@ Este é só o começo. Novas funcionalidades chegam em breve.`,
   {
     slug: "recrutamento-top-e-mid",
     title: "Recrutamento aberto: TOP e MID",
-    excerpt: "Estamos procurando um TOP para a INGEN Black e um MID para a INGEN Silver.",
+    excerpt: "Estamos procurando um TOP para a INGEN Aces e um MID para a INGEN Jokers.",
     category: "recrutamento",
     daysAgo: 1,
     body: `A INGEN está com **duas vagas abertas**:
 
-- **TOP** na INGEN Black;
-- **MID** na INGEN Silver.
+- **TOP** na INGEN Aces;
+- **MID** na INGEN Jokers.
 
 Procuramos jogadores comprometidos, com disponibilidade para treinos e vontade de evoluir em equipe.
 
@@ -80,16 +81,16 @@ Entre em contato com a staff da INGEN informando seu **Riot ID**, sua lane, seu 
     excerpt: "Dois elencos, um só escudo. Veja quem defende as cores da INGEN em cada lane.",
     category: "elenco",
     daysAgo: 2,
-    body: `A INGEN compete com dois elencos: **INGEN Black** e **INGEN Silver**.
+    body: `A INGEN compete com dois elencos: **INGEN Aces** e **INGEN Jokers**.
 
-## INGEN Black
+## INGEN Aces
 - **JG**: Atlas
 - **MID**: Clyde
 - **ADC**: Coelho
 - **SUP**: Czar
 - **TOP**: vaga aberta
 
-## INGEN Silver
+## INGEN Jokers
 - **TOP**: Thriller
 - **JG**: Miku
 - **ADC**: Hayha

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import slugRedirects from "./src/lib/slug-redirects.json";
+import { TEAM_SLUG_REDIRECTS } from "./src/lib/teams";
 
 const nextConfig: NextConfig = {
   // jogadores que trocaram de endereço (npm run manage -- player:rename): 308 permanente, bom para SEO
@@ -14,6 +15,13 @@ const nextConfig: NextConfig = {
         destination: "https://ingengg.com.br/:path",
         permanent: true,
       },
+      // times renomeados (src/lib/teams.ts): /scouting/black → /scouting/aces e /scouting/silver → /scouting/jokers.
+      // Temporário (307) de propósito: se os nomes voltarem, o navegador não guardou o desvio antigo.
+      ...Object.entries(TEAM_SLUG_REDIRECTS).map(([from, to]) => ({
+        source: `/scouting/${from}`,
+        destination: `/scouting/${to}`,
+        permanent: false,
+      })),
       ...Object.entries(slugRedirects as Record<string, string>).map(([from, to]) => ({
         source: `/jogador/${from}`,
         destination: `/jogador/${to}`,

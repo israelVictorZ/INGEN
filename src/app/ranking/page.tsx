@@ -11,10 +11,11 @@ import { TeamEloChart, type EloSeries } from "@/components/ranking/TeamEloChart"
 import { TIER_META, fixed, opggUrl, pct, rankLabel } from "@/lib/format";
 import { ogFor } from "@/lib/site";
 import { MetricLabel } from "@/components/ui/InfoTip";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 export const metadata: Metadata = {
   title: "Ranking interno",
-  description: "Ranking interno da INGEN: todos os jogadores da Black e da Silver ordenados por elo na ranqueada Solo/Duo, com PDL e winrate.",
+  description: `Ranking interno da INGEN: todos os jogadores da ${TEAM_DISPLAY.black.shortName} e da ${TEAM_DISPLAY.silver.shortName} ordenados por elo na ranqueada Solo/Duo, com PDL e winrate.`,
   alternates: { canonical: "/ranking" },
   openGraph: ogFor("/ranking"),
 };
@@ -44,14 +45,14 @@ function PositionMove({ n }: { n: number | null }) {
   );
 }
 
-/** "Silver" / "Silver · Reserva" */
+/** "Jokers" / "Jokers · Reserva" */
 const teamLabel = (p: Player, name: string) => (p.reserve ? `${name} · Reserva` : name);
 
 export default async function RankingPage() {
   const { players: starters, reserves, version, lastSync } = await getSiteData();
   // Reservas entram no ranking (pódio, destaques, gráfico e tabela), sempre marcados como tal
   const players = [...starters, ...reserves];
-  // Ranking: única exceção à regra "Black primeiro". Aqui vale só o elo.
+  // Ranking: única exceção à regra "Aces primeiro". Aqui vale só o elo.
   const ranked = [...players].sort((a, b) => (b.solo?.score ?? -1) - (a.solo?.score ?? -1));
   const top = ranked[0]?.solo?.score ?? 1;
   const until = lastSync ? new Date(lastSync).getTime() : Math.max(0, ...players.flatMap((p) => p.rankHistory.map((h) => h.t)));
@@ -65,7 +66,7 @@ export default async function RankingPage() {
   /** posições ganhas (+) ou perdidas (−) na semana; null sem histórico de elo */
   const moved = (p: Player, now: number) => (scoreThen(p) == null ? null : before.indexOf(p) - now);
 
-  // cor fixa por jogador (ordem do elenco: Black antes da Silver), validada para daltonismo no fundo escuro;
+  // cor fixa por jogador (ordem do elenco: Aces antes da Jokers), validada para daltonismo no fundo escuro;
   // reservas em tons neutros e linha tracejada, para não competir com os titulares
   const PALETTE = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
   const RESERVE_PALETTE = ["#aeb5c0", "#8a8f99", "#c9bfa8"];

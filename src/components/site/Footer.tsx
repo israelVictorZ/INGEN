@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FEATURES, LINKS } from "@/lib/features";
+import { TEAM_DISPLAY } from "@/lib/teams";
 import { Suspense } from "react";
 import { DiscordIcon, InstagramIcon, TwitchIcon, XIcon, YouTubeIcon } from "@/components/brand/SocialIcons";
 import { getSiteData } from "@/lib/data";
@@ -30,9 +31,10 @@ export function Footer() {
         <div>
           <p className="label-mono mb-4">Times</p>
           <ul className="space-y-2 text-sm">
-            <li><Link className="text-white-dim hover:text-green" href="/elenco#black">INGEN Black</Link></li>
-            <li><Link className="text-white-dim hover:text-green" href="/elenco#silver">INGEN Silver</Link></li>
-            <li><Link className="text-white-dim hover:text-green" href="/scouting/black">Scouting</Link></li>
+            {Object.values(TEAM_DISPLAY).map((t) => (
+              <li key={t.slug}><Link className="text-white-dim hover:text-green" href={`/elenco#${t.slug}`}>{t.name}</Link></li>
+            ))}
+            <li><Link className="text-white-dim hover:text-green" href={`/scouting/${TEAM_DISPLAY.black.slug}`}>Scouting</Link></li>
           </ul>
         </div>
         <div>

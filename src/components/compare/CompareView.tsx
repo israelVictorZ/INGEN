@@ -13,6 +13,7 @@ import { Select, type SelectOption } from "@/components/ui/Select";
 import { MetricLabel } from "@/components/ui/InfoTip";
 import { championIcon, championSplash } from "@/lib/ddragon-urls";
 import { ROLE_META, TIER_META, rankLabel, scoreToLabel } from "@/lib/format";
+import { TEAM_DISPLAY } from "@/lib/teams";
 
 export type ComparePlayer = {
   slug: string;
@@ -326,7 +327,7 @@ export function CompareView({
   initialA?: string;
   initialB?: string;
 }) {
-  // Duelos de lane: mesma posição nos dois times (ex.: JG da Black × JG da Silver)
+  // Duelos de lane: mesma posição nos dois times (ex.: JG da Aces × JG da Jokers)
   const duels = useMemo(() => {
     const out: { role: Role; a: string; b: string }[] = [];
     for (const r of ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as Role[]) {
@@ -507,7 +508,7 @@ export function CompareView({
                 }`}
               >
                 <LaneIcon role={d.role} className="size-4" active={!on} />
-                {ROLE_META[d.role].short}: Black × Silver
+                {ROLE_META[d.role].short}: {TEAM_DISPLAY.black.shortName} × {TEAM_DISPLAY.silver.shortName}
               </button>
             );
           })}

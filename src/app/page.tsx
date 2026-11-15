@@ -4,6 +4,7 @@ import { getSiteData } from "@/lib/data";
 import { RevealScope } from "@/components/motion/RevealScope";
 import { Hero } from "@/components/home/Hero";
 import { Marquee } from "@/components/home/Marquee";
+import { RiftMastersCta } from "@/components/home/RiftMastersCta";
 import { LiveNowStrip, TeamTwitchPanel } from "@/components/live/Live";
 import { DiscordIcon } from "@/components/brand/SocialIcons";
 import { NewsCard } from "@/components/news/NewsCard";
@@ -59,6 +60,9 @@ export default async function Home() {
       <LiveNowStrip names={Object.fromEntries(players.map((p) => [p.slug, p.displayName]))} />
 
       <Marquee items={[...teams.map((t) => t.name), ...openSlots.map((o) => `Vaga aberta ${ROLE_META[o.role].short}`)]} />
+
+      {/* Copa Rift Masters (temporário; liga e desliga em src/lib/rift-masters.ts) */}
+      <RiftMastersCta />
 
       {/* 01: Elenco */}
       <section className="wrap py-28 md:py-40">

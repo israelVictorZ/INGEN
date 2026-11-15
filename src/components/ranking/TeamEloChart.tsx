@@ -50,7 +50,11 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
   const first = Math.min(...withData.map((s) => s.pts[0].t));
   const r = RANGES.find((x) => x.k === range)!;
   const t0 = Math.max(first, until - r.ms);
-  const t1 = Math.max(until, t0 + 60_000);
+  // fim do eixo: o último sync completo OU o registro mais recente, o que vier depois. Um jogador
+  // sincronizado sozinho (ex.: recém-cadastrado) tem registros depois do último sync completo, e a
+  // linha dele sairia do gráfico, por cima dos nomes.
+  const last = Math.max(...withData.map((s) => s.pts.at(-1)!.t));
+  const t1 = Math.max(until, last, t0 + 60_000);
 
   const { min, max, ticks } = useMemo(() => {
     const vals = withData.flatMap((s) => [...s.pts.filter((p) => p.t >= t0).map((p) => p.score), valueAt(s.pts, t0)].filter((v): v is number => v != null));
@@ -62,7 +66,7 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
     return { min: lo, max: hi, ticks: tk };
   }, [withData, t0]);
 
-  const x = (t: number) => ((Math.max(t, t0) - t0) / (t1 - t0)) * W;
+  const x = (t: number) => ((Math.min(Math.max(t, t0), t1) - t0) / (t1 - t0)) * W;
   const y = (v: number) => H - ((v - min) / (max - min)) * H;
 
   const paths = withData.map((s) => {
@@ -80,13 +84,32 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
     return { s, d, end: seq.at(-1)!.score, begin };
   });
 
-  // rótulos no fim das linhas sem sobreposição (mínimo de 14px de distância em 320px)
+  // rótulos no fim das linhas sem sobreposição: nomes que se encostam viram um bloco centrado na
+  // média das suas linhas (em vez de só empurrar para baixo, o que afastava o nome da linha)
   const labels = paths
     .filter((p) => p.end != null)
-    .map((p) => ({ slug: p.s.slug, name: p.s.name, color: p.s.color, y: (y(p.end!) / H) * 100 }))
-    .sort((a, b) => a.y - b.y);
-  const gap = 5.2; // % da altura
-  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < gap) labels[i].y = labels[i - 1].y + gap;
+    .map((p) => ({ slug: p.s.slug, name: p.s.name, color: p.s.color, target: (y(p.end!) / H) * 100, y: 0 }))
+    .sort((a, b) => a.target - b.target);
+  const gap = 4.6; // % da altura (~15px em 320px)
+  const place = (g: typeof labels) => {
+    const mean = g.reduce((acc, l) => acc + l.target, 0) / g.length;
+    return Math.min(Math.max(mean - ((g.length - 1) * gap) / 2, 0), 100 - (g.length - 1) * gap);
+  };
+  let groups = labels.map((l) => ({ items: [l], top: l.target }));
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < groups.length - 1; i++) {
+      const a = groups[i];
+      const b = groups[i + 1];
+      if (a.top + a.items.length * gap > b.top) {
+        const items = [...a.items, ...b.items];
+        groups = [...groups.slice(0, i), { items, top: place(items) }, ...groups.slice(i + 2)];
+        merged = true;
+        break;
+      }
+    }
+  }
+  for (const g of groups) g.items.forEach((l, k) => (l.y = g.top + k * gap));
 
   const onMove = (e: React.PointerEvent) => {
     const rect = box.current!.getBoundingClientRect();

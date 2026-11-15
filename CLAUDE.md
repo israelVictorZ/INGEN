@@ -11,7 +11,8 @@
 
 ## Trabalho em paralelo
 
-- Uma sessão por assunto, de preferência isolada (worktree com branch própria). Não mexa em arquivos de outra sessão.
+- **Toda alteração em branch própria**, criada a partir da `main` atualizada (de preferência numa worktree). Uma sessão por assunto; não mexa em arquivos de outra sessão.
+- Depois que a branch entrar na `main` e o deploy for conferido, **apague a branch** (no computador e no GitHub). A `main` é a única branch permanente.
 - Faça commit só dos seus arquivos (`git add <caminhos>`, nunca `git add -A` com mudanças alheias na pasta).
 - Antes de enviar para a `main` (a Vercel publica a `main`), rode `git fetch` e confirme que é avanço rápido (`git merge-base --is-ancestor origin/main HEAD`).
 

@@ -4,7 +4,7 @@ import { waitUntil, dangerouslyDeleteByTag } from "@vercel/functions";
 import { DraftError, GRACE_MS, SEAT_TIMEOUT_MS, TIMER_OPTIONS, apply, newRoom, roomPhase, tick, toView, type DraftAction, type Presence, type PresenceEntry, type RoomConfig, type RoomView, type TeamIdx } from "./engine";
 import { getDraftChampions } from "./champions";
 import { draftStore, type Logos } from "./store";
-import { REALTIME_ON, presentSeats, publishRoom, seatId } from "./realtime";
+import { REALTIME_ON, presenceProof, presentSeats, publishRoom, seatId } from "./realtime";
 
 const CODE_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 /** Código da sala: 10 caracteres aleatórios (~58 bits), sem letras que se confundem (l, I, O, 0, 1). */
@@ -113,6 +113,8 @@ const actionInput = z.discriminatedUnion("type", [
 
 export const syncInput = z.object({
   cid: z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/),
+  /** id do aparelho (Ably): a resposta traz a assinatura que a aba põe na presença */
+  did: z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/).optional(),
   /** versão que o navegador já tem (0 = nenhuma): se não mudou, a resposta vem sem o estado */
   v: z.number().int().min(0),
   /** número do jogo (1..5) que a pessoa está vendo */
@@ -132,8 +134,11 @@ export type LiveInfo = {
 export type SyncResult =
   | {
       status: 200;
-      /** `pid`: resumo público desta aba; `rt`: a sala está publicando no Ably (o navegador pode parar de consultar) */
-      body: { now: number; version: number; view?: RoomView; live: LiveInfo; error?: string; pid: string; rt: boolean };
+      /**
+       * `pid`: resumo público desta aba; `pk`: assinatura que liga o `pid` ao aparelho na presença do Ably;
+       * `rt`: a sala está publicando no Ably (o navegador pode parar de consultar)
+       */
+      body: { now: number; version: number; view?: RoomView; live: LiveInfo; error?: string; pid: string; pk?: string; rt: boolean };
     }
   | { status: 400 | 404 | 410 | 409; body: { error: string; now: number } };
 
@@ -168,7 +173,8 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
   const now = Date.now();
   const parsed = syncInput.safeParse(raw);
   if (!parsed.success || !isCode(code)) return { status: 400, body: { error: "Pedido inválido.", now } };
-  const { cid, v, game, me, action } = parsed.data;
+  const { cid, did, v, game, me, action } = parsed.data;
+  const pk = presenceProof(did, cid);
 
   // Consulta sem ação e sem novidade (o caso de quase todas durante o draft): lê só a versão, o prazo e a
   // presença, sem trazer o estado inteiro do banco.
@@ -178,7 +184,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
     if (h.expiresAt < now) return { status: 410, body: { error: "Este link expirou.", now } };
     if (h.version === v && (h.deadline === null || now <= h.deadline + GRACE_MS)) {
       const presence = await touchPresence(code, cid, game, me, h.presence, now);
-      return { status: 200, body: { now, version: v, live: liveFromPresence(presence, game, now), pid: seatId(cid), rt: REALTIME_ON } };
+      return { status: 200, body: { now, version: v, live: liveFromPresence(presence, game, now), pid: seatId(cid), pk, rt: REALTIME_ON } };
     }
   }
 
@@ -248,6 +254,7 @@ export async function syncRoom(code: string, raw: unknown): Promise<SyncResult> 
         version,
         live,
         pid: seatId(cid),
+        pk,
         rt: REALTIME_ON,
         ...(actionError ? { error: actionError } : {}),
         ...(version !== v ? { view: toView(state, cid, online, seatId) } : {}),

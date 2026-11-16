@@ -26,6 +26,27 @@ function clientId(): string | null {
   }
 }
 
+const DID_KEY = "ingen-draft-did";
+
+/**
+ * Id deste aparelho (localStorage: igual em todas as abas e nos próximos dias). Vira o clientId do Ably, que
+ * cobra por clientId diferente no mês: com ele, quem abre o link numa aba nova a cada jogo conta uma vez só.
+ * Sem localStorage (aba anônima bloqueada, por exemplo) fica sem: o servidor usa o id da aba, como antes.
+ */
+function deviceId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    let id = localStorage.getItem(DID_KEY);
+    if (!id || !/^[a-zA-Z0-9_-]{8,64}$/.test(id)) {
+      id = (crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`).replace(/[^a-zA-Z0-9]/g, "");
+      localStorage.setItem(DID_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 /*
  * Como a sala fica em dia gastando o mínimo de Vercel e de banco (Neon):
  *
@@ -67,8 +88,13 @@ function stopAfter(view: RoomView | null) {
 const WAKE_EVENTS = ["pointerdown", "keydown", "focus"] as const;
 const NO_LIVE: LiveInfo = { spectators: [0, 0], online: [false, false] };
 
-/** Dados de presença de cada aba no Ably. */
-type PresenceData = { t: TeamIdx | null; r: Role | "none"; g: number };
+/**
+ * Dados de presença de cada aba no Ably. `p`: resumo da aba (a vaga de drafter é da aba, e o clientId agora é do
+ * aparelho); `k`: assinatura do servidor que o servidor confere antes de deixar alguém assumir uma vaga.
+ */
+type PresenceData = { t: TeamIdx | null; r: Role | "none"; g: number; p?: string; k?: string };
+/** Membro da presença já lido: dados e o resumo da aba (`p`, ou o clientId nas telas de antes do id do aparelho). */
+type Present = PresenceData & { seat: string };
 
 type Ref = {
   version: number;
@@ -81,10 +107,12 @@ type Ref = {
   kick: null | (() => void);
   /** resumo público desta aba (vaga e presença) */
   pid: string | null;
+  /** assinatura do servidor para o resumo desta aba neste aparelho (vai na presença) */
+  pk: string | null;
   /** o canal está conectado e assinado: não precisa consultar */
   rtLive: boolean;
-  /** presença no canal: resumo da aba → dados */
-  present: Map<string, PresenceData>;
+  /** presença no canal: conexão (uma por aba) → dados */
+  present: Map<string, Present>;
   presenceUpdate: null | (() => void);
   live: LiveInfo;
 };
@@ -94,6 +122,7 @@ type Ref = {
  */
 export function useDraftSync(code: string, game: number, me: Me | null) {
   const [cid] = useState(clientId);
+  const [did] = useState(deviceId);
   const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: NO_LIVE, offset: 0 });
   const [paused, setPaused] = useState(false);
   /** o servidor publica no Ably (vem na primeira resposta) */
@@ -107,6 +136,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     dead: false,
     kick: null,
     pid: null,
+    pk: null,
     rtLive: false,
     present: new Map(),
     presenceUpdate: null,
@@ -129,13 +159,15 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     let live = patch?.live ?? r.live;
     if (view && r.pid) {
       const pid = r.pid;
+      const seats = new Set<string>();
+      for (const p of r.present.values()) seats.add(p.seat);
       view = {
         ...view,
         games: view.games.map((g) => ({
           ...g,
           drafters: g.drafters.map((s) => {
             const mine = s.mine || (!!s.id && s.id === pid);
-            return { ...s, mine, online: r.rtLive ? mine || (!!s.id && r.present.has(s.id)) : s.online };
+            return { ...s, mine, online: r.rtLive ? mine || (!!s.id && seats.has(s.id)) : s.online };
           }) as typeof g.drafters,
         })),
       };
@@ -171,7 +203,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
-          body: JSON.stringify({ cid, v: r.version, game: r.game, me, action }),
+          body: JSON.stringify({ cid, ...(did ? { did } : {}), v: r.version, game: r.game, me, action }),
         });
         const json = await res.json();
         const t1 = Date.now();
@@ -188,6 +220,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
         }
         if (!res.ok) return json.error ?? "Algo deu errado. Tente de novo.";
         if (json.pid) r.pid = json.pid;
+        if (json.pk) r.pk = json.pk;
         if (json.rt) setRt(true);
         if (json.view && json.version >= r.version) {
           if (json.version > r.version) r.activity = t1; // alguém mexeu na sala
@@ -201,7 +234,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
         return "Sem conexão com o servidor.";
       }
     },
-    [cid, code, commit],
+    [cid, did, code, commit],
   );
 
   /** Pergunta barata (cache da Vercel): só lê a sala no banco se a versão mudou. */
@@ -231,21 +264,24 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     let client: import("@ably/pubsub-device").PubSubClient | null = null;
     let attachedOnce = false;
 
+    // com o id do aparelho, a presença leva o resumo da aba e a assinatura (a vaga é da aba, não do aparelho)
+    const seat = did && r.pid && r.pk ? { p: r.pid, k: r.pk } : {};
     const presenceData = (): PresenceData => {
       const m = r.me;
-      return m ? { t: m.team, r: m.role, g: r.game } : { t: null, r: "none", g: r.game };
+      return { ...(m ? { t: m.team, r: m.role, g: r.game } : { t: null, r: "none" as const, g: r.game }), ...seat };
     };
 
     (async () => {
       // carregado só quando a sala usa o Ably (fora do pacote inicial da página)
-      // SDK do lado do aparelho (@ably/pubsub-device); o token traz o clientId (resumo da aba), que contas
-      // cobradas por usuário ativo exigem em toda conexão de navegador
+      // SDK do lado do aparelho (@ably/pubsub-device); o token traz o clientId (do aparelho, ou o resumo da aba
+      // sem localStorage), que contas cobradas por usuário ativo exigem em toda conexão de navegador
       const { createClient, WebSocketTransport, FetchRequest, RealtimePresence } = await import("@ably/pubsub-device/modular");
       if (closed) return;
       client = createClient({
         authUrl: `/api/draft/${code}/ably`,
         authMethod: "POST",
-        authParams: { cid },
+        // sem a assinatura (`pk`) o aparelho não teria como provar a vaga na presença: fica no id da aba
+        authParams: seat.p ? { cid, did: did! } : { cid },
         plugins: { WebSocketTransport, FetchRequest, RealtimePresence },
         closeOnUnload: true,
       });
@@ -261,7 +297,14 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       const readPresence = async () => {
         try {
           const members = await channel.presence.get();
-          r.present = new Map(members.filter((m) => m.clientId).map((m) => [m.clientId!, m.data as PresenceData]));
+          // uma entrada por conexão (aba): o mesmo aparelho pode ter várias abas com o mesmo clientId
+          const next = new Map<string, Present>();
+          for (const m of members) {
+            if (!m.clientId) continue;
+            const data = (typeof m.data === "string" ? JSON.parse(m.data) : m.data) as PresenceData;
+            next.set(m.connectionId ?? m.clientId, { ...data, seat: data.p ?? m.clientId });
+          }
+          r.present = next;
           commit();
         } catch {
           /* presença indisponível: fica a última */
@@ -313,7 +356,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
         /* já fechado */
       }
     };
-  }, [cid, code, rt, call, commit]);
+  }, [cid, did, code, rt, call, commit]);
 
   // ------------------------------------------------------------------------------------------
   // Laço de consultas (reserva) e pausa

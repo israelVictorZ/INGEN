@@ -228,7 +228,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
     if (!cid || !rt) return;
     const r = ref.current;
     let closed = false;
-    let client: import("ably/modular").BaseRealtime | null = null;
+    let client: import("@ably/pubsub-device").PubSubClient | null = null;
     let attachedOnce = false;
 
     const presenceData = (): PresenceData => {
@@ -238,9 +238,11 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
 
     (async () => {
       // carregado só quando a sala usa o Ably (fora do pacote inicial da página)
-      const { BaseRealtime, WebSocketTransport, FetchRequest, RealtimePresence } = await import("ably/modular");
+      // SDK do lado do aparelho (@ably/pubsub-device); o token traz o clientId (resumo da aba), que contas
+      // cobradas por usuário ativo exigem em toda conexão de navegador
+      const { createClient, WebSocketTransport, FetchRequest, RealtimePresence } = await import("@ably/pubsub-device/modular");
       if (closed) return;
-      client = new BaseRealtime({
+      client = createClient({
         authUrl: `/api/draft/${code}/ably`,
         authMethod: "POST",
         authParams: { cid },

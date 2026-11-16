@@ -26,15 +26,17 @@ const MAX_PAYLOAD = 48_000;
 /** Token do navegador: renovado sozinho pelo SDK antes de vencer (cada renovação é 1 chamada à Vercel). */
 const TOKEN_TTL_MS = 4 * 60 * 60_000;
 
-type Rest = import("ably").Rest;
-let rest: Rest | null = null;
-async function client(): Promise<Rest> {
+// SDK do lado do servidor (@ably/pubsub-server): o tráfego dele não conta como usuário ativo no plano grátis.
+// O pacote antigo `ably` (2.x) é recusado por contas cobradas por usuário ativo (erro 40168).
+type Http = import("@ably/pubsub-server").PubSubHttpClient;
+let http: Http | null = null;
+async function client(): Promise<Http> {
   if (!KEY) throw new Error("ABLY_API_KEY não configurada");
-  if (!rest) {
-    const Ably = await import("ably");
-    rest = new Ably.Rest({ key: KEY });
+  if (!http) {
+    const { createHttpClient } = await import("@ably/pubsub-server");
+    http = createHttpClient({ key: KEY });
   }
-  return rest;
+  return http;
 }
 
 /** Publica a sala (visão pública, sem ids de aba). Nunca derruba a gravação: erro só vai para o log. */

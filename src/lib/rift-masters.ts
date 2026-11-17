@@ -12,7 +12,7 @@ export const RIFT_MASTERS = {
   when: "Estreia seg., 16/11 · 20h",
   pitch:
     "Oito equipes em pontos corridos e playoffs em MD5. O primeiro jogo é na segunda, 16/11, às 20h (Brasília), com transmissão ao vivo na Twitch.",
-  site: "https://claude.ai/artifact/VSNtzPCYcJGCZUoXMnPxnq",
+  site: "https://www.riftmasters.com.br/",
   twitch: "https://www.twitch.tv/riftmasters_",
   logo: { src: "/partners/rift-masters.png", width: 360, height: 327 },
   /** roxo da logo */

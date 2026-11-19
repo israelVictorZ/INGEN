@@ -52,7 +52,16 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
   // transmissão: liga só quando marcado; a chave fica guardada neste aparelho
   const [onTv, setOnTv] = useState(false);
   const [tvKey, setTvKey] = useState("");
-  const [tvResult, setTvResult] = useState<"ok" | "fail" | null>(null);
+  /**
+   * Transmissão na tela de sala criada. `ok`: a sala foi para o link do OBS; `fail`: não deu; `off`: opção
+   * desmarcada, mas este aparelho já tem chave (mostra o link do OBS e avisa que esta sala não foi para lá).
+   */
+  const [tvResult, setTvResult] = useState<{ status: "ok" | "fail" | "off"; link: string | null } | null>(null);
+  // o botão de criar fica no fim de um formulário longo: ao trocar pelo cartão da sala, leva a tela até ele
+  const createdRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (code) createdRef.current?.scrollIntoView({ block: "start" });
+  }, [code]);
 
   const champById = useMemo(() => new Map(data.champions.map((c) => [c.id, c])), [data.champions]);
 
@@ -86,7 +95,12 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
       const json = (await res.json()) as { code?: string; tv?: string | null; error?: string };
       if (!res.ok || !json.code) throw new Error(json.error ?? "Não foi possível criar a sala.");
       if (onTv) saveTvKey(tvKey.trim());
-      setTvResult(onTv ? (json.tv ? "ok" : "fail") : null);
+      const obsLink = (id: string | null | undefined) => (id ? `${window.location.origin}/draft/tv/${id}` : null);
+      if (onTv) setTvResult({ status: json.tv ? "ok" : "fail", link: obsLink(json.tv) });
+      else {
+        const saved = loadTvKey();
+        setTvResult(saved ? { status: "off", link: obsLink(await tvIdFromKey(saved)) } : null);
+      }
       setCode(json.code);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível criar a sala.");
@@ -98,7 +112,7 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
   if (code) {
     const link = `${window.location.origin}/draft/${code}`;
     return (
-      <div className="clip-step mx-auto max-w-2xl bg-bg-2 p-8 text-center">
+      <div ref={createdRef} className="clip-step mx-auto max-w-2xl scroll-mt-28 bg-bg-2 p-8 text-center">
         <p className="label-mono">Sala criada</p>
         <h2 className="mt-3 font-display text-4xl font-black uppercase text-white">Link do draft</h2>
         <p className="mt-3 text-sm text-gray">
@@ -106,8 +120,6 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
           <strong className="text-white">espectador</strong>. O link vale por 32 horas, com todos os jogos da série.
         </p>
         <p className="mt-6 break-all border border-line bg-bg-0 px-4 py-3 font-mono text-sm text-white">{link}</p>
-        {tvResult === "ok" && <p className="mt-4 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-green">● No ar no link da transmissão (OBS)</p>}
-        {tvResult === "fail" && <p className="mt-4 text-sm text-loss">A sala foi criada, mas não deu para colocá-la na transmissão. No OBS, use o link da sala.</p>}
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <CopyButton text={link} label="Copiar link" />
           <Link href={`/draft/${code}`} className="clip-step-sm inline-flex items-center gap-2 bg-[image:var(--grad-ingen-x)] px-5 py-2.5 font-mono text-[0.75rem] font-medium uppercase tracking-[0.16em] text-bg-0 hover:brightness-110">
@@ -117,6 +129,23 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
             Criar outra
           </button>
         </div>
+        {tvResult?.status === "fail" && <p className="mt-4 text-sm text-loss">A sala foi criada, mas não deu para colocá-la na transmissão. No OBS, use o link da sala.</p>}
+        {tvResult?.link && (tvResult.status === "ok" || tvResult.status === "off") && (
+          <div className={`mt-8 border p-4 text-left ${tvResult.status === "ok" ? "border-green/40" : "border-line"} bg-bg-1`}>
+            <p className={`font-mono text-[0.68rem] uppercase tracking-[0.16em] ${tvResult.status === "ok" ? "text-green" : "text-gray"}`}>
+              {tvResult.status === "ok" ? "● No ar na transmissão" : "Link da transmissão (OBS)"}
+            </p>
+            <p className="mt-2 text-sm text-gray">
+              {tvResult.status === "ok"
+                ? "O OBS já mostra esta sala. É o link fixo, cadastrado uma vez só:"
+                : "Esta sala não foi para a transmissão (a opção 6 estava desmarcada). O link fixo do OBS é:"}
+            </p>
+            <p className="mt-3 break-all border border-line bg-bg-0 px-3 py-2.5 font-mono text-xs text-white">{tvResult.link}</p>
+            <div className="mt-3">
+              <CopyButton text={tvResult.link} label="Copiar link do OBS" />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

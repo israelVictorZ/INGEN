@@ -5,13 +5,14 @@ import { ROLE_META } from "@/lib/format";
 import { RECRUIT_HREF } from "@/lib/features";
 
 /** Vaga aberta: em vez de um buraco no elenco, um convite para o Discord do time. */
-export function OpenSlotCard({ role, teamName }: { role: Role; teamName: string }) {
+/** `wide`: ver PlayerCard (último card de uma grade ímpar no tablet ocupa as duas colunas). */
+export function OpenSlotCard({ role, teamName, wide = false }: { role: Role; teamName: string; wide?: boolean }) {
   return (
     <a
       href={RECRUIT_HREF}
       target="_blank"
       rel="noopener noreferrer"
-      className="border-run clip-step group relative flex aspect-[3/4.2] flex-col items-center justify-center overflow-hidden border border-dashed border-green/30 bg-bg-1 p-6 text-center"
+      className={`border-run clip-step group relative flex aspect-[3/4.2] flex-col items-center justify-center overflow-hidden border border-dashed border-green/30 bg-bg-1 p-6 text-center ${wide ? "sm:max-lg:col-span-2 sm:max-lg:aspect-[2.1/1]" : ""}`}
     >
       <div className="absolute inset-0 bg-dots opacity-60" />
       {/* lg–xl: 5 colunas estreitas (~175px), então tudo encolhe e o texto de apoio some para o botão caber */}

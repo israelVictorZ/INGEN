@@ -143,11 +143,13 @@ const fmtAxis = (ax: (typeof AXES)[number], v: number | null) =>
   v == null ? "—" : ax.ref === "dmgShare" || ax.ref === "kp" || ax.ref === "winrate" ? pctF(v) : v < 10 ? v.toFixed(ax.ref === "vision" ? 2 : 1) : v.toFixed(0);
 
 const R = 40;
-const point = (i: number, value: number) => {
+/** Ponto no raio `k` (1 = anel externo), sem limite: rótulos e áreas de toque ficam fora do anel. */
+const at = (i: number, k: number) => {
   const a = (Math.PI * 2 * i) / AXES.length - Math.PI / 2;
-  const r = R * Math.max(0.04, Math.min(1, value));
-  return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r];
+  return [50 + Math.cos(a) * R * k, 50 + Math.sin(a) * R * k];
 };
+/** Ponto de um valor do jogador: limitado ao anel externo (acima do "nível alto" não cresce mais). */
+const point = (i: number, value: number) => at(i, Math.max(0.04, Math.min(1, value)));
 const shape = (p: ComparePlayer | undefined) =>
   AXES.map((ax, i) => point(i, p ? axisValue(ax, p) : 0).map((n) => n.toFixed(2)).join(",")).join(" ");
 
@@ -624,12 +626,15 @@ export function CompareView({
             <polygon points={AXES.map((_, i) => point(i, 1 / EDGE).join(",")).join(" ")} fill="none" stroke="rgb(255 255 255 / .35)" strokeWidth=".4" strokeDasharray="1.2 1.2" />
             {AXES.map((ax, i) => {
               const [x, y] = point(i, 1);
-              const [lx, ly] = point(i, 1.22);
+              // rótulos fora do anel (antes o limite do polígono os prendia no anel) e, nos lados, alinhados para fora
+              const cos = Math.cos((Math.PI * 2 * i) / AXES.length - Math.PI / 2);
+              const side = cos > 0.2 ? "start" : cos < -0.2 ? "end" : "middle";
+              const [lx, ly] = at(i, side === "middle" ? 1.13 : 1.08);
               const on = axis === i;
               return (
                 <g key={ax.label}>
                   <line x1="50" y1="50" x2={x} y2={y} stroke={on ? "rgb(255 255 255 / .45)" : "rgb(255 255 255 / .08)"} strokeWidth=".4" />
-                  <text x={lx} y={ly} fill={on ? "#fefffa" : "#8a8f98"} fontSize="3.4" textAnchor="middle" dominantBaseline="middle" fontFamily="var(--font-mono)">
+                  <text x={lx} y={ly} fill={on ? "#fefffa" : "#8a8f98"} fontSize="3.4" textAnchor={side} dominantBaseline="middle" fontFamily="var(--font-mono)">
                     {ax.label.toUpperCase()}
                   </text>
                 </g>
@@ -641,7 +646,7 @@ export function CompareView({
             {AXES.map((ax, i) => (
               <polygon
                 key={`hit-${ax.label}`}
-                points={["50,50", point(i - 0.5, 1.4).join(","), point(i, 1.4).join(","), point(i + 0.5, 1.4).join(",")].join(" ")}
+                points={["50,50", at(i - 0.5, 1.4).join(","), at(i, 1.4).join(","), at(i + 0.5, 1.4).join(",")].join(" ")}
                 fill="transparent"
                 tabIndex={0}
                 role="button"

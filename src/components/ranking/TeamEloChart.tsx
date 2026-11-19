@@ -169,14 +169,15 @@ export function TeamEloChart({ series, until }: { series: EloSeries[]; until: nu
 
       {/* à direita: espaço para os nomes no fim das linhas (nomes longos, ex.: "Galo Soviético") */}
       <div className="relative mt-5 pl-[62px] md:pl-[86px] md:pr-[148px]">
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-[56px] md:w-[80px]">
-          {ticks.map((v) => (
-            <span key={v} className="absolute right-0 -translate-y-1/2 text-right font-mono text-[0.5rem] uppercase leading-tight tracking-wider text-gray-dim md:text-[0.56rem]" style={{ top: `${(y(v) / H) * 100}%` }}>
-              {scoreToLabel(v)}
-            </span>
-          ))}
-        </div>
         <div ref={box} className="relative" onPointerMove={onMove} onPointerLeave={() => setHoverT(null)}>
+          {/* elos do eixo: medidos só pela altura do gráfico (antes incluíam a linha das datas e o último descia para ela) */}
+          <div className="pointer-events-none absolute inset-y-0 right-full mr-[6px] w-[56px] md:w-[80px]">
+            {ticks.map((v) => (
+              <span key={v} className="absolute right-0 -translate-y-1/2 text-right font-mono text-[0.5rem] uppercase leading-tight tracking-wider text-gray-dim md:text-[0.56rem]" style={{ top: `${(y(v) / H) * 100}%` }}>
+                {scoreToLabel(v)}
+              </span>
+            ))}
+          </div>
           <svg viewBox={`0 0 ${W} ${H}`} className="h-[260px] w-full overflow-visible md:h-[440px]" preserveAspectRatio="none" role="img" aria-label="Evolução de elo dos jogadores da INGEN">
             {ticks.map((v) => (
               <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / .06)" vectorEffect="non-scaling-stroke" />

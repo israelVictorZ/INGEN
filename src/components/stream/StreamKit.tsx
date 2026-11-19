@@ -109,6 +109,10 @@ const ITEMS: Item[] = [
   },
 ];
 
+/** O último card estica até o fim da linha (em 2 e em 3 colunas), para não sobrar um buraco ao lado dele. */
+const NARROW = ITEMS.filter((it) => !it.wide).length;
+const LAST_FILL = `${NARROW % 2 ? "md:col-span-2" : ""} ${["xl:col-span-1", "xl:col-span-3", "xl:col-span-2"][NARROW % 3]}`;
+
 /** Botões do card de alertas: copiam o comando de teste para colar no chat da Twitch (ver core/alerts.js). */
 const TESTS: [label: string, command: string][] = [
   ["Follow", "!testealerta follow"],
@@ -538,12 +542,12 @@ export function StreamKit({ players }: { players: StreamPlayer[] }) {
           <p className="text-sm text-gray">Os botões mudam a prévia e o link na hora. Cada link vira uma Fonte de navegador.</p>
         </div>
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {ITEMS.map((it) => {
+          {ITEMS.map((it, i) => {
             const url = `${origin}/stream/overlays/${it.file}${query(state, it)}`;
             const src = `/stream/overlays/${it.file}${query(live, it, it.alerts ? { som: "0", demo: "1" } : { demo: "1" })}`;
             return (
-              <article key={it.file} className={`clip-step flex min-w-0 flex-col bg-bg-2 ${it.wide ? "md:col-span-2 xl:col-span-3" : ""}`}>
-                <div className={it.wide ? "xl:mx-auto xl:w-full xl:max-w-[900px]" : ""}>
+              <article key={it.file} className={`clip-step flex min-w-0 flex-col bg-bg-2 ${it.wide ? "md:col-span-2 xl:col-span-3" : i === ITEMS.length - 1 ? LAST_FILL : ""}`}>
+                <div className={it.wide || i === ITEMS.length - 1 ? "xl:mx-auto xl:w-full xl:max-w-[900px]" : ""}>
                   <Preview src={src} w={it.w} h={it.h} />
                 </div>
                 <div className="flex flex-1 flex-col gap-4 p-5 md:p-6">

@@ -7,7 +7,7 @@ import gsap from "gsap";
 import type { Role } from "@/db/schema";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { ROLE_META, TIER_META, rankLabel, pct, timeAgo } from "@/lib/format";
-import { championLoading } from "@/lib/ddragon-urls";
+import { championLoading, championSplash } from "@/lib/ddragon-urls";
 import { LiveBadge } from "@/components/live/Live";
 
 export type PlayerCardData = {
@@ -54,11 +54,19 @@ function Activity({ p, className = "" }: { p: PlayerCardData; className?: string
           ))}
         </span>
       )}
-      <span className="min-w-0 truncate text-right font-mono text-[0.6rem] text-gray [text-shadow:0_1px_6px_rgb(0_0_0/0.9)]">
-        {now && p.lastPlayed ? `Jogou ${timeAgo(p.lastPlayed)}` : ""}
+      {/* o PDL do dia nunca é cortado; se faltar espaço, quem encurta é o "Jogou há…" */}
+      <span className="flex min-w-0 justify-end gap-1 whitespace-nowrap font-mono text-[0.6rem] text-gray [text-shadow:0_1px_6px_rgb(0_0_0/0.9)]">
+        {/* onde o espaço é curto (linha do celular e cards de 5 colunas, a partir do lg) a palavra "Jogou" sai e fica só "há 20 h" */}
+        <span className="min-w-0 truncate">
+          {now && p.lastPlayed ? (
+            <>
+              <span className={recentGame && p.lpToday ? "max-sm:hidden lg:hidden" : ""}>Jogou </span>
+              {timeAgo(p.lastPlayed)}
+            </>
+          ) : null}
+        </span>
         {recentGame && p.lpToday != null && p.lpToday !== 0 && (
-          <span className={p.lpToday > 0 ? "text-green" : "text-loss"} title="PDL nas últimas 24 h">
-            {" "}
+          <span className={`shrink-0 ${p.lpToday > 0 ? "text-green" : "text-loss"}`} title="PDL nas últimas 24 h">
             · {p.lpToday > 0 ? "+" : "−"}
             {Math.abs(p.lpToday)} PDL
           </span>
@@ -72,7 +80,11 @@ function Activity({ p, className = "" }: { p: PlayerCardData; className?: string
  * Card do jogador: tilt 3D + "troca de skin" (inspirado no ng.cash).
  * No hover, a splash alterna entre os campeões mais jogados.
  */
-export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number }) {
+/**
+ * `wide`: último card de uma grade de 2 colunas com número ímpar de cards (tablet). Entre sm e lg ele ocupa as
+ * duas colunas, em formato largo, com a splash horizontal do campeão (a arte vertical ficaria cortada e esticada).
+ */
+export function PlayerCard({ p, index = 0, wide = false }: { p: PlayerCardData; index?: number; wide?: boolean }) {
   const ref = useRef<HTMLAnchorElement>(null);
   const [skin, setSkin] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -102,28 +114,36 @@ export function PlayerCard({ p, index = 0 }: { p: PlayerCardData; index?: number
   };
 
   return (
-    <div className="[perspective:1000px]">
+    <div className={`[perspective:1000px] ${wide ? "sm:max-lg:col-span-2" : ""}`}>
       <Link
         ref={ref}
         href={`/jogador/${p.slug}`}
         onPointerMove={onMove}
         onPointerEnter={onEnter}
         onPointerLeave={onLeave}
-        className="border-run clip-step group relative block aspect-[3/4.2] overflow-hidden bg-bg-2 [transform-style:preserve-3d]"
+        className={`border-run clip-step group relative block aspect-[3/4.2] overflow-hidden bg-bg-2 [transform-style:preserve-3d] ${wide ? "sm:max-lg:aspect-[2.1/1]" : ""}`}
       >
         <div data-splash className="absolute -inset-6">
-          {p.splash.map((s, i) => (
-            <Image
-              key={s.key}
-              src={championLoading(s.key)}
-              alt=""
-              fill
-              sizes="(min-width: 1024px) 22vw, 50vw"
-              className={`object-cover object-[50%_12%] transition-[opacity,filter] duration-700 ${
-                i === skin ? "opacity-60 group-hover:opacity-90" : "opacity-0"
-              } grayscale-[0.35] group-hover:grayscale-0`}
-            />
-          ))}
+          {p.splash.map((s, i) => {
+            const cls = `object-cover transition-[opacity,filter] duration-700 ${
+              i === skin ? "opacity-60 group-hover:opacity-90" : "opacity-0"
+            } grayscale-[0.35] group-hover:grayscale-0`;
+            const tall = (
+              <Image
+                key={s.key}
+                src={championLoading(s.key)}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 22vw, 50vw"
+                className={`${cls} object-[50%_12%] ${wide ? "max-lg:hidden" : ""}`}
+              />
+            );
+            if (!wide) return tall;
+            return [
+              tall,
+              <Image key={`${s.key}-wide`} src={championSplash(s.key)} alt="" fill sizes="100vw" className={`${cls} object-[50%_20%] lg:hidden`} />,
+            ];
+          })}
         </div>
         {/* véus escuros: o texto fica legível mesmo com splash clara (ex.: Seraphine, Lux) */}
         <div className="absolute inset-0 bg-gradient-to-t from-bg-0 from-[28%] via-bg-0/80 via-[52%] to-transparent to-[82%]" />

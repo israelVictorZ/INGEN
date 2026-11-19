@@ -224,11 +224,12 @@ export function ExtraMetrics({ p, peers }: { p: Player; peers: Stats[] }) {
       </div>
       <dl data-reveal="stagger" className="grid grid-cols-2 gap-px bg-line md:grid-cols-4">
         {pace.map((m) => (
-          <div key={m.k} className="flex items-baseline gap-3 bg-bg-1 px-5 py-4">
+          // no celular (2 colunas) o número vai em cima e o texto de apoio quebra linha em vez de ser cortado
+          <div key={m.k} className="flex flex-col gap-2 bg-bg-1 px-4 py-4 sm:flex-row sm:items-baseline sm:gap-3 sm:px-5">
             <dd className="font-display text-2xl font-black leading-none text-white">{m.v}</dd>
             <div className="min-w-0">
               <dt className="label-mono text-[0.58rem]">{m.k}</dt>
-              <dd className="truncate font-mono text-[0.6rem] text-gray-dim">{m.sub}</dd>
+              <dd className="font-mono text-[0.6rem] leading-snug text-gray-dim">{m.sub}</dd>
             </div>
           </div>
         ))}

@@ -308,7 +308,8 @@ function Room({
       {/* meio: picks | seletor | picks */}
       <div className="relative z-10 grid min-h-0 flex-1 grid-cols-2 gap-3 p-3 lg:grid-cols-[minmax(190px,19vw)_1fr_minmax(190px,19vw)] lg:px-4">
         <PickColumn side="blue" {...common} send={send} />
-        <div className="order-3 col-span-2 flex min-h-[70vh] flex-col lg:order-none lg:col-span-1 lg:min-h-0">
+        {/* no celular a altura de 70% é para a grade de campeões; com o draft encerrado o painel fica do tamanho do conteúdo */}
+        <div className={`order-3 col-span-2 flex flex-col lg:order-none lg:col-span-1 lg:min-h-0 ${g.status === "done" && correcting === null ? "" : "min-h-[70vh]"}`}>
           <Requests g={g} cfg={cfg} myT={myT} send={send} byId={byId} />
           <div className="relative flex min-h-0 flex-1 flex-col border border-[var(--d-line)] bg-black/60 p-3">
             {g.status === "done" && correcting === null ? (

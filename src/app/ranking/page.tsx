@@ -197,7 +197,7 @@ export default async function RankingPage() {
                       {h.p.reserve && <span className="text-gray-dim"> · {benchLabel(h.p)}</span>}
                     </p>
                     <p className="mt-1 truncate font-display text-2xl font-black uppercase leading-none text-white group-hover:text-green">{h.p.displayName}</p>
-                    <p className="mt-1 truncate font-mono text-[0.65rem] text-gray">{h.sub}</p>
+                    <p className="mt-1 font-mono text-[0.65rem] leading-snug text-gray">{h.sub}</p>
                   </div>
                   <p className="shrink-0 text-right font-display text-2xl font-black leading-none text-white">{h.v}</p>
                 </PlayerLink>
@@ -212,7 +212,7 @@ export default async function RankingPage() {
       </section>
 
       <section className="wrap mt-16">
-        <div className="hidden grid-cols-[48px_1.4fr_1fr_1.2fr_90px] gap-4 border-b border-line pb-3 md:grid">
+        <div className="hidden grid-cols-[48px_1.4fr_1fr_1.2fr_90px] gap-4 border-b border-line px-4 pb-3 md:grid">
           {["#", "Jogador", "Time", "Elo", "Winrate"].map((h) => (
             <span key={h} className="label-mono text-[0.6rem]">
               <MetricLabel label={h} />
@@ -226,7 +226,7 @@ export default async function RankingPage() {
               <li key={p.slug} className="border-b border-line">
                 <PlayerLink
                   p={p}
-                  className="group grid grid-cols-[36px_1fr_auto] items-center gap-4 py-4 transition-colors hover:bg-bg-2 md:grid-cols-[48px_1.4fr_1fr_1.2fr_90px]"
+                  className="group grid grid-cols-[36px_1fr_auto] items-center gap-4 px-2 py-4 transition-colors hover:bg-bg-2 md:grid-cols-[48px_1.4fr_1fr_1.2fr_90px] md:px-4"
                 >
                   <span className="flex flex-col items-start leading-none">
                     <span className="font-pixel text-lg text-gray-dim group-hover:text-green">{String(i + 1).padStart(2, "0")}</span>

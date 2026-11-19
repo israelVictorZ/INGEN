@@ -222,7 +222,7 @@ export default async function ScoutingPage({ params }: PageProps<"/scouting/[tim
                   <p className="font-mono text-[0.62rem] text-gray">
                     {c.games}j · <span className={c.wins / c.games >= 0.5 ? "text-green" : "text-loss"}>{pct(c.wins / c.games)}</span>
                   </p>
-                  <p className="mt-0.5 truncate font-mono text-[0.55rem] uppercase tracking-wider text-gray-dim">{c.by.map((b) => b.name).join(" · ")}</p>
+                  <p className="mt-0.5 font-mono text-[0.55rem] uppercase leading-snug tracking-wider text-gray-dim">{c.by.map((b) => b.name).join(" · ")}</p>
                 </div>
               ))}
             </div>

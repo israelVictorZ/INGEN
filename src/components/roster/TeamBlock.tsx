@@ -69,14 +69,16 @@ export function TeamBlock({ team, version, index }: { team: Team; version: strin
           )}
         </div>
 
+        {/* tablet (2 colunas): com número ímpar de cards, o último ocupa a linha inteira em vez de deixar um buraco */}
         <div data-reveal="stagger" className="mt-20 hidden grid-cols-2 gap-3 sm:grid md:gap-4 lg:grid-cols-5">
-          {team.slots.map((s, i) =>
-            s.kind === "player" ? (
-              <PlayerCard key={s.role} p={toCard(s.player)} index={i} />
+          {team.slots.map((s, i) => {
+            const wide = team.slots.length % 2 === 1 && i === team.slots.length - 1;
+            return s.kind === "player" ? (
+              <PlayerCard key={s.role} p={toCard(s.player)} index={i} wide={wide} />
             ) : (
-              <OpenSlotCard key={s.role} role={s.role} teamName={team.name} />
-            ),
-          )}
+              <OpenSlotCard key={s.role} role={s.role} teamName={team.name} wide={wide} />
+            );
+          })}
         </div>
 
         <ReserveList reserves={team.reserves} version={version} />

@@ -33,7 +33,7 @@ const DID_KEY = "ingen-draft-did";
  * cobra por clientId diferente no mês: com ele, quem abre o link numa aba nova a cada jogo conta uma vez só.
  * Sem localStorage (aba anônima bloqueada, por exemplo) fica sem: o servidor usa o id da aba, como antes.
  */
-function deviceId(): string | null {
+export function deviceId(): string | null {
   if (typeof window === "undefined") return null;
   try {
     let id = localStorage.getItem(DID_KEY);
@@ -120,7 +120,9 @@ type Ref = {
 /**
  * Mantém a sala em dia com o servidor e envia ações. `send` devolve a mensagem de erro (ou null se deu certo).
  */
-export function useDraftSync(code: string, game: number, me: Me | null) {
+export function useDraftSync(code: string, game: number, me: Me | null, opts?: { keepAwake?: boolean }) {
+  /** tela do OBS (link de transmissão): ninguém toca nela, então a reserva sem Ably nunca pausa */
+  const keepAwake = !!opts?.keepAwake;
   const [cid] = useState(clientId);
   const [did] = useState(deviceId);
   const [state, setState] = useState<SyncState>({ status: "loading", view: null, version: 0, live: NO_LIVE, offset: 0 });
@@ -390,7 +392,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       first = false;
       if (stop || r.dead) return;
       // com o Ably a tela não custa nada parada: só a reserva pausa
-      if (!r.rtLive && Date.now() - r.activity > stopAfter(r.view)) return sleep();
+      if (!r.rtLive && !keepAwake && Date.now() - r.activity > stopAfter(r.view)) return sleep();
       timer = setTimeout(loop, r.rtLive ? RT_IDLE_MS : intervalFor(r.view, document.hidden, r.me));
     };
     loop();
@@ -424,7 +426,7 @@ export function useDraftSync(code: string, game: number, me: Me | null) {
       for (const e of WAKE_EVENTS) window.removeEventListener(e, wake, { capture: true });
     };
     // muda de jogo ou de papel → sincroniza na hora
-  }, [cid, call, signal, game, me?.team, me?.role]);
+  }, [cid, call, signal, game, me?.team, me?.role, keepAwake]);
 
   const send = useCallback(
     async (action: DraftAction) => {

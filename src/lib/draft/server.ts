@@ -5,6 +5,7 @@ import { DraftError, GRACE_MS, SEAT_TIMEOUT_MS, TIMER_OPTIONS, apply, newRoom, r
 import { getDraftChampions } from "./champions";
 import { draftStore, type Logos } from "./store";
 import { REALTIME_ON, presenceProof, presentSeats, publishRoom, seatId } from "./realtime";
+import { TV_KEY_MAX, TV_KEY_MIN, putOnTv } from "./tv";
 
 const CODE_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 /** Código da sala: 10 caracteres aleatórios (~58 bits), sem letras que se confundem (l, I, O, 0, 1). */
@@ -47,12 +48,14 @@ export const createInput = z.object({
   disabled: z.array(z.string().max(40)).max(80),
   firstBlue: z.union([z.literal(0), z.literal(1)]),
   timer: z.number().int().refine((n) => (TIMER_OPTIONS as readonly number[]).includes(n)),
+  /** "Mostrar na transmissão": chave do link fixo do OBS (opcional; sem ela nada muda) */
+  tv: z.string().trim().min(TV_KEY_MIN).max(TV_KEY_MAX).nullish(),
 });
 export type CreateInput = z.input<typeof createInput>;
 
 const INGEN_NAMES = { aces: "INGEN Aces", jokers: "INGEN Jokers" } as const;
 
-export async function createRoom(raw: unknown): Promise<{ code: string } | { error: string }> {
+export async function createRoom(raw: unknown): Promise<{ code: string; tv?: string | null } | { error: string }> {
   const parsed = createInput.safeParse(raw);
   if (!parsed.success) return { error: "Configuração inválida." };
   const input = parsed.data;
@@ -86,9 +89,12 @@ export async function createRoom(raw: unknown): Promise<{ code: string } | { err
   };
 
   const code = newCode();
-  await draftStore.create(code, newRoom(config, now), logos);
+  const room = newRoom(config, now);
+  await draftStore.create(code, room, logos);
   // faxina das salas vencidas (barata: usa o índice de expires_at)
   draftStore.purgeExpired().catch(() => {});
+  // link fixo do OBS: falha aqui não impede a sala (volta `tv: null` e a tela avisa)
+  if (input.tv) return { code, tv: await putOnTv(input.tv, code, room.expiresAt) };
   return { code };
 }
 

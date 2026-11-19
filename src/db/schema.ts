@@ -382,3 +382,15 @@ export const draftRooms = pgTable(
   },
   (t) => [index("draft_rooms_expires_idx").on(t.expiresAt)],
 );
+
+/**
+ * Link fixo de transmissão do draft (/draft/tv/<id>): qual sala o OBS mostra agora. Uma linha por chave de
+ * transmissão (`id` é um resumo da chave, nunca a chave). Só muda quando alguém cria um draft marcando
+ * "Mostrar na transmissão" com a chave certa; vale até a sala vencer (`expires_at`).
+ */
+export const draftTv = pgTable("draft_tv", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

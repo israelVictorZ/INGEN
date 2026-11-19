@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { championIcon } from "@/lib/ddragon-urls";
 import type { DraftChampionData } from "@/lib/draft/lanes";
 import { TIMER_OPTIONS, type TeamKind } from "@/lib/draft/engine";
 import { INGEN_LOGO, SIDE_COLOR, teamColor } from "@/lib/draft/theme";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { LaneIcon } from "@/components/brand/LaneIcon";
+import { TV_KEY_MAX, TV_KEY_MIN } from "@/lib/draft/tv-limits";
+import { loadTvKey, saveTvKey, tvIdFromKey } from "@/lib/draft/tv-client";
 import { ChampionPicker, LANE_LABEL, LogoPlate, processLogo } from "./shared";
 
 type Roster = { aces: string[]; jokers: string[] };
@@ -47,6 +49,10 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  // transmissão: liga só quando marcado; a chave fica guardada neste aparelho
+  const [onTv, setOnTv] = useState(false);
+  const [tvKey, setTvKey] = useState("");
+  const [tvResult, setTvResult] = useState<"ok" | "fail" | null>(null);
 
   const champById = useMemo(() => new Map(data.champions.map((c) => [c.id, c])), [data.champions]);
 
@@ -75,10 +81,12 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teams, games, mode, disabled, firstBlue, timer }),
+        body: JSON.stringify({ teams, games, mode, disabled, firstBlue, timer, tv: onTv ? tvKey.trim() : null }),
       });
-      const json = (await res.json()) as { code?: string; error?: string };
+      const json = (await res.json()) as { code?: string; tv?: string | null; error?: string };
       if (!res.ok || !json.code) throw new Error(json.error ?? "Não foi possível criar a sala.");
+      if (onTv) saveTvKey(tvKey.trim());
+      setTvResult(onTv ? (json.tv ? "ok" : "fail") : null);
       setCode(json.code);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível criar a sala.");
@@ -98,6 +106,8 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
           <strong className="text-white">espectador</strong>. O link vale por 32 horas, com todos os jogos da série.
         </p>
         <p className="mt-6 break-all border border-line bg-bg-0 px-4 py-3 font-mono text-sm text-white">{link}</p>
+        {tvResult === "ok" && <p className="mt-4 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-green">● No ar no link da transmissão (OBS)</p>}
+        {tvResult === "fail" && <p className="mt-4 text-sm text-loss">A sala foi criada, mas não deu para colocá-la na transmissão. No OBS, use o link da sala.</p>}
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <CopyButton text={link} label="Copiar link" />
           <Link href={`/draft/${code}`} className="clip-step-sm inline-flex items-center gap-2 bg-[image:var(--grad-ingen-x)] px-5 py-2.5 font-mono text-[0.75rem] font-medium uppercase tracking-[0.16em] text-bg-0 hover:brightness-110">
@@ -208,11 +218,13 @@ export function DraftCreator({ data, roster }: { data: DraftChampionData; roster
         )}
       </section>
 
+      <TvOption on={onTv} setOn={setOnTv} tvKey={tvKey} setTvKey={setTvKey} />
+
       <div className="flex flex-col items-center gap-3 border-t border-line pt-8">
         {error && <p className="text-sm text-loss">{error}</p>}
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || (onTv && tvKey.trim().length < TV_KEY_MIN)}
           onClick={create}
           className="clip-step-sm inline-flex items-center gap-3 bg-[image:var(--grad-ingen-x)] px-8 py-4 font-mono text-sm font-medium uppercase tracking-[0.18em] text-bg-0 transition hover:brightness-110 hover:shadow-[0_0_32px_var(--glow)] disabled:opacity-60"
         >
@@ -393,6 +405,79 @@ function TeamCard({
         <p className="mt-2 text-[0.7rem] text-gray-dim">Dá para mudar depois, dentro da sala, pelo drafter do time.</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * "Mostrar na transmissão": manda a sala para o link fixo do OBS (`/draft/tv/<id>`). O link sai da chave, então
+ * só quem sabe a chave troca o que aparece na live; quem só tem o link não consegue.
+ */
+function TvOption({ on, setOn, tvKey, setTvKey }: { on: boolean; setOn: (v: boolean) => void; tvKey: string; setTvKey: (k: string) => void }) {
+  const [obs, setObs] = useState<{ key: string; link: string | null } | null>(null);
+  const key = tvKey.trim();
+  const valid = key.length >= TV_KEY_MIN;
+  useEffect(() => {
+    if (!valid) return;
+    let alive = true;
+    tvIdFromKey(key).then((id) => alive && setObs({ key, link: id ? `${window.location.origin}/draft/tv/${id}` : null }));
+    return () => {
+      alive = false;
+    };
+  }, [key, valid]);
+  const link = valid && obs?.key === key ? obs.link : null;
+
+  return (
+    <section className="border border-line bg-bg-1 p-5">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => {
+            setOn(e.target.checked);
+            if (e.target.checked && !tvKey) setTvKey(loadTvKey());
+          }}
+          className="mt-1 size-4 shrink-0 accent-green"
+        />
+        <span>
+          <span className="label-mono">6 · Mostrar na transmissão (opcional)</span>
+          <span className="mt-2 block text-sm text-gray">
+            O link fixo da live (fonte de navegador no OBS) troca sozinho para esta sala, já como espectador neutro e sem cliques.
+          </span>
+        </span>
+      </label>
+      {on && (
+        <div className="mt-5 grid gap-5 md:grid-cols-[minmax(0,18rem)_1fr] md:items-start">
+          <label className="block">
+            <span className="label-mono">Chave da transmissão</span>
+            <input
+              type="text"
+              value={tvKey}
+              onChange={(e) => setTvKey(e.target.value)}
+              maxLength={TV_KEY_MAX}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={`Mínimo ${TV_KEY_MIN} caracteres`}
+              className="mt-2 w-full border border-line bg-bg-0 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-green"
+            />
+            <span className="mt-2 block text-xs text-gray-dim">Fica guardada neste aparelho. Use sempre a mesma: é ela que define o link do OBS.</span>
+          </label>
+          <div className="min-w-0">
+            <span className="label-mono">Link do OBS</span>
+            {link ? (
+              <>
+                <p className="mt-2 break-all border border-line bg-bg-0 px-3 py-2.5 font-mono text-xs text-white">{link}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <CopyButton text={link} label="Copiar link do OBS" />
+                  <span className="text-xs text-gray-dim">Cadastre uma vez só (1920 × 1080). Não precisa trocar a cada draft.</span>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-gray-dim">{valid ? "Calculando…" : "Digite a chave para ver o link."}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

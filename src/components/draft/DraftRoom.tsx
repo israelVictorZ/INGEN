@@ -25,7 +25,7 @@ import {
   type Side,
   type TeamIdx,
 } from "@/lib/draft/engine";
-import { SIDE_COLOR, teamColor, teamLogo, teamLogoTone, themeFor, themeVars } from "@/lib/draft/theme";
+import { INGEN_LOGO, SIDE_COLOR, teamColor, teamLogo, teamLogoTone, themeFor, themeVars } from "@/lib/draft/theme";
 import { LaneIcon } from "@/components/brand/LaneIcon";
 import { DRAFT_LANES } from "@/lib/draft/lanes";
 import { BAN_SLASH, ChampionPicker, LANE_LABEL, LogoPlate, type ChampStatus } from "./shared";
@@ -80,21 +80,30 @@ function useServerNow(offset: number, active: boolean) {
 
 // ---------------------------------------------------------------------------------------------
 
-export function DraftRoom({ code, data }: { code: string; data: DraftChampionData }) {
-  const [gameParam, setGameParam] = useState<number | null>(readGameParam);
-  const [roles, setRoles] = useState<Record<number, Me>>(() => loadRoles(code));
+/** Tela do OBS (link fixo de transmissão): espectador neutro, sem escolha nem cliques. */
+const TV_ME: Me = { team: 0, role: "spectator", neutral: true };
+
+/**
+ * `tv`: a sala aberta pelo link fixo de transmissão (`/draft/tv/<id>`). Entra como espectador neutro, segue
+ * sozinha para o jogo mais recente, esconde o que é para clicar e nunca pausa.
+ */
+export function DraftRoom({ code, data, tv = false }: { code: string; data: DraftChampionData; tv?: boolean }) {
+  const [gameParam, setGameParam] = useState<number | null>(() => (tv ? null : readGameParam()));
+  const [roles, setRoles] = useState<Record<number, Me>>(() => (tv ? {} : loadRoles(code)));
   const [latest, setLatest] = useState(1);
 
   // jogo exibido: o da URL ou, na primeira carga, o mais recente (depois só muda pelas abas/botões)
   const n = Math.min(gameParam ?? latest, latest);
-  const me = roles[n] ?? null;
-  const sync = useDraftSync(code, n, me?.neutral ? null : me);
+  const me = tv ? TV_ME : (roles[n] ?? null);
+  const sync = useDraftSync(code, n, me?.neutral ? null : me, { keepAwake: tv });
   const view = sync.view;
   const seen = view?.games.length ?? 1;
   if (view && seen !== latest) setLatest(seen);
   if (view && gameParam === null) setGameParam(seen);
   if (view && gameParam !== null && gameParam > seen) setGameParam(seen);
 
+  if (tv && (sync.status === "notfound" || sync.status === "expired")) return <TvStandby />;
+  if (tv && !view) return <TvStandby loading />;
   if (sync.status === "notfound") return <FullMessage title="Sala não encontrada" text="Confira o link. Ele pode ter sido digitado errado." />;
   if (sync.status === "expired") return <FullMessage title="Link expirado" text="As salas de draft ficam abertas por 32 horas. Crie uma nova para a próxima série." />;
   if (!view) return <FullMessage title="Carregando o draft…" text="" loading />;
@@ -108,9 +117,10 @@ export function DraftRoom({ code, data }: { code: string; data: DraftChampionDat
       n={n}
       me={me}
       sync={sync}
+      tv={tv}
       setGame={(k) => {
         setGameParam(k);
-        window.history.replaceState(null, "", `?jogo=${k}`);
+        if (!tv) window.history.replaceState(null, "", `?jogo=${k}`);
       }}
       setMe={(m) => {
         const next = { ...roles };
@@ -127,6 +137,22 @@ export function DraftRoom({ code, data }: { code: string; data: DraftChampionDat
 function lastTeamOf(roles: Record<number, Me>): TeamIdx | null {
   const keys = Object.keys(roles).map(Number).sort((a, b) => b - a);
   return keys.length ? roles[keys[0]].team : null;
+}
+
+/** Tela do OBS sem draft no ar (ou carregando): só a marca, para a cena não ficar com cara de erro. */
+export function TvStandby({ loading }: { loading?: boolean }) {
+  return (
+    <div className="relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden bg-bg-0 text-center">
+      <div className="pointer-events-none absolute inset-0 bg-lines opacity-60" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={INGEN_LOGO} alt="INGEN" className="relative w-[18vmin] drop-shadow-[0_0_40px_rgba(61,253,78,.35)]" />
+      <p className="relative font-display text-[6vmin] font-black uppercase leading-none text-white">Draft INGEN</p>
+      <p className="relative flex items-center gap-3 font-mono text-[1.6vmin] uppercase tracking-[0.3em] text-gray">
+        <span className={`size-[1vmin] rounded-full bg-green ${loading ? "animate-pulse" : ""}`} aria-hidden />
+        {loading ? "Carregando" : "Aguardando o próximo draft"}
+      </p>
+    </div>
+  );
 }
 
 function FullMessage({ title, text, loading }: { title: string; text: string; loading?: boolean }) {
@@ -158,6 +184,7 @@ function Room({
   setGame,
   setMe,
   lastTeam,
+  tv,
 }: {
   code: string;
   data: DraftChampionData;
@@ -168,6 +195,7 @@ function Room({
   setGame: (n: number) => void;
   setMe: (m: Me | null) => void;
   lastTeam: TeamIdx | null;
+  tv: boolean;
 }) {
   const cfg = view.config;
   const gi = n - 1;
@@ -275,6 +303,23 @@ function Room({
   const blueT = teamOnSide(g, "blue");
   const redT = teamOnSide(g, "red");
 
+  // OBS: segue sozinho para o próximo jogo (inclusive o "jogar mesmo assim" depois da série decidida, quando o
+  // draft dele começa). A animação do vencedor, quando passa, já faz isso no fim; aqui cobre o resto.
+  const nextGame = view.games[n];
+  const tvAdvance = tv && !!nextGame && !flashing && (!result.clinched || nextGame.status !== "lobby");
+  const setGameRef = useRef(setGame);
+  useEffect(() => {
+    setGameRef.current = setGame;
+  });
+  useEffect(() => {
+    if (!tvAdvance) return;
+    const id = setTimeout(() => setGameRef.current(n + 1), 1500);
+    return () => clearTimeout(id);
+  }, [tvAdvance, n]);
+  // série decidida, mas jogando um jogo a mais: no OBS sai a tela de campeão
+  const lastGame = view.games[view.games.length - 1];
+  const extraGame = tv && result.clinched && lastGame.winner === null && lastGame.status !== "lobby";
+
   const startCorrection = (s: number | null) => {
     setCorrecting(s);
     setSel(null);
@@ -313,7 +358,7 @@ function Room({
           <Requests g={g} cfg={cfg} myT={myT} send={send} byId={byId} />
           <div className="relative flex min-h-0 flex-1 flex-col border border-[var(--d-line)] bg-black/60 p-3">
             {g.status === "done" && correcting === null ? (
-              <DonePanel g={g} cfg={cfg} code={code} view={view} n={n} myT={myT} send={send} setGame={setGame} byId={byId} version={data.version} />
+              <DonePanel g={g} cfg={cfg} code={code} view={view} n={n} myT={myT} send={send} setGame={setGame} byId={byId} version={data.version} tv={tv} />
             ) : (
               <ChampionPicker
                 champions={data.champions}
@@ -350,7 +395,7 @@ function Room({
             cancelCorrection={() => startCorrection(null)}
             isLatest={isLatest}
           />
-          <RoleLine code={code} me={me} cfg={cfg} canChange={isLatest && (g.winner === null || neutral) && !!me} onChange={() => setMe(null)} />
+          {!tv && <RoleLine code={code} me={me} cfg={cfg} canChange={isLatest && (g.winner === null || neutral) && !!me} onChange={() => setMe(null)} />}
         </div>
         <BanRow side="red" {...common} />
       </footer>
@@ -392,7 +437,7 @@ function Room({
           }}
         />
       ) : null}
-      {!showJoin && !flashing && (result.clinched || result.over) && <Victory code={code} cfg={cfg} view={view} result={result} score={[a, b]} setGame={setGame} />}
+      {!showJoin && !flashing && !extraGame && (result.clinched || result.over) && <Victory code={code} cfg={cfg} view={view} result={result} score={[a, b]} setGame={setGame} tv={tv} />}
     </div>
   );
 }
@@ -960,6 +1005,7 @@ function DonePanel({
   myT,
   send,
   setGame,
+  tv,
 }: {
   g: GameView;
   cfg: RoomView["config"];
@@ -971,6 +1017,7 @@ function DonePanel({
   setGame: (n: number) => void;
   byId: Map<string, DraftChampion>;
   version: string;
+  tv?: boolean;
 }) {
   const next = view.games[n];
   const nextStarted = !!next && next.status !== "lobby";
@@ -999,7 +1046,7 @@ function DonePanel({
             Vitória de {cfg.teams[g.winner].name}
           </h2>
           {next ? (
-            <BigButton onClick={() => setGame(n + 1)}>Ir para o jogo {n + 1} →</BigButton>
+            tv ? null : <BigButton onClick={() => setGame(n + 1)}>Ir para o jogo {n + 1} →</BigButton>
           ) : (
             <p className="text-sm text-gray">Fim da série.</p>
           )}
@@ -1379,6 +1426,7 @@ function Victory({
   result,
   score: [a, b],
   setGame,
+  tv,
 }: {
   code: string;
   cfg: RoomView["config"];
@@ -1386,6 +1434,7 @@ function Victory({
   result: ReturnType<typeof seriesResult>;
   score: [number, number];
   setGame: (n: number) => void;
+  tv?: boolean;
 }) {
   const key = `ingen-draft:${code}:victory:${a}-${b}`;
   const [hidden, setHidden] = useState(() => {
@@ -1437,7 +1486,7 @@ function Victory({
         <p className="mt-1 text-sm text-gray">
           {cfg.teams[0].name} × {cfg.teams[1].name}
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className={`mt-8 flex flex-wrap justify-center gap-3 ${tv ? "hidden" : ""}`}>
           <button type="button" onClick={close} className="clip-step-sm bg-white px-6 py-3 font-mono text-[0.75rem] font-semibold uppercase tracking-[0.16em] text-bg-0 hover:brightness-90">
             Ver os drafts
           </button>

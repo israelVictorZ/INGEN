@@ -77,6 +77,25 @@ export async function tokenRequest(code: string, cid: string, did?: string) {
   return (await client()).auth.createTokenRequest({ clientId: did ? deviceClientId(did) : seatId(cid), capability, ttl: TOKEN_TTL_MS });
 }
 
+/** Canal do link fixo de transmissão (o `-` não aparece nos códigos de sala, então não colide com eles). */
+export const tvChannelName = (id: string) => `draft:tv-${id}`;
+
+/** Avisa a tela do OBS que outra sala entrou no ar. Erro só vai para o log. */
+export async function publishTv(id: string, code: string): Promise<void> {
+  if (!KEY) return;
+  try {
+    await (await client()).channels.get(tvChannelName(id)).publish({ name: "room", data: JSON.stringify({ code }), encoding: "json" });
+  } catch (e) {
+    console.error("draft: falha ao avisar a transmissão no Ably", e);
+  }
+}
+
+/** Token da tela do OBS: só assina o canal do link (sem presença). Mesmo clientId do aparelho que as salas usam. */
+export async function tvTokenRequest(id: string, did?: string) {
+  const capability = JSON.stringify({ [tvChannelName(id)]: ["subscribe"] });
+  return (await client()).auth.createTokenRequest({ clientId: did ? deviceClientId(did) : `tv-${id}`, capability, ttl: TOKEN_TTL_MS });
+}
+
 /**
  * Resumo da aba de um membro da presença, só se a assinatura confere. No formato antigo (clientId = resumo da
  * aba, sem `p`) o próprio clientId é o resumo: só o servidor emite esse clientId, e só para quem tem o cid.

@@ -18,13 +18,18 @@ export type RiftSlot =
   | { kind: "player"; role: Role; slug: string; name: string; tier: string | null; division: string | null; lp: number | null; icon: string | null }
   | { kind: "open"; role: Role };
 
-/** Posição de cada lane no minimapa (em %), lado azul. */
-const POS: Record<Role, { x: number; y: number }> = {
+/**
+ * Posição de cada lane no minimapa (em %), lado azul.
+ * ADC e SUP ficam em braços diferentes da bot lane (ADC na reta de baixo, SUP na da direita): juntos no canto,
+ * o nome do SUP caía em cima do avatar do ADC. O ADC, colado na borda de baixo, leva o nome à esquerda do avatar
+ * (embaixo sairia do mapa; em cima batia no nome do MID no celular). JG e MID afastados para os nomes não se tocarem.
+ */
+const POS: Record<Role, { x: number; y: number; label?: "left" }> = {
   TOP: { x: 14, y: 17 },
-  JUNGLE: { x: 31, y: 44 },
-  MID: { x: 52, y: 49 },
-  ADC: { x: 72, y: 86 },
-  SUPPORT: { x: 87, y: 70 },
+  JUNGLE: { x: 28, y: 48 },
+  MID: { x: 55, y: 45 },
+  ADC: { x: 64, y: 90, label: "left" },
+  SUPPORT: { x: 90, y: 52 },
 };
 
 /** Lanes no padrão do minimapa: cada uma sai da base aliada (canto inferior esquerdo) e termina na base inimiga. */
@@ -99,7 +104,7 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
         const inner = (
           <>
             <span
-              className={`relative flex size-14 items-center justify-center overflow-hidden rounded-full border-2 bg-bg-2 transition-transform duration-300 md:size-16 ${
+              className={`relative flex size-14 items-center justify-center overflow-hidden rounded-full border-2 bg-bg-2 transition-transform duration-300 max-[399px]:size-12 md:size-16 ${
                 active ? "scale-110" : ""
               } ${s.kind === "open" ? "border-dashed border-green/50" : ""}`}
               style={s.kind === "player" ? { borderColor: active ? color : "rgb(255 255 255 / .2)" } : undefined}
@@ -116,8 +121,10 @@ export function RiftMap({ slots, accent }: { slots: RiftSlot[]; accent: string }
             </span>
             {/* nos cantos do mapa o rótulo alinha para dentro (no celular ele passava da borda) */}
             <span
-              className={`pointer-events-none absolute top-full mt-2 whitespace-nowrap ${
-                pos.x < 22 ? "left-0 text-left" : pos.x > 78 ? "right-0 text-right" : "left-1/2 -translate-x-1/2 text-center"
+              className={`pointer-events-none absolute whitespace-nowrap ${
+                pos.label === "left"
+                  ? "right-full top-1/2 mr-2 -translate-y-1/2 text-right"
+                  : `top-full mt-2 ${pos.x < 22 ? "left-0 text-left" : pos.x > 78 ? "right-0 text-right" : "left-1/2 -translate-x-1/2 text-center"}`
               }`}
             >
               <span className="block font-display text-base font-extrabold uppercase leading-none text-white [text-shadow:0_1px_6px_rgb(0_0_0/0.9)] sm:text-lg md:text-xl">

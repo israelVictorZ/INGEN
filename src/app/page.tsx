@@ -8,6 +8,7 @@ import { RiftMastersCta } from "@/components/home/RiftMastersCta";
 import { LiveNowStrip, TeamTwitchPanel } from "@/components/live/Live";
 import { DiscordIcon } from "@/components/brand/SocialIcons";
 import { NewsCard } from "@/components/news/NewsCard";
+import { MottoStrip, OneIsFive } from "@/components/about/About";
 import { FEATURES, LINKS, RECRUIT_HREF } from "@/lib/features";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ORG_LD, SITE_DESCRIPTION, SITE_URL, abs, ogFor } from "@/lib/site";
@@ -206,9 +207,29 @@ export default async function Home() {
       </section>
       )}
 
-      {/* 03: Comunidade (Twitch + Discord) */}
+      {/* 03: A organização (resumo da página /sobre) */}
+      <section className="wrap pt-28 md:pt-40">
+        <SectionHead n="03" label="A organização" title="Ninguém melhora" muted="sozinho.">
+          <p data-reveal="up" className="mt-6 max-w-xl text-gray">
+            A INGEN é um time amador construído em cima de uma ideia: <span className="text-white-dim">a melhora do individual passa pela
+            melhora do coletivo</span>. Quem entra aqui vem para subir o próprio nível e o de quem joga ao lado.
+          </p>
+        </SectionHead>
+        <div className="mt-14 md:ml-[220px]">
+          <OneIsFive />
+        </div>
+        <div data-reveal="up" className="mt-3 md:ml-[220px]">
+          <MottoStrip>
+            <ButtonLink href="/sobre" className="shrink-0 self-start md:self-auto">
+              Conheça a INGEN
+            </ButtonLink>
+          </MottoStrip>
+        </div>
+      </section>
+
+      {/* 04: Comunidade (Twitch + Discord) */}
       <section className="wrap py-28 md:py-40">
-        <SectionHead n="03" label="Comunidade" title="Assista e" muted="chegue junto.">
+        <SectionHead n="04" label="Comunidade" title="Assista e" muted="chegue junto.">
           <p data-reveal="up" className="mt-6 max-w-xl text-gray">
             A INGEN transmite na Twitch. Quando o canal estiver ao vivo, a partida aparece aqui e um aviso fica fixo no canto da tela em
             qualquer página.
@@ -244,14 +265,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 04: Recrutamento */}
+      {/* 05: Recrutamento */}
       {openSlots.length > 0 && (
         <section className="wrap pb-10">
           <div data-reveal="scale" className="clip-step relative overflow-hidden bg-[image:var(--grad-ingen)] p-8 text-bg-0 md:p-16">
             <div className="pointer-events-none absolute inset-0 bg-dots opacity-30 mix-blend-multiply" />
             <div className="relative grid gap-10 md:grid-cols-[1.3fr_1fr] md:items-end">
               <div>
-                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">04 · Recrutamento</p>
+                <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em]">05 · Recrutamento</p>
                 <h2 className="mt-4 font-display text-[clamp(3rem,8vw,6.5rem)] font-black uppercase leading-[0.95]">
                   Sua lane está <br /> esperando.
                 </h2>

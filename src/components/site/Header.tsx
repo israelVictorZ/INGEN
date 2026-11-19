@@ -15,6 +15,7 @@ const ALL_NAV = [
   { href: "/comparar", label: "Comparar" },
   { href: `/scouting/${TEAM_DISPLAY.black.slug}`, label: "Scouting", match: "/scouting" },
   { href: "/noticias", label: "Notícias", feature: "news" as const },
+  { href: "/sobre", label: "Sobre" },
 ];
 const NAV = ALL_NAV.filter((n) => !("feature" in n && n.feature) || FEATURES[n.feature]);
 
@@ -44,9 +45,10 @@ export function Header() {
       }`}
     >
       <div className="wrap flex h-16 items-center justify-between gap-6">
-        <Link href="/" className="group flex items-center gap-3" aria-label="INGEN, início">
+        <Link href="/" className="group flex shrink-0 items-center gap-3" aria-label="INGEN, início">
           <Image src="/brand/ingen-logo.webp" alt="" width={42} height={35} priority className="transition-transform duration-500 group-hover:scale-110" />
-          <span className="font-display text-xl font-black tracking-[0.12em] text-white">INGEN</span>
+          {/* entre md e lg o menu completo não cabe ao lado da palavra; fica só o escudo */}
+          <span className="font-display text-xl font-black tracking-[0.12em] text-white md:max-lg:hidden">INGEN</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -56,11 +58,11 @@ export function Header() {
               <Link
                 key={n.href}
                 href={n.href}
-                className={`relative px-3 py-2 font-mono text-[0.72rem] uppercase tracking-[0.16em] transition-colors ${
+                className={`relative px-2 py-2 font-mono text-[0.72rem] uppercase tracking-[0.16em] transition-colors lg:px-3 ${
                   active ? "text-white" : "text-gray hover:text-white"
                 }`}
               >
-                {active && <span className="absolute left-1 top-1/2 size-1.5 -translate-y-1/2 bg-green" />}
+                {active && <span className="absolute left-0 top-1/2 size-1.5 -translate-y-1/2 bg-green lg:left-1" />}
                 {n.label}
               </Link>
             );

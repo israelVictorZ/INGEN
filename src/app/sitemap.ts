@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: abs("/ranking"), lastModified: updated, changeFrequency: "daily", priority: 0.8 },
     ...teams.map((t) => ({ url: abs(`/scouting/${t.slug}`), lastModified: updated, changeFrequency: "daily" as const, priority: 0.7 })),
     ...players.map((p) => ({ url: abs(`/jogador/${p.slug}`), lastModified: updated, changeFrequency: "daily" as const, priority: 0.8 })),
+    { url: abs("/sobre"), lastModified: new Date("2026-11-19"), changeFrequency: "monthly", priority: 0.6 },
     { url: abs("/comparar"), lastModified: updated, changeFrequency: "weekly", priority: 0.5 },
     ...(FEATURES.news ? [{ url: abs("/noticias"), lastModified: updated, changeFrequency: "weekly" as const, priority: 0.6 }] : []),
   ];

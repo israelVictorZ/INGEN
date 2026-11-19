@@ -5,6 +5,7 @@ import { TEAM_DISPLAY } from "@/lib/teams";
 import { Suspense } from "react";
 import { DiscordIcon, InstagramIcon, TwitchIcon, XIcon, YouTubeIcon } from "@/components/brand/SocialIcons";
 import { getSiteData } from "@/lib/data";
+import { MOTTO } from "@/lib/site";
 import { SyncStatus } from "./SyncStatus";
 
 async function LastSync() {
@@ -27,6 +28,9 @@ export function Footer() {
           <p className="mt-6 max-w-sm text-sm text-gray">
             Organização brasileira de League of Legends. Dois elencos, um só escudo.
           </p>
+          <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-gray-dim">
+            <span lang="la" className="text-green">{MOTTO.latin}</span> · {MOTTO.pt}
+          </p>
         </div>
         <div>
           <p className="label-mono mb-4">Times</p>
@@ -40,6 +44,7 @@ export function Footer() {
         <div>
           <p className="label-mono mb-4">Site</p>
           <ul className="space-y-2 text-sm">
+            <li><Link className="text-white-dim hover:text-green" href="/sobre">Sobre a organização</Link></li>
             <li><Link className="text-white-dim hover:text-green" href="/ranking">Ranking interno</Link></li>
             <li><Link className="text-white-dim hover:text-green" href="/comparar">Comparar jogadores</Link></li>
             <li><Link className="text-white-dim hover:text-green" href="/draft">Draft para scrims</Link></li>

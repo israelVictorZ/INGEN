@@ -20,6 +20,9 @@ export const SITE_DESCRIPTION =
 
 export const abs = (path = "/") => `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
+/** Lema da organização (página /sobre, home, rodapé e JSON-LD). */
+export const MOTTO = { latin: "Sic Parvis Magna", pt: "A grandeza vem dos pequenos começos." } as const;
+
 /** Organização (JSON-LD) reaproveitada como "memberOf"/"parentOrganization". */
 export const ORG_LD = {
   "@type": "SportsOrganization",
@@ -27,6 +30,7 @@ export const ORG_LD = {
   name: "INGEN",
   url: SITE_URL,
   logo: abs("/brand/ingen-logo.png"),
+  slogan: MOTTO.latin,
   sport: "League of Legends",
   sameAs: [LINKS.twitch, LINKS.discord, LINKS.instagram, LINKS.youtube, LINKS.x],
 } as const;
